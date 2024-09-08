@@ -111,6 +111,10 @@
 
 ;;;; Targets, modifiers, actions:
 
+;; Computation model:
+
+;; All values are targets.  Modifiers and actions are evaluators.
+
 (defun hatty-edit--bounds-of-thing-at (thing position)
   (save-excursion
     (goto-char position)
@@ -136,30 +140,31 @@
    :content-region (cons (min (car first-beginning) (car second-beginning))
                          (max (cdr first-end) (cdr second-end)))))
 
-(cl-defstruct hatty-edit--modifier
-  modifier-function
-  list-modifier-function)
-
 (defun hatty-edit--make-modifier (function &optional list-function)
   (unless list-function
-    (setq list-function (lambda (target-list)
-                          (cl-loop
-                           for target in target-list
-                           for modified = (funcall function target)
-                           if (consp modified) append modified
-                           else collect modified))))
-  (make-hatty-edit--modifier
-   :modifier-function function
-   :list-modifier-function list-function))
+    (setq list-function
+          (lambda (target-list)
+            (flatten-tree
+             (mapcar function target-list)))))
+  (lambda (environment)
+    (make-hatty-edit--environment
+     :value-stack
+     (let* ((value-stack (hatty-edit--environment-value-stack environment))
+            (result (if (length= value-stack 1)
+                        (funcall function (car value-stack))
+                      (funcall list-function value-stack))))
+       (if (not (listp result))
+           (list result)
+         result))
+     :evaluation-queue
+     (cdr (hatty-edit--environment-evaluation-queue environment)))))
 
 (defun hatty-edit--make-basic-modifier (function &optional list-function)
   ;; Only apply modifier on content
-  (make-hatty-edit--modifier
-   :modifier-function
+  (hatty-edit--make-modifier
    (lambda (target)
      (hatty-edit--make-target
       :content-region (funcall function (hatty-edit--target-content-region target))))
-   :list-modifier-function
    (if list-function
        (lambda (targets)
          (let ((new-region (funcall
@@ -180,13 +185,9 @@
                             (funcall function target)))))
   (lambda (environment)
     (let ((value-stack (hatty-edit--environment-value-stack environment)))
-      (cond
-       ((null value-stack)
-        (funcall list-function nil))
-       ((length= value-stack 1)
-        (funcall function (car value-stack)))
-       (t
-        (funcall list-function value-stack))))
+      (if (length= value-stack 1)
+          (funcall function (car value-stack))
+        (funcall list-function value-stack)))
     (make-hatty-edit--environment
      :value-stack nil
      :evaluation-queue (cdr (hatty-edit--environment-evaluation-queue environment)))))
@@ -279,12 +280,6 @@ cursors, return a single value instead of a list."
 
 (cl-defmethod hatty-edit--create-instruction ((target hatty-edit--target))
   (hatty-edit--push-constant target))
-
-(cl-defmethod hatty-edit--create-instruction ((modifier hatty-edit--modifier))
-  (hatty-edit--push-operator
-   1
-   (lambda (target)
-     (hatty-edit--apply-modifier modifier target))))
 
 (defun hatty-edit--perform-things (things)
   (hatty-edit--experimental-evaluate
