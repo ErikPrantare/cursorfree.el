@@ -188,16 +188,101 @@ cursors, return a single value instead of a list."
       result)))
 
 (defun hatty-edit--default-target ()
-  (if (region-active-p)
-      (hatty-edit--map-all-cursors
+  (hatty-edit--map-all-cursors
+   (if (region-active-p)
        (lambda ()
          (hatty-edit--make-target
           :content-region (cons (region-beginning)
-                                (region-end)))))
-    (hatty-edit--map-all-cursors
+                                (region-end))))
      (lambda ()
        (hatty-edit--make-target
         :content-region (bounds-of-thing-at-point 'symbol))))))
+
+;;;; Instruction interpreter:
+
+(cl-defstruct hatty-edit--environment
+  (evaluation-queue nil) (value-stack nil))
+
+(defvar hatty-edit--environment (make-hatty-edit--environment))
+
+(defun hatty-edit--push-calculation (environment calculation)
+  (make-hatty-edit--environment
+   :evaluation-queue (append (hatty-edit--environment-evaluation-queue environment)
+                             (list calculation))
+   :value-stack (hatty-edit--environment-value-stack environment)))
+
+(defun hatty-edit--remove-calculation (environment)
+  (make-hatty-edit--environment
+   :evaluation-queue (cdr (hatty-edit--environment-evaluation-queue environment))
+   :value-stack (hatty-edit--environment-value-stack environment)))
+
+(defun hatty-edit--push-value (environment value)
+  (make-hatty-edit--environment
+   :evaluation-queue (hatty-edit--environment-evaluation-queue environment)
+   :value-stack (append (hatty-edit--environment-value-stack environment)
+                        (list value))))
+
+(defun hatty-edit--peek-values (environment n)
+  (take n (hatty-edit--environment-value-stack environment)))
+
+(defun hatty-edit--remove-values (environment n)
+  (make-hatty-edit--environment
+   :evaluation-queue (hatty-edit--environment-evaluation-queue environment)
+   :value-stack (let ((value-stack (hatty-edit--environment-value-stack environment)))
+                  (dotimes (i n) (pop value-stack)))))
+
+(defun hatty-edit--pop-values (environment n)
+  (cons (hatty-edit--peek-values environment n)
+        (hatty-edit--remove-values environment n)))
+
+(defun hatty-edit--evaluate-environment (environment)
+  (let ((previous nil))
+    (while (and (hatty-edit--environment-evaluation-queue environment)
+                (not (eq environment previous)))
+      (setq previous environment)
+      (setq environment
+            (funcall (car (hatty-edit--environment-evaluation-queue environment))
+                     environment))))
+  environment)
+
+(defun hatty-edit--push-constant (value)
+  (lambda (environment)
+    (hatty-edit--remove-calculation
+     (hatty-edit--push-value environment value))))
+
+(defun hatty-edit--push-operator (arity operator)
+  (lambda (environment)
+     (hatty-edit--remove-calculation
+      (cl-destructuring-bind (values . new-environment)
+          (hatty-edit--pop-values environment arity)
+        (hatty-edit--push-value new-environment (apply operator values))))))
+
+(defun hatty-edit--push-routine (arity routine)
+  (lambda (environment)
+     (hatty-edit--remove-calculation
+      (cl-destructuring-bind (values . new-environment)
+          (hatty-edit--pop-values environment arity)
+        (apply routine values)
+        (hatty-edit--remove-calculation new-environment)))))
+
+(defun hatty-edit--push-target (character &optional color shape)
+  (hatty-edit--push-constant
+   (hatty-edit--make-target-from-hat character color shape)))
+
+(defun hatty-edit--push-modifier (modifier)
+  (hatty-edit--push-operator 1
+   (lambda (target)
+       (hatty-edit--apply-modifier modifier target))))
+
+(defun hatty-edit--push-action (action)
+  (hatty-edit--push-routine 1
+   (lambda (target)
+     (hatty-edit--apply-action action target))))
+
+(defun hatty-edit--experimental-evaluate (calculations)
+  (hatty-edit--evaluate-environment
+   (make-hatty-edit--environment
+    :evaluation-queue calculations)))
 
 ;;;; Default actions:
 
