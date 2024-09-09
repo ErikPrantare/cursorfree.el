@@ -28,7 +28,6 @@
 
 ;;; TODO
 ;;;; Commentary
-;;;; Tests
 ;;;; Docstrings
 
 ;;; Code:
@@ -122,6 +121,15 @@
    (make-hatty-edit--environment
     :instruction-queue instructions)))
 
+(defmacro hatty-edit--define-operator (name &rest forms)
+  (declare (indent defun))
+  `(put ',name 'hatty-edit--operator ',forms))
+
+(defun hatty-edit--get-operator (name)
+  (get name 'hatty-edit--operator))
+
+(defalias #'hatty-edit--operatorp #'hatty-edit--get-operator)
+
 (defmacro hatty-edit--perform-operations (environment &rest forms)
   (declare (indent defun))
   (if (null forms)
@@ -129,19 +137,31 @@
     (let ((instruction (car forms))
           (rest (cdr forms))
           (new-environment-variable (make-symbol "environment")))
-      (cl-case (car instruction)
-        (pop `(cl-destructuring-bind (,(cadr instruction)
-                                      . ,new-environment-variable)
-                  (hatty-edit--pop-value ,environment)
-                (hatty-edit--perform-operations  ,new-environment-variable
-                  ,@rest)))
-        (push `(let ((,new-environment-variable
-                      (hatty-edit--push-value ,environment ,(cadr instruction))))
-                 (hatty-edit--perform-operations ,new-environment-variable
+      (pcase (car instruction)
+        ((pred hatty-edit--operatorp)
+         `(hatty-edit--perform-operations ,environment
+            ,@(hatty-edit--get-operator (car instruction))
+            ,@rest))
+        ('pop (if (nlistp (cadr instruction))
+                  `(cl-destructuring-bind (,(cadr instruction)
+                                           . ,new-environment-variable)
+                       (hatty-edit--pop-value ,environment)
+                     (hatty-edit--perform-operations ,new-environment-variable
+                       ,@rest))
+                ;; Syntactic sugar: Popping to a list of variables.
+                ;; Popping is done in the opposite order as the
+                ;; variables are given.
+                `(hatty-edit--perform-operations ,environment
+                   ,@(reverse
+                      (mapcar (lambda (var) `(pop ,var)) (cadr instruction)))
                    ,@rest)))
-        (eval `(progn ,(cadr instruction)
-                      (hatty-edit--perform-operations ,environment
-                        ,@rest)))))))
+        ('push `(let ((,new-environment-variable
+                       (hatty-edit--push-value ,environment ,(cadr instruction))))
+                  (hatty-edit--perform-operations ,new-environment-variable
+                    ,@rest)))
+        ('eval `(progn ,(cadr instruction)
+                       (hatty-edit--perform-operations ,environment
+                         ,@rest)))))))
 
 (defmacro hatty-edit--create-instruction (&rest forms)
   (declare (indent defun))
@@ -150,21 +170,37 @@
       (hatty-edit--perform-operations environment
         ,@forms))))
 
+(defmacro hatty-edit--create-self-managing-instruction (&rest forms)
+  (declare (indent defun))
+  `(lambda (environment)
+     (hatty-edit--perform-operations environment
+       ,@forms)))
+
 ;;;; Targets, modifiers, actions:
 
 ;; Computation model:
 
 ;; All values are targets.  Modifiers and actions are evaluators.
 
+(defun hatty-edit--markify-region (region)
+  (cons (if (markerp (car region))
+            (car region)
+          (move-marker (make-marker) (car region)))
+        (if (markerp (cdr region))
+            (cdr region)
+          (move-marker (make-marker) (cdr region)))))
+
 (defun hatty-edit--bounds-of-thing-at (thing position)
   (save-excursion
     (goto-char position)
-    (bounds-of-thing-at-point thing)))
+    (hatty-edit--markify-region
+     (bounds-of-thing-at-point thing))))
 
 (cl-defun hatty-edit--make-target (content-region)
   (hatty-edit--push-constant
-   (cons (move-marker (make-marker) (car content-region))
-         (move-marker (make-marker) (cdr content-region)))))
+   (hatty-edit--markify-region
+    (cons (car content-region)
+          (cdr content-region)))))
 
 (defun hatty-edit--make-target-from-hat (character &optional color shape)
   (hatty-edit--make-target
@@ -254,6 +290,45 @@ cursors, return a single value instead of a list."
         (eval
          (let ((deletion-region (hatty-edit--deletion-region region)))
            (kill-region (car deletion-region) (cdr deletion-region))))))
+    ("bring" .
+     ,(hatty-edit--create-instruction
+        (pop (destination source))
+        (eval (progn
+                ;; Use default target here?
+                (unless destination
+                  (setq destination (cons (point) (point))))
+                (save-excursion
+                  (goto-char (car destination))
+                  (delete-region (car destination) (cdr destination))
+                  ;; Make sure to move point when inserting
+                  (insert-before-markers (buffer-substring (car source) (cdr source))))))))
+    ("move" .
+     ,(hatty-edit--create-instruction
+        (pop (destination source))
+        (eval (progn
+                ;; Use default target here?
+                (unless destination
+                  (setq destination (cons (point) (point))))
+                (save-excursion
+                  (goto-char (car destination))
+                  (delete-region (car destination) (cdr destination))
+                  ;; Make sure to move point when inserting
+                  (insert-before-markers (buffer-substring (car source) (cdr source)))
+                  (let ((deletion-region (hatty-edit--deletion-region source)))
+                    (delete-region (car deletion-region) (cdr deletion-region))))))))
+    ("swap" .
+     ,(hatty-edit--create-instruction
+        (pop (first second))
+        (eval (progn
+                (let ((first-string (buffer-substring (car first) (cdr first)))
+                      (second-string (buffer-substring (car second) (cdr second))))
+                  (delete-region (car first) (cdr first))
+                  (delete-region (car second) (cdr second))
+                  (save-excursion
+                    (goto-char (car first))
+                    (insert second-string)
+                    (goto-char (car second))
+                    (insert first-string)))))))
     ("pre" .
      ,(hatty-edit--make-multiple-cursors-action
        (lambda (region)
@@ -281,21 +356,23 @@ cursors, return a single value instead of a list."
 (defvar hatty-edit-modifiers
   `(("paint" . ,(hatty-edit--make-parallel-modifier
                  (lambda (region)
-                   (cons (save-excursion
-                           (goto-char (car region))
-                           (skip-chars-backward "^[:space:]\n")
-                           (point))
-                         (save-excursion
-                           (goto-char (cdr region))
-                           (skip-chars-forward "^[:space:]\n")
-                           (point))))))
+                   (hatty-edit--make-target
+                    (cons (save-excursion
+                            (goto-char (car region))
+                            (skip-chars-backward "^[:space:]\n")
+                            (point))
+                          (save-excursion
+                            (goto-char (cdr region))
+                            (skip-chars-forward "^[:space:]\n")
+                            (point)))))))
     ("past" . ,(hatty-edit--create-instruction
                  (pop first-target)
                  (pop second-target)
-                 (push (cons (min (car first-target)
-                                  (car second-target))
-                             (max (cdr first-target)
-                                  (cdr second-target))))))))
+                 (push (hatty-edit--make-target
+                        (cons (min (car first-target)
+                                   (car second-target))
+                              (max (cdr first-target)
+                                   (cdr second-target)))))))))
 
 ;;; hatty-edit.el ends soon
 (provide 'hatty-edit)
