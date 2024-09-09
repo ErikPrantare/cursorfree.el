@@ -84,28 +84,37 @@
                      environment))))
   environment)
 
+(defun hatty-edit--evaluate-environment-debug (environment)
+  (let ((previous nil))
+    (while (and (hatty-edit--environment-evaluation-queue environment)
+                (not (eq environment previous)))
+      (insert (format "\n%s\n" (hatty-edit--environment-value-stack environment)))
+      (setq previous environment)
+      (setq environment
+            (funcall (car (hatty-edit--environment-evaluation-queue environment))
+                     environment))))
+  (insert (format "\n%s" environment))
+  environment)
+
 (defun hatty-edit--push-constant (value)
   (lambda (environment)
     (hatty-edit--remove-calculation
      (hatty-edit--push-value environment value))))
 
-(defun hatty-edit--push-operator (arity operator)
+(defun hatty-edit--lift-stack-function (stack-function)
   (lambda (environment)
-     (hatty-edit--remove-calculation
-      (cl-destructuring-bind (values . new-environment)
-          (hatty-edit--pop-values environment arity)
-        (hatty-edit--push-value new-environment (apply operator values))))))
+    (make-hatty-edit--environment
+     :evaluation-queue (cdr (hatty-edit--environment-evaluation-queue environment))
+     :value-stack (funcall stack-function
+                           (hatty-edit--environment-value-stack environment)))))
 
-(defun hatty-edit--push-routine (arity routine)
-  (lambda (environment)
-     (hatty-edit--remove-calculation
-      (cl-destructuring-bind (values . new-environment)
-          (hatty-edit--pop-values environment arity)
-        (apply routine values)
-        (hatty-edit--remove-calculation new-environment)))))
-
-(defun hatty-edit--experimental-evaluate (calculations)
+(defun hatty-edit--evaluate (calculations)
   (hatty-edit--evaluate-environment
+   (make-hatty-edit--environment
+    :evaluation-queue calculations)))
+
+(defun hatty-edit--evaluate-debug (calculations)
+  (hatty-edit--evaluate-environment-debug
    (make-hatty-edit--environment
     :evaluation-queue calculations)))
 
@@ -120,95 +129,25 @@
     (goto-char position)
     (bounds-of-thing-at-point thing)))
 
-(cl-defstruct hatty-edit--target
-  content-region)
-
-(cl-defun hatty-edit--make-target (&key content-region)
-  (make-hatty-edit--target
-   :content-region (cons (move-marker (make-marker) (car content-region))
-                         (move-marker (make-marker) (cdr content-region)))))
+(cl-defun hatty-edit--make-target (content-region)
+  (hatty-edit--push-constant
+   (cons (move-marker (make-marker) (car content-region))
+         (move-marker (make-marker) (cdr content-region)))))
 
 (defun hatty-edit--make-target-from-hat (character &optional color shape)
   (hatty-edit--make-target
-   :content-region (hatty-edit--bounds-of-thing-at
-                    'symbol
-                    (hatty-locate character color shape))))
+   (hatty-edit--bounds-of-thing-at
+    'symbol
+    (hatty-locate character color shape))))
 
 (defun hatty-edit--make-contiguous-target (first-target second-target)
   "Make smallest target covering FIRST-TARGET and SECOND-TARGET."
   (hatty-edit--make-target
-   :content-region (cons (min (car first-beginning) (car second-beginning))
-                         (max (cdr first-end) (cdr second-end)))))
+   (cons (min (car first-beginning) (car second-beginning))
+         (max (cdr first-end) (cdr second-end)))))
 
-(defun hatty-edit--make-modifier (function &optional list-function)
-  (unless list-function
-    (setq list-function
-          (lambda (target-list)
-            (flatten-tree
-             (mapcar function target-list)))))
-  (lambda (environment)
-    (make-hatty-edit--environment
-     :value-stack
-     (let* ((value-stack (hatty-edit--environment-value-stack environment))
-            (result (if (length= value-stack 1)
-                        (funcall function (car value-stack))
-                      (funcall list-function value-stack))))
-       (if (not (listp result))
-           (list result)
-         result))
-     :evaluation-queue
-     (cdr (hatty-edit--environment-evaluation-queue environment)))))
-
-(defun hatty-edit--make-basic-modifier (function &optional list-function)
-  ;; Only apply modifier on content
-  (hatty-edit--make-modifier
-   (lambda (target)
-     (hatty-edit--make-target
-      :content-region (funcall function (hatty-edit--target-content-region target))))
-   (if list-function
-       (lambda (targets)
-         (let ((new-region (funcall
-                            list-function
-                            (mapcar #'hatty-edit--target-content-region targets))))
-           (if (proper-list-p new-region)
-               (mapcar (lambda (region)
-                         (hatty-edit--make-target
-                          :content-region region))
-                       new-region)
-             (hatty-edit--make-target
-                          :content-region new-region)))))))
-
-(defun hatty-edit--make-action (function &optional list-function)
-  (unless list-function
-    (setq list-function (lambda (target-list)
-                          (dolist (target target-list)
-                            (funcall function target)))))
-  (lambda (environment)
-    (let ((value-stack (hatty-edit--environment-value-stack environment)))
-      (if (length= value-stack 1)
-          (funcall function (car value-stack))
-        (funcall list-function value-stack)))
-    (make-hatty-edit--environment
-     :value-stack nil
-     :evaluation-queue (cdr (hatty-edit--environment-evaluation-queue environment)))))
-
-(defun hatty-edit--make-content-action (function &optional list-function)
-  (let* ((target-function
-          (lambda (target)
-            (funcall function
-                     (hatty-edit--target-content-region target))))
-         (target-list-function
-          (if list-function
-              (lambda (target-list)
-                (funcall list-function (mapcar #'hatty-edit--target-content-region
-                                               target-list)))
-            (lambda (target-list)
-              (dolist (target target-list)
-                (funcall target-function target))))))
-    (hatty-edit--make-action target-function target-list-function)))
-
-(defun hatty-edit--make-multiple-cursor-content-action (function)
-  (let* ((list-function
+(defun hatty-edit--make-multiple-cursors-action (function)
+  (let* ((stack-function
            (lambda (regions)
              (when regions
                ;; Clear any previous multiple cursors
@@ -219,30 +158,18 @@
                (dolist (region (cdr regions))
                  (mc/create-fake-cursor-at-point)
                  (funcall function region))))))
-    (hatty-edit--make-content-action function list-function)))
+    (hatty-edit--lift-stack-function stack-function)))
 
 (defun hatty-edit--make-thing-modifier (thing)
   ;; Expands from car of region
-  (hatty-edit--make-modifier
-   (lambda (target)
-     (hatty-edit--make-target
-      :content-region
-      (hatty-edit--bounds-of-thing-at thing
-                                      (car (hatty-edit--target-content-region target)))))))
-
-(defun hatty-edit--apply-modifier (modifier target)
-  (cond
-   ((listp target)
-    (funcall (hatty-edit--modifier-list-modifier-function modifier) target))
-   (t
-    (funcall (hatty-edit--modifier-modifier-function modifier) target))))
-
-(defun hatty-edit--apply-action (action target)
-  (cond
-   ((listp target)
-    (funcall (hatty-edit--action-list-action-function action) target))
-   (t
-    (funcall (hatty-edit--action-action-function action) target))))
+  (lambda (environment)
+    (let* ((popped (hatty-edit--pop-values environment 1))
+           (popped-environment (car popped))
+           (popped-value (cdr popped)))
+      (hatty-edit--remove-calculation
+       (hatty-edit--push-value
+        (hatty-edit--bounds-of-thing-at thing
+                                        (car target)))))))
 
 (defun hatty-edit--map-all-cursors (function)
   "Perform FUNCTION on point and all fake cursors.
@@ -264,75 +191,67 @@ cursors, return a single value instead of a list."
    (if (region-active-p)
        (lambda ()
          (hatty-edit--make-target
-          :content-region (cons (region-beginning)
-                                (region-end))))
+          (cons (region-beginning)
+                (region-end))))
      (lambda ()
        (hatty-edit--make-target
-        :content-region (bounds-of-thing-at-point 'symbol))))))
+        (bounds-of-thing-at-point 'symbol))))))
 
-(defun hatty-edit--push-target (character &optional color shape)
-  (hatty-edit--push-constant
-   (hatty-edit--make-target-from-hat character color shape)))
+(defun hatty-edit--make-parallel-modifier (modifier)
+  (hatty-edit--lift-stack-function
+   (lambda (regions)
+     (mapcar modifier regions))))
 
-(cl-defgeneric hatty-edit--create-instruction (thing)
-  ;; By default, assume we are being passed an instruction
-  thing)
+(defun hatty-edit--make-parallel-action (action)
+  (hatty-edit--lift-stack-function
+   (lambda (regions)
+     (mapcar action regions)
+     nil)))
 
-(cl-defmethod hatty-edit--create-instruction ((target hatty-edit--target))
-  (hatty-edit--push-constant target))
-
-(defun hatty-edit--perform-things (things)
-  (hatty-edit--experimental-evaluate
-   (mapcar #'hatty-edit--create-instruction things)))
 
 ;;;; Default actions:
 
 (defvar hatty-edit-actions
   `(("select" .
-     ,(hatty-edit--make-multiple-cursor-content-action
+     ,(hatty-edit--make-multiple-cursors-action
        (lambda (region)
          (set-mark (car region))
          (goto-char (cdr region)))))
     ("pre" .
-     ,(hatty-edit--make-multiple-cursor-content-action
+     ,(hatty-edit--make-multiple-cursors-action
        (lambda (region)
          (goto-char (car region)))))
     ("post" .
-     ,(hatty-edit--make-multiple-cursor-content-action
+     ,(hatty-edit--make-multiple-cursors-action
        (lambda (region)
          (goto-char (cdr region)))))
     ("change" .
-     ,(hatty-edit--make-multiple-cursor-content-action
+     ,(hatty-edit--make-multiple-cursors-action
        (lambda (region)
          (goto-char (car region))
          (kill-region (car region) (cdr region)))))
     ("comment" .
-     ,(hatty-edit--make-content-action
+     ,(hatty-edit--make-parallel-action
        (lambda (region)
          (comment-region (car region) (cdr region)))))
     ("uncomment" .
-     ,(hatty-edit--make-content-action
+     ,(hatty-edit--make-parallel-action
        (lambda (region)
          (uncomment-region (car region) (cdr region)))))))
 
 ;;;; Default modifiers:
 
 (defvar hatty-edit-modifiers
-  `(("paint" . ,(hatty-edit--make-basic-modifier
+  `(("paint" . ,(hatty-edit--make-parallel-modifier
                  (lambda (region)
                    (cons (save-excursion
                            (goto-char (car region))
-                           (skip-chars-backward "^[:space:]")
+                           (skip-chars-backward "^[:space:]\n")
                            (point))
                          (save-excursion
                            (goto-char (cdr region))
-                           (skip-chars-forward "^[:space:]")
-                           (point))))))
-    ("fill" . ,(hatty-edit--make-basic-modifier
-                 #'identity
-                 (lambda (regions)
-                   (cons (apply #'min (mapcar #'car regions))
-                         (apply #'max (mapcar #'cdr regions))))))))
+                           (skip-chars-forward "^[:space:]\n")
+                           (point))))))))
 
 ;;; hatty-edit.el ends soon
 (provide 'hatty-edit)
