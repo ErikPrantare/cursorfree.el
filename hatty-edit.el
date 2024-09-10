@@ -71,9 +71,6 @@
             acc))
     (reverse acc)))
 
-(defun hatty-edit--push-constant (value)
-  `(const ,value))
-
 (defun hatty-edit--lift-stack-function (stack-function)
   (hatty-edit--make-instruction
    `((amalgamate-stack)
@@ -92,6 +89,18 @@
 
 (defun hatty-edit--get-macro (name)
   (get name 'hatty-edit--macro))
+
+(defun hatty-edit--define-simple-macro (macro-name forms)
+  (declare (indent defun))
+  (hatty-edit--define-macro macro-name
+    (lambda (environment)
+      (hatty-edit--push-instructions environment forms))))
+
+(defun hatty-edit--make-instruction (forms)
+  (declare (indent defun))
+  (let ((operation (make-symbol "operation")))
+     (hatty-edit--define-simple-macro operation forms)
+     (list operation)))
 
 (defun hatty-edit--evaluate-environment (environment)
   (declare (indent defun))
@@ -122,21 +131,20 @@
                    environment
                    (funcall (cadr instruction)
                             (hatty-edit--pop-value environment))))
+        ('map (let ((function (hatty-edit--pop-value environment))
+                    (values (hatty-edit--pop-value environment)))
+                (hatty-edit--push-value environment
+                 (apply #'append
+                  (mapcar (lambda (value)
+                            (hatty-edit--environment-value-stack
+                             (hatty-edit--evaluate-environment
+                               (make-hatty-edit--environment
+                                :instruction-stack (apply #'list function)
+                                :value-stack (list value)))))
+                          values)))))
         (_ (apply (hatty-edit--get-macro (car instruction))
                   (cons environment (cdr instruction)))))))
   environment)
-
-(defun hatty-edit--define-simple-macro (macro-name forms)
-  (declare (indent defun))
-  (hatty-edit--define-macro macro-name
-    (lambda (environment)
-      (hatty-edit--push-instructions environment forms))))
-
-(defun hatty-edit--make-instruction (forms)
-  (declare (indent defun))
-  (let ((operation (make-symbol "operation")))
-     (hatty-edit--define-simple-macro operation forms)
-     (list operation)))
 
 ;;;; Targets, modifiers, actions:
 
@@ -155,10 +163,9 @@
      (bounds-of-thing-at-point thing))))
 
 (cl-defun hatty-edit--make-target (content-region)
-  (hatty-edit--push-constant
-   (hatty-edit--markify-region
-    (cons (car content-region)
-          (cdr content-region)))))
+  `(const ,(hatty-edit--markify-region
+            (cons (car content-region)
+                  (cdr content-region)))))
 
 (defun hatty-edit--make-target-from-hat (character &optional color shape)
   (hatty-edit--make-target
@@ -186,7 +193,7 @@
   (let ((function (lambda (target)
                     (hatty-edit--bounds-of-thing-at thing (car target)))))
     (hatty-edit--make-instruction
-      `((apply ,function)))))
+      `((funcall ,function)))))
 
 (defun hatty-edit--map-all-cursors (function)
   "Perform FUNCTION on point and all fake cursors.

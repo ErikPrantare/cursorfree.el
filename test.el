@@ -95,4 +95,10 @@
     '((const ((drop)))
       (eval-quoted))))
 
+(ert-deftest hatty-edit--interpreter-map ()
+  "map applies function across substack."
+  (hatty-edit--result-should-equal  '((5 3 5)) '((25 9 25))
+    '((const ((funcall (lambda (x) (* x x)))))
+      (map))))
+
 ;;; test.el ends here
