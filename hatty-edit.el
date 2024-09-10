@@ -44,91 +44,56 @@
 (defvar hatty-edit--environment (make-hatty-edit--environment))
 
 (defun hatty-edit--push-instruction (environment instruction)
-  (make-hatty-edit--environment
-   :instruction-queue (append (hatty-edit--environment-instruction-queue environment)
-                             (list instruction))
-   :value-stack (hatty-edit--environment-value-stack environment)))
+  (push instruction (hatty-edit--environment-instruction-queue environment)))
 
-(defun hatty-edit--remove-instruction (environment)
-  (make-hatty-edit--environment
-   :instruction-queue (cdr (hatty-edit--environment-instruction-queue environment))
-   :value-stack (hatty-edit--environment-value-stack environment)))
+(defun hatty-edit--pop-instruction (environment)
+  (pop (hatty-edit--environment-instruction-queue environment)))
 
 (defun hatty-edit--push-value (environment value)
-  (make-hatty-edit--environment
-   :instruction-queue (hatty-edit--environment-instruction-queue environment)
-   :value-stack (cons value (hatty-edit--environment-value-stack environment))))
+  (push value (hatty-edit--environment-value-stack environment)))
 
 (defun hatty-edit--peek-values (environment n)
   (take n (hatty-edit--environment-value-stack environment)))
 
-(defun hatty-edit--remove-values (environment n)
-  (make-hatty-edit--environment
-   :instruction-queue (hatty-edit--environment-instruction-queue environment)
-   :value-stack (let ((value-stack (hatty-edit--environment-value-stack environment)))
-                  (dotimes (i n) (setq value-stack (cdr value-stack)))
-                  value-stack)))
+(defun hatty-edit--pop-value (environment)
+  (pop (hatty-edit--environment-value-stack environment)))
 
 (defun hatty-edit--pop-values (environment n)
-  (cons (hatty-edit--peek-values environment n)
-        (hatty-edit--remove-values environment n)))
-
-(defun hatty-edit--pop-value (environment)
-  (cons (car (hatty-edit--peek-values environment 1))
-        (hatty-edit--remove-values environment 1)))
+  (let ((acc nil))
+    (dotimes (i n)
+      (push (pop (hatty-edit--environment-value-stack environment))
+            acc))
+    acc))
 
 (defun hatty-edit--evaluate-environment (environment)
-  (let ((previous nil))
-    (while (and (hatty-edit--environment-instruction-queue environment)
-                (not (eq environment previous)))
-      (setq previous environment)
-      (setq environment
-            (funcall (car (hatty-edit--environment-instruction-queue environment))
-                     environment))))
-  environment)
-
-(defun hatty-edit--evaluate-environment-debug (environment)
-  (let ((previous nil))
-    (while (and (hatty-edit--environment-instruction-queue environment)
-                (not (eq environment previous)))
-      (insert (format "\n%s\n" (hatty-edit--environment-value-stack environment)))
-      (setq previous environment)
-      (setq environment
-            (funcall (car (hatty-edit--environment-instruction-queue environment))
-                     environment))))
-  (insert (format "\n%s" environment))
+  (while (hatty-edit--environment-instruction-queue environment)
+    (funcall (car (hatty-edit--environment-instruction-queue environment))
+             environment))
   environment)
 
 (defun hatty-edit--push-constant (value)
   (lambda (environment)
-    (hatty-edit--remove-instruction
-     (hatty-edit--push-value environment value))))
+    (hatty-edit--push-value environment value)
+    (hatty-edit--pop-instruction environment)))
 
 (defun hatty-edit--lift-stack-function (stack-function)
   (lambda (environment)
-    (make-hatty-edit--environment
-     :instruction-queue (cdr (hatty-edit--environment-instruction-queue environment))
-     :value-stack (funcall stack-function
-                           (hatty-edit--environment-value-stack environment)))))
+    (hatty-edit--pop-instruction
+     (setf (hatty-edit--environment-value-stack environment)
+           (funcall stack-function
+                    (hatty-edit--environment-value-stack environment))))))
 
 (defun hatty-edit--evaluate (instructions)
   (hatty-edit--evaluate-environment
    (make-hatty-edit--environment
     :instruction-queue instructions)))
 
-(defun hatty-edit--evaluate-debug (instructions)
-  (hatty-edit--evaluate-environment-debug
-   (make-hatty-edit--environment
-    :instruction-queue instructions)))
-
-(defmacro hatty-edit--define-operator (name &rest forms)
+(defun hatty-edit--define-macro (name macro)
   (declare (indent defun))
-  `(put ',name 'hatty-edit--operator ',forms))
+  (put name 'hatty-edit--macro macro))
 
-(defun hatty-edit--get-operator (name)
-  (get name 'hatty-edit--operator))
-
-(defalias #'hatty-edit--operatorp #'hatty-edit--get-operator)
+(defun hatty-edit--get-macro (name)
+  (get name 'hatty-edit--macro))
 
 (defmacro hatty-edit--perform-operations (environment &rest forms)
   (declare (indent defun))
@@ -138,37 +103,42 @@
           (rest (cdr forms))
           (new-environment-variable (make-symbol "environment")))
       (pcase (car instruction)
-        ((pred hatty-edit--operatorp)
-         `(hatty-edit--perform-operations ,environment
-            ,@(hatty-edit--get-operator (car instruction))
-            ,@rest))
-        ('pop (if (nlistp (cadr instruction))
-                  `(cl-destructuring-bind (,(cadr instruction)
-                                           . ,new-environment-variable)
-                       (hatty-edit--pop-value ,environment)
-                     (hatty-edit--perform-operations ,new-environment-variable
-                       ,@rest))
-                ;; Syntactic sugar: Popping to a list of variables.
-                ;; Popping is done in the opposite order as the
-                ;; variables are given.
-                `(hatty-edit--perform-operations ,environment
-                   ,@(reverse
-                      (mapcar (lambda (var) `(pop ,var)) (cadr instruction)))
+        ('pop `(let* ((,new-environment-variable ,environment)
+                      (,(cadr instruction)
+                       (hatty-edit--pop-value ,new-environment-variable)))
+                 (hatty-edit--perform-operations ,new-environment-variable
                    ,@rest)))
-        ('push `(let ((,new-environment-variable
-                       (hatty-edit--push-value ,environment ,(cadr instruction))))
+        ('push `(let ((,new-environment-variable ,environment))
+                  (hatty-edit--push-value ,new-environment-variable ,(cadr instruction))
                   (hatty-edit--perform-operations ,new-environment-variable
                     ,@rest)))
         ('eval `(progn ,(cadr instruction)
                        (hatty-edit--perform-operations ,environment
-                         ,@rest)))))))
+                         ,@rest)))
+        ('list `(let ((,new-environment-variable ,environment))
+                  (hatty-edit--push-value
+                   ,new-environment-variable
+                   (reverse
+                    (hatty-edit--pop-values ,new-environment-variable ,(cadr instruction))))
+                  (hatty-edit--perform-operations ,new-environment-variable
+                    ,@rest)))
+        ('apply `(let ((,new-environment-variable ,environment))
+                   (hatty-edit--push-value
+                    ,new-environment-variable
+                    (apply ,(cadr instruction)
+                           (hatty-edit--pop-value ,new-environment-variable)))
+                   (hatty-edit--perform-operations ,new-environment-variable
+                     ,@rest)))
+        (_ `(hatty-edit--perform-operations ,environment
+              ,@(apply (hatty-edit--get-macro (car instruction))
+                       (cdr instruction))
+              ,@rest))))))
 
 (defmacro hatty-edit--create-instruction (&rest forms)
   (declare (indent defun))
   `(lambda (environment)
-     (hatty-edit--remove-instruction
-      (hatty-edit--perform-operations environment
-        ,@forms))))
+     (hatty-edit--perform-operations environment ,@forms)
+     (hatty-edit--pop-instruction environment)))
 
 (defmacro hatty-edit--create-self-managing-instruction (&rest forms)
   (declare (indent defun))
