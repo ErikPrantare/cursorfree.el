@@ -33,7 +33,7 @@
                   (hatty-edit--evaluate-environment
                     (make-hatty-edit--environment
                      :value-stack initial-stack
-                     :instruction-queue instructions))))))
+                     :instruction-stack instructions))))))
 
 (ert-deftest hatty-edit--interpreter-const ()
   "const adds to the stack."
@@ -72,11 +72,11 @@
 
 (ert-deftest hatty-edit--interpreter-anonymous-macro ()
   "One can define anonymous macros."
-  ;; TODO don't make destructive
   (hatty-edit--result-should-equal '(5 3) '(8)
-    `(,(hatty-edit--create-instruction
-         '((list 2)
-           (apply +))))))
+    (list
+     (hatty-edit--make-instruction
+       '((list 2)
+         (apply +))))))
 
 (ert-deftest hatty-edit--interpreter-function-invocation ()
   "One may apply functions."
@@ -87,6 +87,12 @@
 (ert-deftest hatty-edit--interpreter-stack-amalgamation ()
   "Turn whole stack into a substack."
   (hatty-edit--result-should-equal '(5 3 1) '((5 3 1))
-    (amalgamate-stack)))
+    '((amalgamate-stack))))
+
+(ert-deftest hatty-edit--interpreter-eval-quoted ()
+  "eval-quoted evaluates the top function."
+  (hatty-edit--result-should-equal  '(5 3 5) '(3 5)
+    '((const ((drop)))
+      (eval-quoted))))
 
 ;;; test.el ends here

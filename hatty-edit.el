@@ -30,7 +30,6 @@
 ;;;; Commentary
 ;;;; Docstrings
 ;;;; TODO file
-;;;; instruction-queue -> instruction-stack
 
 ;;; Code:
 
@@ -41,21 +40,19 @@
 ;;;; Instruction interpreter:
 
 (cl-defstruct hatty-edit--environment
-  (instruction-queue nil) (value-stack nil))
+  (instruction-stack nil) (value-stack nil))
 
 (defvar hatty-edit--environment (make-hatty-edit--environment))
 
 (defun hatty-edit--push-instruction (environment instruction)
-  (push instruction (hatty-edit--environment-instruction-queue environment)))
+  (push instruction (hatty-edit--environment-instruction-stack environment)))
 
 (defun hatty-edit--push-instructions (environment instructions)
-  "Push INSTRUCTIONS to ENVIRONMENT, bottom first."
-  (setf (hatty-edit--environment-instruction-queue environment)
-        (append instructions
-                (hatty-edit--environment-instruction-queue environment))))
+  (dolist (instruction (reverse instructions))
+    (hatty-edit--push-instruction environment instruction)))
 
 (defun hatty-edit--pop-instruction (environment)
-  (pop (hatty-edit--environment-instruction-queue environment)))
+  (pop (hatty-edit--environment-instruction-stack environment)))
 
 (defun hatty-edit--push-value (environment value)
   (push value (hatty-edit--environment-value-stack environment)))
@@ -86,7 +83,7 @@
 (defun hatty-edit--evaluate (instructions)
   (hatty-edit--evaluate-environment
    (make-hatty-edit--environment
-    :instruction-queue instructions)))
+    :instruction-stack instructions)))
 
 (defun hatty-edit--define-macro (name macro)
   (declare (indent defun))
@@ -98,13 +95,16 @@
 
 (defun hatty-edit--evaluate-environment (environment)
   (declare (indent defun))
-  (while (hatty-edit--environment-instruction-queue environment)
+  (while (hatty-edit--environment-instruction-stack environment)
     (let ((instruction (hatty-edit--pop-instruction environment)))
       (pcase (car instruction)
         ('drop (hatty-edit--pop-value environment))
         ('const (hatty-edit--push-value environment (cadr instruction)))
         ('eval (eval (cadr instruction))
                (hatty-edit--pop-instruction environment))
+        ('eval-quoted (hatty-edit--push-instructions
+                       environment
+                       (hatty-edit--pop-value environment)))
         ('list (hatty-edit--push-value
                 environment
                 (hatty-edit--pop-values environment (cadr instruction))))
@@ -185,7 +185,7 @@
   ;; Expands from car of region
   (let ((function (lambda (target)
                     (hatty-edit--bounds-of-thing-at thing (car target)))))
-    (hatty-edit--create-instruction
+    (hatty-edit--make-instruction
       `((apply ,function)))))
 
 (defun hatty-edit--map-all-cursors (function)
