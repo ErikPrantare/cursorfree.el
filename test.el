@@ -35,26 +35,28 @@
                      :value-stack initial-stack
                      :instruction-stack instructions))))))
 
-(ert-deftest hatty-edit--interpreter-const ()
-  "const adds to the stack."
+(ert-deftest hatty-edit--interpreter-push ()
+  "push adds to the stack."
   (hatty-edit--result-should-equal nil '(5)
-    '((const 5))))
+    '(push 5)))
 
 (ert-deftest hatty-edit--interpreter-drop ()
   "odrop removes from the stack."
   (hatty-edit--result-should-equal '(a b c) '(b c) 
-    '((drop))))
+    '(drop)))
 
-(ert-deftest hatty-edit--interpreter-drop-undos-const ()
-  "drop undos const."
+(ert-deftest hatty-edit--interpreter-drop-undos-push ()
+  "drop undos push."
   (hatty-edit--result-should-equal '(a b c) '(a b c)
-    '((const 5)
-      (drop))))
+    '(push 5
+      drop)))
 
 (ert-deftest hatty-edit--interpreter-list ()
   "List construction."
   (hatty-edit--result-should-equal '(5 3 1) '((5 3 1))
-    '((list 3))))
+    '(nop
+      push 3
+      list)))
 
 (ert-deftest hatty-edit--interpreter-unlist ()
   "List unwrapping."
@@ -63,26 +65,31 @@
 
 (ert-deftest hatty-edit--interpreter-macro-definition ()
   "One can define macros."
-  ;; TODO don't make destructive
   (hatty-edit--define-simple-macro 'sum
     '((list 2)
       (apply +)))
-  (hatty-edit--result-should-equal '(5 3) '(8)
-    '((sum))))
+  (let* ((sum '(nop
+                push 2 list
+                push + apply)))
+    (hatty-edit--result-should-equal '(5 3) '(8)
+      `(,sum))))
 
 (ert-deftest hatty-edit--interpreter-anonymous-macro ()
   "One can define anonymous macros."
   (hatty-edit--result-should-equal '(5 3) '(8)
-    (list
-     (hatty-edit--make-instruction
-       '((list 2)
-         (apply +))))))
+    '((nop
+       push 2
+       list
+       push +
+       apply))))
 
 (ert-deftest hatty-edit--interpreter-function-invocation ()
   "One may apply functions."
   (hatty-edit--result-should-equal  '(5) '(25)
-    '((list 1)
-      (apply (lambda (x) (* x x))))))
+    '(nop
+      push 1 list
+      push (lambda (x) (* x x))
+      apply)))
 
 (ert-deftest hatty-edit--interpreter-stack-amalgamation ()
   "Turn whole stack into a substack."
@@ -92,13 +99,24 @@
 (ert-deftest hatty-edit--interpreter-eval-quoted ()
   "eval-quoted evaluates the top function."
   (hatty-edit--result-should-equal  '(5 3 5) '(3 5)
-    '((const ((drop)))
-      (eval-quoted))))
+    '(nop
+      push drop
+      eval-quoted)))
 
 (ert-deftest hatty-edit--interpreter-map ()
   "map applies function across substack."
   (hatty-edit--result-should-equal  '((5 3 5)) '((25 9 25))
-    '((const ((funcall (lambda (x) (* x x)))))
-      (map))))
+    '(nop
+      push (push (lambda (x) (* x x)) funcall)
+      map)))
+
+(ert-deftest hatty-edit--substack-evaluation ()
+  "Sub stacks are evaluated as programs."
+  (hatty-edit--result-should-equal  nil '((25 9 25))
+    '(nop
+      (push 5 push 3 push 5)
+      amalgamate-stack
+      push (push (lambda (x) (* x x)) funcall)
+      map)))
 
 ;;; test.el ends here
