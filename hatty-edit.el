@@ -188,6 +188,8 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   (apply 'hatty-edit--define-rewrite-macro
          definition))
 
+(hatty-edit--define-macro 'nop #'identity)
+
 (hatty-edit--define-compound-macro 'lisp-eval
   '(-> f : push nil f lisp-apply drop ..))
 
@@ -427,6 +429,9 @@ cursors, return a single value instead of a list."
        f push hatty-edit--multiple-cursors-do
        push 2 lisp-apply-n drop ..))
 
+(hatty-edit--define-compound-macro 'do-all
+  '(-> f : amalgamate-stack f map drop ..))
+
 (defun hatty-edit--multiple-cursors-do (function values)
   "Parallelize side effects on point, mark and active region."
   (when values
@@ -441,7 +446,7 @@ cursors, return a single value instead of a list."
 
 (defvar hatty-edit-actions
   `(("select" . (push target-select multiple-cursors-do))
-    ("chuck" . target-chuck)
+    ("chuck" . (push target-chuck do-all))
     ("bring" . target-bring)
     ("move" . target-move)
     ("swap" . target-swap)
@@ -468,6 +473,20 @@ cursors, return a single value instead of a list."
 
 ;;;; Default modifiers:
 
+(hatty-edit--define-compound-macro 'find-occurrences
+  `(nop
+    push ,(lambda (string)
+            (save-excursion
+              (let ((length (length string))
+                    matches)
+                (goto-char (point-min))
+                (while (search-forward string nil t)
+                  (push (hatty-edit--markify-region
+                         (cons (- (point) length) (point)))
+                        matches))
+                matches)))
+    lisp-funcall))
+
 (defvar hatty-edit-modifiers
   `(("paint" . ,(hatty-edit--make-parallel-modifier
                  (lambda (region)
@@ -490,7 +509,8 @@ cursors, return a single value instead of a list."
                      (car second-target))
                 (max (cdr first-target)
                      (cdr second-target)))))
-      apply))))
+      lisp-apply))
+    ("every instance" . (target-string find-occurrences unstack))))
 
 ;;; hatty-edit.el ends soon
 (provide 'hatty-edit)

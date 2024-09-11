@@ -80,7 +80,7 @@
   (hatty-edit--result-should-equal '(5 3) '(8)
     '((nop
        push 2
-       list
+       stack
        push +
        lisp-apply))))
 
@@ -88,9 +88,13 @@
   "One may apply functions."
   (hatty-edit--result-should-equal  '(5) '(25)
     '(nop
-      push 1 list
+      push 1 stack
       push (lambda (x) (* x x))
-      lisp-apply)))
+      lisp-apply))
+  (hatty-edit--result-should-equal  '(5) '(25)
+    `(nop
+      push ,(lambda (x) (* x x))
+      lisp-funcall)))
 
 (ert-deftest hatty-edit--interpreter-stack-amalgamation ()
   "Turn whole stack into a substack."
