@@ -58,30 +58,29 @@
       push 3
       list)))
 
-(ert-deftest hatty-edit--interpreter-unlist ()
+(ert-deftest hatty-edit--interpreter-unstack ()
   "List unwrapping."
   (hatty-edit--result-should-equal '((5 a b) 3 1) '(5 a b 3 1)
-    '((unlist))))
+    '((unstack))))
 
 (ert-deftest hatty-edit--interpreter-macro-definition ()
   "One can define macros."
-  (hatty-edit--define-simple-macro 'sum
-    '((list 2)
-      (apply +)))
-  (let* ((sum '(nop
-                push 2 list
-                push + apply)))
+  (let ((sum (make-symbol "sum")))
+    (hatty-edit--define-composed-macro sum
+      '(nop
+        push 2 list
+        push + lisp-apply))
     (hatty-edit--result-should-equal '(5 3) '(8)
-      `(,sum))))
+      (list sum))))
 
-(ert-deftest hatty-edit--interpreter-anonymous-macro ()
-  "One can define anonymous macros."
+(ert-deftest hatty-edit--interpreter-substack ()
+  "Substacks evaluate as if flattened onto the instruction stack."
   (hatty-edit--result-should-equal '(5 3) '(8)
     '((nop
        push 2
        list
        push +
-       apply))))
+       lisp-apply))))
 
 (ert-deftest hatty-edit--interpreter-function-invocation ()
   "One may apply functions."
@@ -89,34 +88,163 @@
     '(nop
       push 1 list
       push (lambda (x) (* x x))
-      apply)))
+      lisp-apply)))
 
 (ert-deftest hatty-edit--interpreter-stack-amalgamation ()
   "Turn whole stack into a substack."
   (hatty-edit--result-should-equal '(5 3 1) '((5 3 1))
     '((amalgamate-stack))))
 
-(ert-deftest hatty-edit--interpreter-eval-quoted ()
-  "eval-quoted evaluates the top function."
+(ert-deftest hatty-edit--interpreter-unpush ()
+  "unpush puts top value back onto instruction stack."
   (hatty-edit--result-should-equal  '(5 3 5) '(3 5)
     '(nop
       push drop
-      eval-quoted)))
+      unpush)))
 
 (ert-deftest hatty-edit--interpreter-map ()
   "map applies function across substack."
   (hatty-edit--result-should-equal  '((5 3 5)) '((25 9 25))
     '(nop
-      push (push (lambda (x) (* x x)) funcall)
+      push (push (lambda (x) (* x x)) lisp-funcall)
       map)))
 
 (ert-deftest hatty-edit--substack-evaluation ()
-  "Sub stacks are evaluated as programs."
+  "Substacks are evaluated as programs."
   (hatty-edit--result-should-equal  nil '((25 9 25))
     '(nop
       (push 5 push 3 push 5)
       amalgamate-stack
-      push (push (lambda (x) (* x x)) funcall)
+      push (push (lambda (x) (* x x)) lisp-funcall)
       map)))
+
+(ert-deftest hatty-edit--cons-uncons ()
+  "Substacks are evaluated as programs."
+  (hatty-edit--result-should-equal  '(5 3) '((5 . 3))
+    '(cons))
+  (hatty-edit--result-should-equal  '((5 . 3)) '(5 3)
+    '(uncons)))
+
+(ert-deftest hatty-edit--swap ()
+    "swap, swapd."
+    (hatty-edit--result-should-equal  '(5 3) '(3 5)
+      '(swap))
+    (hatty-edit--result-should-equal  '(5 3 100) '(5 100 3)
+      '(swapd)))
+
+(ert-deftest hatty-edit--dup ()
+    "dup, dupd."
+    (hatty-edit--result-should-equal  '(5 2) '(5 5 2)
+      '(dup))
+    (hatty-edit--result-should-equal  '(5 100 2) '(5 100 100 2)
+      '(dupd)))
+
+(ert-deftest hatty-edit--roll ()
+    "rollup, rolldown."
+    (hatty-edit--result-should-equal  '(5 2 7 3) '(2 7 5 3)
+      '(rollup))
+    (hatty-edit--result-should-equal  '(5 2 7 3) '(7 5 2 3)
+      '(rolldown)))
+
+;;;; Editing
+
+(ert-deftest hatty-edit--target-insert ()
+  "target-insert."
+  (with-temp-buffer
+    (hatty-edit--evaluate
+     '(push "Success" target-insert))
+    (should (string= (buffer-string) "Success"))))
+
+(ert-deftest hatty-edit--target-insert ()
+  "target-insert."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (+ 4 (point-min))
+                    (point-max)))
+       push "ccc"
+       target-insert))
+    (should (string= (buffer-string) "aaa cccbbb"))))
+
+(ert-deftest hatty-edit--target-overwrite ()
+  "target-overwrite."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (+ 4 (point-min))
+                    (point-max)))
+       push "ccc"
+       target-overwrite))
+    (should (string= (buffer-string) "aaa ccc"))))
+
+(ert-deftest hatty-edit--target-overwrite ()
+  "target-overwrite."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (+ 4 (point-min))
+                    (point-max)))
+       push "ccc"
+       target-overwrite))
+    (should (string= (buffer-string) "aaa ccc"))))
+
+(ert-deftest hatty-edit--target-swap ()
+  "target-swap."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (+ 4 (point-min))
+                    (point-max)))
+       push ,(hatty-edit--markify-region
+              (cons (point-min)
+                    (+ 3 (point-min))))
+       target-swap))
+    (should (string= (buffer-string) "bbb aaa"))))
+
+(ert-deftest hatty-edit--target-delete ()
+  "targets-delete."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (+ 2 (point-min))
+                    (+ 4 (point-min))))
+       target-delete))
+    (should (string= (buffer-string) "aabbb"))))
+
+(ert-deftest hatty-edit--target-bring ()
+  "target-bring."
+  (with-temp-buffer
+    (insert "aaa ")
+    (goto-char (point-max))
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (point-min)
+                    (+ 3 (point-min))))
+       target-bring))
+    (should (string= (buffer-string) "aaa aaa"))))
+
+(ert-deftest hatty-edit--target-move ()
+  "target-move."
+  (with-temp-buffer
+    (insert "aaa bbb ")
+    (goto-char (point-max))
+    (hatty-edit--evaluate
+     `(nop
+       push ,(hatty-edit--markify-region
+              (cons (point-min)
+                    (+ 3 (point-min))))
+       target-move))
+    (should (string= (buffer-string) "bbb aaa"))))
 
 ;;; test.el ends here
