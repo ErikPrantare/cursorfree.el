@@ -97,6 +97,7 @@
       (signal 'error (list "No such hatty-edit macro: " name)))
     macro))
 
+;; TODO: Do not halt on missing delimiters!
 (hatty-edit--define-macro '->
   (lambda (environment)
     (let (parameters mapping body)
@@ -116,13 +117,15 @@
         (push (cons parameter `(push ,(hatty-edit--pop-value environment)))
               mapping))
 
-      ;; Read body until . (period).
+      ;; Read body until .. (period period).  We don't use single
+      ;; period, as that clashes with the syntax of cons cells in
+      ;; Elisp.
       (push (hatty-edit--pop-instruction environment) body)
-      (while (not (eq (car body) '.))
+      (while (not (eq (car body) '..))
         (push (hatty-edit--pop-instruction environment) body))
 
-      ;; Pop delimiting . (period), reverse (first instruction -> top
-      ;; of stack).
+      ;; Pop delimiting .. (period period), reverse (first instruction
+      ;; -> top of stack).
       (pop body)
       (setq body (reverse body))
 
@@ -173,35 +176,20 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   ;; STACK-AFTER needs to be reversed to be pushed in the correct
   ;; order.
   (hatty-edit--define-compound-macro name
-    `(-> ,@stack-before : ,@(reverse stack-after) .)))
+    `(-> ,@stack-before : ,@(reverse stack-after) ..)))
 
-(hatty-edit--define-rewrite-macro 'drop
-  '(x) '())
-
-(hatty-edit--define-rewrite-macro 'swap
-  '(x y) '(y x))
-
-(hatty-edit--define-rewrite-macro 'swapd
-  '(x y z) '(x z y))
-
-(hatty-edit--define-rewrite-macro 'dup
-  '(x) '(x x))
-
-(hatty-edit--define-rewrite-macro 'dupd
-  '(x y) '(x y y))
-
-(hatty-edit--define-rewrite-macro 'rollup
-  '(x y z) '(y z x))
-
-(hatty-edit--define-rewrite-macro 'rolldown
-  '(x y z) '(z x y))
+(dolist (definition '((drop (x) ())
+                      (swap (x y) (y x))
+                      (swapd (x y z) (x z y))
+                      (dup (x) (x x))
+                      (dupd (x y) (x y y))
+                      (rollup (x y z) (y z x))
+                      (rolldown (x y z) (z x y))))
+  (apply 'hatty-edit--define-rewrite-macro
+         definition))
 
 (hatty-edit--define-compound-macro 'lisp-eval
-  '(nop
-    push nil
-    swap
-    lisp-apply
-    drop))
+  '(-> f : push nil f lisp-apply drop ..))
 
 (hatty-edit--define-macro 'stack
   (lambda (environment)
@@ -395,8 +383,7 @@ cursors, return a single value instead of a list."
   '(uncons push delete-region push 2 lisp-apply-n drop))
 
 (hatty-edit--define-composed-macro 'target-chuck
-  '(nop
-    target-deletion-region target-delete))
+  '(target-deletion-region target-delete))
 
 (hatty-edit--define-composed-macro 'target-string
   '(uncons push buffer-substring push 2 lisp-apply-n))
@@ -421,29 +408,47 @@ cursors, return a single value instead of a list."
 (hatty-edit--define-composed-macro 'target-overwrite
   '(swap dup target-delete swap target-insert))
 
-(hatty-edit--define-composed-macro 'target-bring-overwrite
+(hatty-edit--define-compound-macro 'target-bring-overwrite
   '(target-string target-overwrite))
 
-(hatty-edit--define-composed-macro 'target-move
-  '(dup target-string insert target-chuck))
+(hatty-edit--define-compound-macro 'target-move
+  '(-> t : t target-string insert t target-chuck ..))
 
-(hatty-edit--define-composed-macro 'target-swap
-  '(                                ; t1 t2 (top of stack to the left)
-    dup target-string swap          ; t1 s1 t2
-    rollup dupd                     ; s1 t2 t2 t1
-    swap target-string              ; s2 s1 t2 t2
-    rollup                          ; s1 t2 s2 t1
-    target-overwrite target-overwrite))
+(hatty-edit--define-compound-macro 'target-swap
+  '(-> t1 t2 :
+       t1 t2 target-string
+       t2 t1 target-string
+       target-overwrite
+       target-overwrite ..))
+
+(hatty-edit--define-compound-macro 'multiple-cursors-do
+  '(-> f :
+       amalgamate-stack
+       f push hatty-edit--multiple-cursors-do
+       push 2 lisp-apply-n drop ..))
+
+(defun hatty-edit--multiple-cursors-do (function values)
+  "Parallelize side effects on point, mark and active region."
+  (when values
+    ;; Clear any previous multiple cursors
+    (multiple-cursors-mode 0)
+    (multiple-cursors-mode 1)
+
+    (hatty-edit--evaluate (list `(push ,(car values)) function))
+    (dolist (value (cdr values))
+      (mc/create-fake-cursor-at-point)
+      (hatty-edit--evaluate (list `(push ,value) function)))))
 
 (defvar hatty-edit-actions
-  `(("select" . target-select)
+  `(("select" . (push target-select multiple-cursors-do))
     ("chuck" . target-chuck)
     ("bring" . target-bring)
     ("move" . target-move)
     ("swap" . target-swap)
-    ("pre" . (car goto-char))
+    ("pre" . (push (car goto-char) multiple-cursors-do))
     ("post" . (cdr goto-char))
-    ("change" . (dup target-delete car goto-char))
+    ("change" . (push (-> t : t target-delete t car goto-char ..)
+                      multiple-cursors-do))
     ("comment" .
      (amalgamate-stack
       push (nop

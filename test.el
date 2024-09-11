@@ -149,13 +149,13 @@
       '(rolldown)))
 
 (ert-deftest hatty-edit--variable-binding ()
-    "-> binds variables until . (period).
+    "-> binds variables until .. (period period).
 
 This only replaces occurences in top-level forms."
     (hatty-edit--result-should-equal  nil '(1 4 9 16 25)
       '(nop
         push (1 2 3 4 5)
-        push (-> x : x x push * push 2 lisp-apply-n .)
+        push (-> x : x x push * push 2 lisp-apply-n ..)
         map
         unstack)))
 
