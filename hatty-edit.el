@@ -97,6 +97,43 @@
       (signal 'error (list "No such hatty-edit macro: " name)))
     macro))
 
+(hatty-edit--define-macro '->
+  (lambda (environment)
+    (let (parameters mapping body)
+      ;; Read parameters until : (colon).
+      (push (hatty-edit--pop-instruction environment) parameters)
+      (while (not (eq (car parameters) ':))
+        (push (hatty-edit--pop-instruction environment) parameters))
+
+      ;; Pop delimiting : (colon), reverse (first parameter -> top of
+      ;; stack).
+      (pop parameters)
+      (setq parameters (reverse parameters))
+
+      ;; Read parameter values from stack.  Wrap them in push, as they
+      ;; will be put on the instruction stack.
+      (dolist (parameter parameters)
+        (push (cons parameter `(push ,(hatty-edit--pop-value environment)))
+              mapping))
+
+      ;; Read body until . (period).
+      (push (hatty-edit--pop-instruction environment) body)
+      (while (not (eq (car body) '.))
+        (push (hatty-edit--pop-instruction environment) body))
+
+      ;; Pop delimiting . (period), reverse (first instruction -> top
+      ;; of stack).
+      (pop body)
+      (setq body (reverse body))
+
+      ;; Substitute top-level occurences of parameters, push new body
+      ;; to instruction stack.
+      (hatty-edit--push-instructions
+       environment
+       (mapcar (lambda (instruction)
+                 (alist-get instruction mapping instruction))
+               body)))))
+
 (defun hatty-edit--define-composed-macro (macro-name forms)
   (declare (indent defun))
   (hatty-edit--define-macro macro-name
@@ -412,7 +449,7 @@ cursors, return a single value instead of a list."
     ("swap" . target-swap)
     ("pre" . (car goto-char))
     ("post" . (cdr goto-char))
-    ("change" . (dup target-delete car goto-car))
+    ("change" . (dup target-delete car goto-char))
     ("comment" .
      (amalgamate-stack
       push (nop
