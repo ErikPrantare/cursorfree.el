@@ -134,11 +134,16 @@
                  (alist-get instruction mapping instruction))
                body)))))
 
-(defun hatty-edit--define-composed-macro (macro-name forms)
+(defun hatty-edit--define-compound-macro (macro-name forms)
   (declare (indent defun))
   (hatty-edit--define-macro macro-name
     (lambda (environment)
       (hatty-edit--push-instructions environment forms))))
+
+(define-obsolete-function-alias
+  'hatty-edit--define-composed-macro
+  'hatty-edit--define-compound-macro
+  "0.0.0")
 
 (defun hatty-edit--evaluate-environment (environment)
   (declare (indent defun))
@@ -160,49 +165,38 @@
      environment
      (hatty-edit--pop-value environment))))
 
-(hatty-edit--define-macro 'drop
-  (lambda (environment)
-    (hatty-edit--pop-value environment)))
+(defun hatty-edit--define-rewrite-macro (name stack-before stack-after)
+  "Create macro rewriting top of stack.
 
-(hatty-edit--define-composed-macro 'swap
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a b) (take 2 stack)
-       `(,b ,a . ,(nthcdr 2 stack))))))
+All elements in STACK-AFTER must occur in STACK-BEFORE."
+  (declare (indent defun))
+  ;; STACK-AFTER needs to be reversed to be pushed in the correct
+  ;; order.
+  (hatty-edit--define-compound-macro name
+    `(-> ,@stack-before : ,@(reverse stack-after) .)))
 
-(hatty-edit--define-composed-macro 'swapd
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a b c) (take 3 stack)
-       `(,a ,c ,b . ,(nthcdr 3 stack))))))
+(hatty-edit--define-rewrite-macro 'drop
+  '(x) '())
 
-(hatty-edit--define-composed-macro 'dup
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a) (take 1 stack)
-       `(,a ,a . ,(nthcdr 1 stack))))))
+(hatty-edit--define-rewrite-macro 'swap
+  '(x y) '(y x))
 
-(hatty-edit--define-composed-macro 'dupd
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a b) (take 2 stack)
-       `(,a ,b ,b . ,(nthcdr 2 stack))))))
+(hatty-edit--define-rewrite-macro 'swapd
+  '(x y z) '(x z y))
 
-(hatty-edit--define-composed-macro 'rollup
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a b c) (take 3 stack)
-       `(,b ,c ,a . ,(nthcdr 3 stack))))))
+(hatty-edit--define-rewrite-macro 'dup
+  '(x) '(x x))
 
-(hatty-edit--define-composed-macro 'rolldown
-  (hatty-edit--lift-stack-function
-   (lambda (stack)
-     (cl-destructuring-bind (a b c) (take 3 stack)
-       `(,c ,a ,b . ,(nthcdr 3 stack))))))
+(hatty-edit--define-rewrite-macro 'dupd
+  '(x y) '(x y y))
 
-(hatty-edit--define-composed-macro 'nop '())
+(hatty-edit--define-rewrite-macro 'rollup
+  '(x y z) '(y z x))
 
-(hatty-edit--define-composed-macro 'lisp-eval
+(hatty-edit--define-rewrite-macro 'rolldown
+  '(x y z) '(z x y))
+
+(hatty-edit--define-compound-macro 'lisp-eval
   '(nop
     push nil
     swap
