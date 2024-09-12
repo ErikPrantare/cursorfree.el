@@ -30,6 +30,8 @@
 ;;;; Commentary
 ;;;; Docstrings
 ;;;; TODO file
+;;;; Debugger (step-through)
+;;;; goto-def
 
 ;;; Code:
 
@@ -75,14 +77,15 @@
 
 (defun hatty-edit--lift-stack-function (stack-function)
   `(amalgamate-stack
-    push ,stack-function
+    (,stack-function)
     lisp-funcall
     unstack))
 
 (defun hatty-edit--evaluate (instructions)
-  (hatty-edit--evaluate-environment
-   (make-hatty-edit--environment
-    :instruction-stack instructions)))
+  (hatty-edit--environment-value-stack
+   (hatty-edit--evaluate-environment
+     (make-hatty-edit--environment
+      :instruction-stack instructions))))
 
 (defun hatty-edit--define-macro (name macro)
   (declare (indent defun))
@@ -111,10 +114,9 @@
       (pop parameters)
       (setq parameters (reverse parameters))
 
-      ;; Read parameter values from stack.  Wrap them in push, as they
-      ;; will be put on the instruction stack.
+      ;; Read parameter values from stack.
       (dolist (parameter parameters)
-        (push (cons parameter `(push ,(hatty-edit--pop-value environment)))
+        (push (cons parameter (hatty-edit--pop-value environment))
               mapping))
 
       ;; Read body until .. (period period).  We don't use single
@@ -153,20 +155,9 @@
   (while (hatty-edit--environment-instruction-stack environment)
     (let ((instruction (hatty-edit--pop-instruction environment)))
       (pcase instruction
-        ((pred listp) (hatty-edit--push-instructions environment instruction))
-        (_ (funcall (hatty-edit--get-macro instruction) environment)))))
+        ((pred symbolp) (funcall (hatty-edit--get-macro instruction) environment))
+        (_ (hatty-edit--push-value environment instruction)))))
   environment)
-
-(hatty-edit--define-macro 'push
-  (lambda (environment)
-    (hatty-edit--push-value environment
-     (hatty-edit--pop-instruction environment))))
-
-(hatty-edit--define-macro 'unpush
-  (lambda (environment)
-    (hatty-edit--push-instruction
-     environment
-     (hatty-edit--pop-value environment))))
 
 (defun hatty-edit--define-rewrite-macro (name stack-before stack-after)
   "Create macro rewriting top of stack.
@@ -190,8 +181,11 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
 
 (hatty-edit--define-macro 'nop #'identity)
 
+(hatty-edit--define-compound-macro 'lisp-eval-n
+  '(lisp-apply-n drop))
+
 (hatty-edit--define-compound-macro 'lisp-eval
-  '(-> f : push nil f lisp-apply drop ..))
+  '(0 lisp-eval-n))
 
 (hatty-edit--define-macro 'stack
   (lambda (environment)
@@ -214,12 +208,16 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
     (setf (hatty-edit--environment-value-stack environment)
           (list (hatty-edit--environment-value-stack environment)))))
 
+;; Figure out the interdependencies of these three...
 (hatty-edit--define-macro 'lisp-apply
   (lambda (environment)
-    (hatty-edit--push-value
-     environment
-     (apply (hatty-edit--pop-value environment)
-            (hatty-edit--pop-value environment)))))
+    (let ((function (hatty-edit--pop-value environment)))
+      (hatty-edit--push-value
+       environment
+       ;; Function symbols may be wrapped in a stack, so they are
+       ;; treated like literals.
+       (apply (if (functionp function) function (car function))
+              (hatty-edit--pop-value environment))))))
 
 (hatty-edit--define-composed-macro 'lisp-apply-n
   (hatty-edit--lift-stack-function
@@ -228,35 +226,42 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
             (function (pop stack))
             (arguments (take arity stack))
             (return (nthcdr arity stack)))
-       (push (apply function arguments) return)
+       ;; Function symbols may be wrapped in a stack, so they are
+       ;; treated like literals.
+       (push (apply (if (functionp function) function (car function))
+                    arguments)
+             return)
        return))))
 
 (hatty-edit--define-macro 'lisp-funcall
   (lambda (environment)
-    (hatty-edit--push-value
-     environment
-     (funcall (hatty-edit--pop-value environment)
-              (hatty-edit--pop-value environment)))))
+    (let ((function (hatty-edit--pop-value environment)))
+      (hatty-edit--push-value
+       environment
+       ;; Function symbols may be wrapped in a stack, so they are
+       ;; treated like literals.
+       (funcall (if (functionp function) function (car function))
+                (hatty-edit--pop-value environment))))))
 
-(hatty-edit--define-composed-macro 'flatten
-  '(push append lisp-apply))
+(hatty-edit--define-compound-macro 'flatten
+  '((append) lisp-apply))
 
+;; TODO: Consider making environments first-class citizens
 (hatty-edit--define-composed-macro 'map
-  '(nop
-    push (lambda (function substack)
-           (mapcar (lambda (value)
-                     (hatty-edit--environment-value-stack
-                      (hatty-edit--evaluate-environment
-                        (make-hatty-edit--environment
-                         ;; Wrap operation in list: If it is a single symbol, it
-                         ;; will become a valid program.  If it is a list,
-                         ;; evaluation of that list will push it onto the
-                         ;; instruction stack, avoiding mutation of the original
-                         ;; list.
-                         :instruction-stack (list function)
-                         :value-stack (list value)))))
-                   substack))
-    push 2 lisp-apply-n
+  `(,(lambda (function substack)
+       (mapcar (lambda (value)
+                 (hatty-edit--environment-value-stack
+                  (hatty-edit--evaluate-environment
+                    (make-hatty-edit--environment
+                     ;; Wrap operation in list: If it is a single
+                     ;; symbol, it will become a valid program.  If it
+                     ;; is a list, evaluation of that list will push it
+                     ;; onto the instruction stack, avoiding mutation
+                     ;; of the original list.
+                     :instruction-stack function
+                     :value-stack (list value)))))
+               substack))
+    2 lisp-apply-n
     flatten))
 
 ;;;; Targets, modifiers, actions:
@@ -276,9 +281,9 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
      (bounds-of-thing-at-point thing))))
 
 (cl-defun hatty-edit--make-target (content-region)
-  `(push ,(hatty-edit--markify-region
-           (cons (car content-region)
-                 (cdr content-region)))))
+  `(,(hatty-edit--markify-region
+      (cons (car content-region)
+            (cdr content-region)))))
 
 (defun hatty-edit--make-target-from-hat (character &optional color shape)
   (hatty-edit--make-target
@@ -351,55 +356,59 @@ cursors, return a single value instead of a list."
   (save-excursion
     (goto-char (cdr region))
     (skip-chars-forward "[:space:]\n")
-    (if (/= (point) (cdr region))
-        (cons (car region) (point))
-      (goto-char (car region))
-      (skip-chars-backward "[:space:]\n")
-      (cons (point) (cdr region)))))
+    (hatty-edit--markify-region
+     (if (/= (point) (cdr region))
+         (cons (car region) (point))
+       (goto-char (car region))
+       (skip-chars-backward "[:space:]\n")
+       (cons (point) (cdr region))))))
 
-(hatty-edit--define-composed-macro 'cons
-  '(push cons push 2 lisp-apply-n))
+(defun hatty-edit--lift-lisp-function (name)
+  `((,name)
+    ,(car (func-arity name))
+    lisp-apply-n))
 
-(hatty-edit--define-composed-macro 'car
-  '(push car lisp-funcall))
+(defun hatty-edit--lift-lisp-effect (lisp-name)
+  `(,@(hatty-edit--lift-lisp-function lisp-name) drop))
 
-(hatty-edit--define-composed-macro 'cdr
-  '(push cdr lisp-funcall))
+(dolist (entry '((cons . cons)
+                 (car . car)
+                 (cdr . cdr)))
+  (hatty-edit--define-compound-macro (car entry)
+    (hatty-edit--lift-lisp-function (cdr entry))))
+
+(dolist (entry '((set-mark . set-mark)
+                 (goto-char . goto-char)))
+  (hatty-edit--define-compound-macro (car entry)
+    (hatty-edit--lift-lisp-effect (cdr entry))))
 
 (hatty-edit--define-composed-macro 'uncons
   `(dup car swap cdr swap))
-
-(hatty-edit--define-composed-macro 'set-mark
-  '(push set-mark lisp-funcall drop))
-
-(hatty-edit--define-composed-macro 'goto-char
-  '(push goto-char lisp-funcall drop))
 
 (hatty-edit--define-composed-macro 'target-select
   '(uncons set-mark goto-char))
 
 (hatty-edit--define-composed-macro 'target-deletion-region
-  '(push hatty-edit--deletion-region lisp-funcall))
+  '((hatty-edit--deletion-region) lisp-funcall))
 
 (hatty-edit--define-composed-macro 'target-delete
-  '(uncons push delete-region push 2 lisp-apply-n drop))
+  '(uncons (delete-region) 2 lisp-eval-n))
 
 (hatty-edit--define-composed-macro 'target-chuck
   '(target-deletion-region target-delete))
 
 (hatty-edit--define-composed-macro 'target-string
-  '(uncons push buffer-substring push 2 lisp-apply-n))
+  '(uncons (buffer-substring) 2 lisp-apply-n))
 
 (hatty-edit--define-composed-macro 'insert
-  '(push insert lisp-funcall drop))
+  '((insert) 1 lisp-eval-n))
 
 (hatty-edit--define-composed-macro 'insert-at
-  `(nop
-    push ,(lambda (string position)
-            (save-excursion
-              (goto-char position)
-              (insert string)))
-    push 2 lisp-apply-n drop))
+  `(,(lambda (string position)
+       (save-excursion
+         (goto-char position)
+         (insert string)))
+    2 lisp-eval-n))
 
 (hatty-edit--define-composed-macro 'target-insert
   '(swap car swap insert-at))
@@ -414,7 +423,7 @@ cursors, return a single value instead of a list."
   '(target-string target-overwrite))
 
 (hatty-edit--define-compound-macro 'target-move
-  '(-> t : t target-string insert t target-chuck ..))
+  '(-> t : t target-bring t target-chuck ..))
 
 (hatty-edit--define-compound-macro 'target-swap
   '(-> t1 t2 :
@@ -426,8 +435,8 @@ cursors, return a single value instead of a list."
 (hatty-edit--define-compound-macro 'multiple-cursors-do
   '(-> f :
        amalgamate-stack
-       f push hatty-edit--multiple-cursors-do
-       push 2 lisp-apply-n drop ..))
+       f (hatty-edit--multiple-cursors-do)
+       2 lisp-eval-n ..))
 
 (hatty-edit--define-compound-macro 'do-all
   '(-> f : amalgamate-stack f map drop ..))
@@ -439,28 +448,30 @@ cursors, return a single value instead of a list."
     (multiple-cursors-mode 0)
     (multiple-cursors-mode 1)
 
-    (hatty-edit--evaluate (list `(push ,(car values)) function))
+    (hatty-edit--evaluate-environment
+      (make-hatty-edit--environment
+       :instruction-stack function
+       :value-stack (list (car values))))
     (dolist (value (cdr values))
       (mc/create-fake-cursor-at-point)
-      (hatty-edit--evaluate (list `(push ,value) function)))))
+      (hatty-edit--evaluate-environment
+        (make-hatty-edit--environment
+         :instruction-stack function
+         :value-stack (list value))))))
 
 (defvar hatty-edit-actions
-  `(("select" . (push target-select multiple-cursors-do))
-    ("chuck" . (push target-chuck do-all))
+  `(("select" . ((target-select) multiple-cursors-do))
+    ("chuck" . ((target-chuck) do-all))
     ("bring" . target-bring)
     ("move" . target-move)
     ("swap" . target-swap)
-    ("pre" . (push (car goto-char) multiple-cursors-do))
+    ("pre" . ((car goto-char) multiple-cursors-do))
     ("post" . (cdr goto-char))
-    ("change" . (push (-> t : t target-delete t car goto-char ..)
-                      multiple-cursors-do))
+    ("change" . ((-> t : t target-delete t car goto-char ..)
+                 multiple-cursors-do))
     ("comment" .
      (amalgamate-stack
-      push (nop
-            push ,(lambda (region)
-                    (comment-region (car region)
-                                    (cdr region)))
-            lisp-funcall drop)
+      (uncons (comment-region) 2 lisp-eval-n)
       map))
     ("uncomment" .
      (amalgamate-stack

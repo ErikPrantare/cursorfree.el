@@ -25,6 +25,12 @@
 
 ;;; Code:
 
+(defun hatty-edit--should-equal (expected actual)
+  "Performing INSTRUCTIONS with INITIAL-STACk yields EXPECTED-STACK."
+  (declare (indent defun))
+  (should (equal expected actual)))
+
+;; Deprecated
 (defun hatty-edit--result-should-equal (initial-stack expected-stack instructions)
   "Performing INSTRUCTIONS with INITIAL-STACk yields EXPECTED-STACK."
   (declare (indent defun))
@@ -36,9 +42,13 @@
                      :instruction-stack instructions))))))
 
 (ert-deftest hatty-edit--interpreter-push ()
-  "push adds to the stack."
-  (hatty-edit--result-should-equal nil '(5)
-    '(push 5)))
+  "Literals and substacks are pushed unto the stack."
+  (should (equal '(5)
+                 (hatty-edit--evaluate
+                  '(5))))
+  (should (equal '((a b c) 5 10)
+                 (hatty-edit--evaluate
+                  '(10 5 (a b c))))))
 
 (ert-deftest hatty-edit--interpreter-drop ()
   "odrop removes from the stack."
@@ -48,32 +58,30 @@
 (ert-deftest hatty-edit--interpreter-drop-undos-push ()
   "drop undos push."
   (hatty-edit--result-should-equal '(a b c) '(a b c)
-    '(push 5
-      drop)))
+    '(5 drop)))
 
-(ert-deftest hatty-edit--interpreter-substack ()
+(ert-deftest hatty-edit--substack ()
   "Substack (de)construction."
-  (hatty-edit--result-should-equal '(5 3 1) '((5 3 1))
-    '(nop
-      push 3
-      stack))
+  (hatty-edit--should-equal '((5 3 1))
+      (hatty-edit--evaluate
+       `(1 3 5 3 stack)))
   (hatty-edit--result-should-equal '((5 3 1)) '(5 3 1)
     '(unstack)))
 
 (ert-deftest hatty-edit--interpreter-unstack ()
-  "List unwrapping."
+  "Pack unwrapping."
   (hatty-edit--result-should-equal '((5 a b) 3 1) '(5 a b 3 1)
-    '((unstack))))
+    '(unstack)))
 
 (ert-deftest hatty-edit--interpreter-macro-definition ()
   "One can define macros."
+  ;; Create uninterned symbol to avoid polluting the global namespace
   (let ((sum (make-symbol "sum")))
-    (hatty-edit--define-composed-macro sum
-      '(nop
-        push 2 list
-        push + lisp-apply))
-    (hatty-edit--result-should-equal '(5 3) '(8)
-      (list sum))))
+    (hatty-edit--define-compound-macro sum
+      '((+) 2 lisp-apply-n))
+    (hatty-edit--should-equal '(8)
+      (hatty-edit--evaluate
+       `(5 3 ,sum)))))
 
 (ert-deftest hatty-edit--interpreter-substack ()
   "Substacks evaluate as if flattened onto the instruction stack."
@@ -85,51 +93,60 @@
        lisp-apply))))
 
 (ert-deftest hatty-edit--interpreter-function-invocation ()
-  "One may apply functions."
-  (hatty-edit--result-should-equal  '(5) '(25)
-    '(nop
-      push 1 stack
-      push (lambda (x) (* x x))
-      lisp-apply))
-  (hatty-edit--result-should-equal  '(5) '(25)
-    `(nop
-      push ,(lambda (x) (* x x))
-      lisp-funcall)))
+  "lisp-apply, lisp-apply-n, lisp-funcall, (lisp-eval..?  For
+effectful computation.)."
+  (hatty-edit--should-equal '(15)
+    (hatty-edit--evaluate
+     '(5 3
+      2 stack
+      (*)
+      lisp-apply)))
+
+  (hatty-edit--should-equal '(15)
+    (hatty-edit--evaluate
+     '(5
+       3
+       (*)
+       2
+       lisp-apply-n)))
+
+  (hatty-edit--should-equal '(25)
+    (hatty-edit--evaluate
+     `(5
+       (lambda (x) (* x x))
+       lisp-funcall)))
+
+  (hatty-edit--should-equal '("olleH")
+    (hatty-edit--evaluate
+     `("Hello"
+       (reverse)
+       lisp-funcall))))
 
 (ert-deftest hatty-edit--interpreter-stack-amalgamation ()
   "Turn whole stack into a substack."
-  (hatty-edit--result-should-equal '(5 3 1) '((5 3 1))
-    '((amalgamate-stack))))
-
-(ert-deftest hatty-edit--interpreter-unpush ()
-  "unpush puts top value back onto instruction stack."
-  (hatty-edit--result-should-equal  '(5 3 5) '(3 5)
-    '(nop
-      push drop
-      unpush)))
+  (hatty-edit--should-equal '((5 3 1))
+    (hatty-edit--evaluate
+     '(1 3 5         
+       amalgamate-stack))))
 
 (ert-deftest hatty-edit--interpreter-map ()
   "map applies function across substack."
-  (hatty-edit--result-should-equal  '((5 3 5)) '((25 9 25))
-    '(nop
-      push (push (lambda (x) (* x x)) lisp-funcall)
-      map)))
+  (hatty-edit--should-equal '((25 9 100))
+    (hatty-edit--evaluate
+     `((5 3 10)
+       (,(lambda (x) (* x x)) lisp-funcall)
+       map))))
 
-(ert-deftest hatty-edit--substack-evaluation ()
-  "Substacks are evaluated as programs."
-  (hatty-edit--result-should-equal  nil '((25 9 25))
-    '(nop
-      (push 5 push 3 push 5)
-      amalgamate-stack
-      push (push (lambda (x) (* x x)) lisp-funcall)
-      map)))
-
-(ert-deftest hatty-edit--cons-uncons ()
-  "Substacks are evaluated as programs."
-  (hatty-edit--result-should-equal  '(5 3) '((5 . 3))
-    '(cons))
-  (hatty-edit--result-should-equal  '((5 . 3)) '(5 3)
-    '(uncons)))
+(ert-deftest hatty-edit--cons ()
+  "cons, uncons."
+  (should (equal
+           '((5 . 3))
+           (hatty-edit--evaluate
+            '(3 5 cons))))
+  (should (equal
+           '(5 3)
+           (hatty-edit--evaluate
+            '((5 . 3) uncons)))))
 
 (ert-deftest hatty-edit--swap ()
     "swap, swapd."
@@ -157,9 +174,8 @@
 
 This only replaces occurences in top-level forms."
     (hatty-edit--result-should-equal  nil '(1 4 9 16 25)
-      '(nop
-        push (1 2 3 4 5)
-        push (-> x : x x push * push 2 lisp-apply-n ..)
+      '((1 2 3 4 5)
+        (-> x : x x (*) 2 lisp-apply-n ..)
         map
         unstack)))
 
@@ -178,11 +194,10 @@ This only replaces occurences in top-level forms."
   (with-temp-buffer
     (insert "aaa bbb")
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (+ 4 (point-min))
-                    (point-max)))
-       push "ccc"
+     `(,(hatty-edit--markify-region
+         (cons (+ 4 (point-min))
+               (point-max)))
+       "ccc"
        target-insert))
     (should (string= (buffer-string) "aaa cccbbb"))))
 
@@ -191,11 +206,10 @@ This only replaces occurences in top-level forms."
   (with-temp-buffer
     (insert "aaa bbb")
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
+     `(,(hatty-edit--markify-region
               (cons (+ 4 (point-min))
                     (point-max)))
-       push "ccc"
+       "ccc"
        target-overwrite))
     (should (string= (buffer-string) "aaa ccc"))))
 
@@ -204,11 +218,10 @@ This only replaces occurences in top-level forms."
   (with-temp-buffer
     (insert "aaa bbb")
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (+ 4 (point-min))
-                    (point-max)))
-       push "ccc"
+     `(,(hatty-edit--markify-region
+         (cons (+ 4 (point-min))
+               (point-max)))
+       "ccc"
        target-overwrite))
     (should (string= (buffer-string) "aaa ccc"))))
 
@@ -217,13 +230,12 @@ This only replaces occurences in top-level forms."
   (with-temp-buffer
     (insert "aaa bbb")
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (+ 4 (point-min))
-                    (point-max)))
-       push ,(hatty-edit--markify-region
-              (cons (point-min)
-                    (+ 3 (point-min))))
+     `(,(hatty-edit--markify-region
+         (cons (+ 4 (point-min))
+               (point-max)))
+       ,(hatty-edit--markify-region
+         (cons (point-min)
+               (+ 3 (point-min))))
        target-swap))
     (should (string= (buffer-string) "bbb aaa"))))
 
@@ -232,10 +244,9 @@ This only replaces occurences in top-level forms."
   (with-temp-buffer
     (insert "aaa bbb")
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (+ 2 (point-min))
-                    (+ 4 (point-min))))
+     `(,(hatty-edit--markify-region
+         (cons (+ 2 (point-min))
+               (+ 4 (point-min))))
        target-delete))
     (should (string= (buffer-string) "aabbb"))))
 
@@ -245,10 +256,9 @@ This only replaces occurences in top-level forms."
     (insert "aaa ")
     (goto-char (point-max))
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (point-min)
-                    (+ 3 (point-min))))
+     `(,(hatty-edit--markify-region
+         (cons (point-min)
+               (+ 3 (point-min))))
        target-bring))
     (should (string= (buffer-string) "aaa aaa"))))
 
@@ -258,11 +268,22 @@ This only replaces occurences in top-level forms."
     (insert "aaa bbb ")
     (goto-char (point-max))
     (hatty-edit--evaluate
-     `(nop
-       push ,(hatty-edit--markify-region
-              (cons (point-min)
-                    (+ 3 (point-min))))
+     `(,(hatty-edit--markify-region
+         (cons (point-min)
+               (+ 3 (point-min))))
        target-move))
     (should (string= (buffer-string) "bbb aaa"))))
+
+(ert-deftest hatty-edit--target-chuck ()
+  "target-chuck."
+  (with-temp-buffer
+    (insert "aaa bbb ccc")
+    (goto-char (point-max))
+    (hatty-edit--evaluate
+     `(,(hatty-edit--markify-region
+         (cons (+ 4 (point-min))
+               (+ 7 (point-min))))
+       target-chuck))
+    (should (string= (buffer-string) "aaa ccc"))))
 
 ;;; test.el ends here
