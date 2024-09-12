@@ -35,11 +35,10 @@
   "Performing INSTRUCTIONS with INITIAL-STACk yields EXPECTED-STACK."
   (declare (indent defun))
   (should (equal expected-stack
-                 (hatty-edit--environment-value-stack
-                  (hatty-edit--evaluate-environment
-                    (make-hatty-edit--environment
-                     :value-stack initial-stack
-                     :instruction-stack instructions))))))
+                 (hatty-edit--evaluate-environment
+                   (make-hatty-edit--environment
+                    :value-stack initial-stack
+                    :instruction-stack instructions)))))
 
 (ert-deftest hatty-edit--interpreter-push ()
   "Literals and substacks are pushed unto the stack."
@@ -61,12 +60,16 @@
     '(5 drop)))
 
 (ert-deftest hatty-edit--substack ()
-  "Substack (de)construction."
+  "stack, unstack, value-stack."
   (hatty-edit--should-equal '((5 3 1))
       (hatty-edit--evaluate
-       `(1 3 5 3 stack)))
-  (hatty-edit--result-should-equal '((5 3 1)) '(5 3 1)
-    '(unstack)))
+       '(1 3 5 3 stack)))
+  (hatty-edit--should-equal '(5 3 1)
+      (hatty-edit--evaluate
+       '((5 3 1) unstack)))
+  (hatty-edit--should-equal '((5 3 1) 5 3 1)
+      (hatty-edit--evaluate
+       '(1 3 5 value-stack))))
 
 (ert-deftest hatty-edit--interpreter-unstack ()
   "Pack unwrapping."
@@ -130,12 +133,17 @@ effectful computation.)."
        amalgamate-stack))))
 
 (ert-deftest hatty-edit--interpreter-map ()
-  "map applies function across substack."
+  "map, map-stack."
   (hatty-edit--should-equal '((25 9 100))
     (hatty-edit--evaluate
      `((5 3 10)
        (,(lambda (x) (* x x)) lisp-funcall)
-       map))))
+       map)))
+  (hatty-edit--should-equal '(25 9 100)
+    (hatty-edit--evaluate
+     `(10 3 5
+       (,(lambda (x) (* x x)) lisp-funcall)
+       map-stack))))
 
 (ert-deftest hatty-edit--cons ()
   "cons, uncons."
@@ -157,10 +165,12 @@ effectful computation.)."
 
 (ert-deftest hatty-edit--dup ()
     "dup, dupd."
-    (hatty-edit--result-should-equal  '(5 2) '(5 5 2)
-      '(dup))
-    (hatty-edit--result-should-equal  '(5 100 2) '(5 100 100 2)
-      '(dupd)))
+    (hatty-edit--should-equal '(5 5 2)
+      (hatty-edit--evaluate
+       `(2 5 dup)))
+    (hatty-edit--should-equal '(5 100 100 2)
+      (hatty-edit--evaluate
+       `(2 100 5 dupd))))
 
 (ert-deftest hatty-edit--roll ()
     "rollup, rolldown."

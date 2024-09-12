@@ -27,11 +27,12 @@
 ;;
 
 ;;; TODO
-;;;; Commentary
-;;;; Docstrings
-;;;; TODO file
-;;;; Debugger (step-through)
-;;;; goto-def
+;;;; Commentary.
+;;;; Docstrings.
+;;;; TODO file.
+;;;; Debugger.  Better visualizer for hatty-edit--step.
+;;;; goto-def of words.
+;;;; rename stack -> stackn, value-stack -> stack.
 
 ;;; Code:
 
@@ -81,12 +82,6 @@
     lisp-funcall
     unstack))
 
-(defun hatty-edit--evaluate (instructions)
-  (hatty-edit--environment-value-stack
-   (hatty-edit--evaluate-environment
-     (make-hatty-edit--environment
-      :instruction-stack instructions))))
-
 (defun hatty-edit--define-macro (name macro)
   (declare (indent defun))
   (put name 'hatty-edit--macro macro)
@@ -99,6 +94,36 @@
       ;; TODO: Custom error symbol?
       (signal 'error (list "No such hatty-edit macro: " name)))
     macro))
+
+(defun hatty-edit--define-compound-macro (macro-name forms)
+  (declare (indent defun))
+  (hatty-edit--define-macro macro-name
+    (lambda (environment)
+      (hatty-edit--push-instructions environment forms))))
+
+(define-obsolete-function-alias
+  'hatty-edit--define-composed-macro
+  'hatty-edit--define-compound-macro
+  "0.0.0")
+
+(defun hatty-edit--step (environment)
+  (let ((instruction (hatty-edit--pop-instruction environment)))
+    (if (symbolp instruction)
+        (funcall (hatty-edit--get-macro instruction) environment)
+      (hatty-edit--push-value environment instruction)))
+  environment)
+
+(defun hatty-edit--evaluate-environment (environment)
+  (declare (indent defun))
+  (while (hatty-edit--environment-instruction-stack environment)
+    (hatty-edit--step environment))
+  (hatty-edit--environment-value-stack
+   environment))
+
+(defun hatty-edit--evaluate (instructions)
+  (hatty-edit--evaluate-environment
+    (make-hatty-edit--environment
+     :instruction-stack instructions)))
 
 ;; TODO: Do not halt on missing delimiters!
 (hatty-edit--define-macro '->
@@ -139,26 +164,6 @@
                  (alist-get instruction mapping instruction))
                body)))))
 
-(defun hatty-edit--define-compound-macro (macro-name forms)
-  (declare (indent defun))
-  (hatty-edit--define-macro macro-name
-    (lambda (environment)
-      (hatty-edit--push-instructions environment forms))))
-
-(define-obsolete-function-alias
-  'hatty-edit--define-composed-macro
-  'hatty-edit--define-compound-macro
-  "0.0.0")
-
-(defun hatty-edit--evaluate-environment (environment)
-  (declare (indent defun))
-  (while (hatty-edit--environment-instruction-stack environment)
-    (let ((instruction (hatty-edit--pop-instruction environment)))
-      (pcase instruction
-        ((pred symbolp) (funcall (hatty-edit--get-macro instruction) environment))
-        (_ (hatty-edit--push-value environment instruction)))))
-  environment)
-
 (defun hatty-edit--define-rewrite-macro (name stack-before stack-after)
   "Create macro rewriting top of stack.
 
@@ -179,7 +184,57 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   (apply 'hatty-edit--define-rewrite-macro
          definition))
 
-(hatty-edit--define-macro 'nop #'identity)
+(hatty-edit--define-compound-macro 'nop '())
+
+(hatty-edit--define-macro 'value-stack
+  (lambda (environment)
+    (hatty-edit--push-value environment
+     (hatty-edit--environment-value-stack environment))))
+
+(hatty-edit--define-macro 'clear-stack
+  (lambda (environment)
+    (setf (hatty-edit--environment-value-stack environment) nil)))
+
+;; (P) (S) ... -> (E) ... Take program (P) and push environment (E)
+;; having (P) as its program and (S) as its initial state.
+(hatty-edit--define-compound-macro 'make-subenvironment
+  `(,(lambda (program stack)
+       (make-hatty-edit--environment
+        :instruction-stack program
+        :value-stack stack))
+    2 lisp-apply-n))
+
+(hatty-edit--define-macro 'quote
+  (lambda (environment)
+    (hatty-edit--push-value
+     environment
+     (hatty-edit--pop-instruction environment))))
+
+(hatty-edit--define-compound-macro 'nil
+  '(quote nil))
+
+(hatty-edit--define-compound-macro 't
+  '(quote t))
+
+(hatty-edit--define-macro 'drop-stack
+  (lambda (environment)
+    (setf (hatty-edit--environment-value-stack environment) nil)))
+
+;; TODO: Rewrite to use dip
+(hatty-edit--define-compound-macro 'replace-stack
+  `(-> s : drop-stack s unstack ..))
+
+;; TODO: Rewrite to use dip
+(hatty-edit--define-compound-macro 'save-excursion
+  `(-> program :
+       value-stack
+       program
+       make-subenvironment
+       ,(lambda (subenvironment)
+          (save-excursion
+            (hatty-edit--evaluate-environment subenvironment)))
+       lisp-funcall
+       replace-stack ..))
 
 (hatty-edit--define-compound-macro 'lisp-eval-n
   '(lisp-apply-n drop))
@@ -195,7 +250,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
                              (hatty-edit--pop-value environment)))))
 
 ;; Deprecated
-(hatty-edit--define-composed-macro 'list '(stack))
+(hatty-edit--define-compound-macro 'list '(stack))
 
 (hatty-edit--define-macro 'unstack
   (lambda (environment)
@@ -203,10 +258,8 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
      environment
      (hatty-edit--pop-value environment))))
 
-(hatty-edit--define-macro 'amalgamate-stack
-  (lambda (environment)
-    (setf (hatty-edit--environment-value-stack environment)
-          (list (hatty-edit--environment-value-stack environment)))))
+(hatty-edit--define-compound-macro 'amalgamate-stack
+  '(value-stack -> s : drop-stack s ..))
 
 ;; Figure out the interdependencies of these three...
 (hatty-edit--define-macro 'lisp-apply
@@ -247,22 +300,24 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   '((append) lisp-apply))
 
 ;; TODO: Consider making environments first-class citizens
-(hatty-edit--define-composed-macro 'map
+(hatty-edit--define-compound-macro 'map
   `(,(lambda (function substack)
        (mapcar (lambda (value)
-                 (hatty-edit--environment-value-stack
-                  (hatty-edit--evaluate-environment
-                    (make-hatty-edit--environment
-                     ;; Wrap operation in list: If it is a single
-                     ;; symbol, it will become a valid program.  If it
-                     ;; is a list, evaluation of that list will push it
-                     ;; onto the instruction stack, avoiding mutation
-                     ;; of the original list.
-                     :instruction-stack function
-                     :value-stack (list value)))))
+                 (hatty-edit--evaluate-environment
+                   (make-hatty-edit--environment
+                    ;; Wrap operation in list: If it is a single
+                    ;; symbol, it will become a valid program.  If it
+                    ;; is a list, evaluation of that list will push it
+                    ;; onto the instruction stack, avoiding mutation
+                    ;; of the original list.
+                    :instruction-stack function
+                    :value-stack (list value))))
                substack))
     2 lisp-apply-n
     flatten))
+
+(hatty-edit--define-compound-macro 'map-stack
+  `(-> f : amalgamate-stack f map unstack ..))
 
 ;;;; Targets, modifiers, actions:
 
@@ -310,7 +365,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   ;; Expands from car of region
   (let ((function (lambda (target)
                     (hatty-edit--bounds-of-thing-at thing (car target)))))
-    `(push ,function lisp-funcall)))
+    `(,function lisp-funcall)))
 
 (defun hatty-edit--map-all-cursors (function)
   "Perform FUNCTION on point and all fake cursors.
@@ -338,11 +393,6 @@ cursors, return a single value instead of a list."
        (hatty-edit--make-target
         (bounds-of-thing-at-point 'symbol))))))
 
-(defun hatty-edit--make-parallel-modifier (modifier)
-  (hatty-edit--lift-stack-function
-   (lambda (regions)
-     (mapcar modifier regions))))
-
 (defun hatty-edit--make-parallel-action (action)
   (hatty-edit--lift-stack-function
    (lambda (regions)
@@ -363,27 +413,30 @@ cursors, return a single value instead of a list."
        (skip-chars-backward "[:space:]\n")
        (cons (point) (cdr region))))))
 
-(defun hatty-edit--lift-lisp-function (name)
+(defun hatty-edit--lift-lisp-function (name arity)
   `((,name)
-    ,(car (func-arity name))
+    ,arity
     lisp-apply-n))
 
-(defun hatty-edit--lift-lisp-effect (lisp-name)
-  `(,@(hatty-edit--lift-lisp-function lisp-name) drop))
+(defun hatty-edit--lift-lisp-effect (name arity)
+  `(,@(hatty-edit--lift-lisp-function name arity) drop))
 
-(dolist (entry '((cons . cons)
-                 (car . car)
-                 (cdr . cdr)))
+(dolist (entry '((cons cons 2)
+                 (car car 1)
+                 (cdr cdr 1)
+                 (min min 2)
+                 (max max 2)
+                 (point point-marker 0)))
   (hatty-edit--define-compound-macro (car entry)
-    (hatty-edit--lift-lisp-function (cdr entry))))
+    (apply #'hatty-edit--lift-lisp-function (cdr entry))))
 
-(dolist (entry '((set-mark . set-mark)
-                 (goto-char . goto-char)))
+(dolist (entry '((set-mark set-mark 1)
+                 (goto-char goto-char 1)))
   (hatty-edit--define-compound-macro (car entry)
-    (hatty-edit--lift-lisp-effect (cdr entry))))
+    (apply #'hatty-edit--lift-lisp-effect (cdr entry))))
 
 (hatty-edit--define-composed-macro 'uncons
-  `(dup car swap cdr swap))
+  `(dup cdr swap car))
 
 (hatty-edit--define-composed-macro 'target-select
   '(uncons set-mark goto-char))
@@ -462,25 +515,17 @@ cursors, return a single value instead of a list."
 (defvar hatty-edit-actions
   `(("select" . ((target-select) multiple-cursors-do))
     ("chuck" . ((target-chuck) do-all))
-    ("bring" . target-bring)
-    ("move" . target-move)
-    ("swap" . target-swap)
+    ("bring" . (target-bring))
+    ("move" . (target-move))
+    ("swap" . (target-swap))
     ("pre" . ((car goto-char) multiple-cursors-do))
     ("post" . (cdr goto-char))
     ("change" . ((-> t : t target-delete t car goto-char ..)
                  multiple-cursors-do))
     ("comment" .
-     (amalgamate-stack
-      (uncons (comment-region) 2 lisp-eval-n)
-      map))
+     ((uncons (comment-region) 2 lisp-eval-n) do-all))
     ("uncomment" .
-     (amalgamate-stack
-      push (nop
-            push ,(lambda (region)
-                    (uncomment-region (car region)
-                                      (cdr region)))
-            lisp-funcall drop)
-      map))))
+     ((uncomment-region) do-all))))
 
 ;;;; Default modifiers:
 
@@ -499,28 +544,30 @@ cursors, return a single value instead of a list."
     lisp-funcall))
 
 (defvar hatty-edit-modifiers
-  `(("paint" . ,(hatty-edit--make-parallel-modifier
-                 (lambda (region)
-                   (hatty-edit--markify-region
-                    (cons (save-excursion
-                            (goto-char (car region))
-                            (skip-chars-backward "^[:space:]\n")
-                            (point))
-                          (save-excursion
-                            (goto-char (cdr region))
-                            (skip-chars-forward "^[:space:]\n")
-                            (point)))))))
+  `(("paint" . ((-> region :
+                    region cdr
+                    (goto-char
+                     ,(lambda ()
+                        (skip-chars-backward "^[:space:]\n"))
+                     lisp-eval
+                     point)
+                    save-excursion
+
+                    region car
+                    (goto-char
+                     ,(lambda ()
+                        (skip-chars-forward "^[:space:]\n"))
+                     lisp-eval
+                     point)
+                    save-excursion
+                    
+                    cons ..)
+                map-stack))
     ("past" .
-     (nop
-      push 2 list
-      push
-      ,(lambda (first-target second-target)
-         (hatty-edit--markify-region
-          (cons (min (car first-target)
-                     (car second-target))
-                (max (cdr first-target)
-                     (cdr second-target)))))
-      lisp-apply))
+     (-> t1 t2 :
+         t1 cdr t2 cdr max
+         t1 car t2 car min
+         cons ..))
     ("every instance" . (target-string find-occurrences unstack))))
 
 ;;; hatty-edit.el ends soon
