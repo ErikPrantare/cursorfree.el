@@ -74,7 +74,7 @@
 
 (defun he--pop-values (environment n)
   (let ((acc nil))
-    (dotimes (i n acc)
+    (dotimes (i n (reverse acc))
       (push (he--pop-value environment) acc))))
 
 (defun he--lift-stack-function (stack-function)
@@ -224,9 +224,8 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   (lambda (environment)
     (setf (he--environment-value-stack environment) nil)))
 
-;; TODO: Rewrite to use dip
 (he--define-compound-macro 'replace-stack
-  `(-> s : drop-stack s unstack ..))
+  (he--lambda (s) drop-stack s unstack))
 
 ;; TODO: Rewrite to use dip
 (he--define-compound-macro 'save-excursion
@@ -253,9 +252,6 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
                              environment
                              (he--pop-value environment)))))
 
-;; Deprecated
-(he--define-compound-macro 'list '(stack))
-
 (he--define-macro 'unstack
   (lambda (environment)
     (he--push-values
@@ -263,7 +259,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
      (he--pop-value environment))))
 
 (he--define-compound-macro 'amalgamate-stack
-  '(value-stack -> s : drop-stack s ..))
+  `(value-stack ,@(he--lambda (s) drop-stack s)))
 
 ;; Figure out the interdependencies of these three...
 (he--define-macro 'lisp-apply
@@ -281,7 +277,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
    (lambda (stack)
      (let* ((arity (pop stack))
             (function (pop stack))
-            (arguments (take arity stack))
+            (arguments (reverse (take arity stack)))
             (return (nthcdr arity stack)))
        ;; Function symbols may be wrapped in a stack, so they are
        ;; treated like literals.
@@ -305,7 +301,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
 
 ;; TODO: Consider making environments first-class citizens
 (he--define-compound-macro 'map
-  `(,(lambda (function substack)
+  `(,(lambda (substack function)
        (mapcar (lambda (value)
                  (he--evaluate-environment
                    (make-hatty-edit--environment
@@ -321,7 +317,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
     flatten))
 
 (he--define-compound-macro 'map-stack
-  `(-> f : amalgamate-stack f map unstack ..))
+  (he--lambda (f) amalgamate-stack f map unstack))
 
 ;;;; Targets, modifiers, actions:
 
@@ -468,7 +464,7 @@ cursors, return a single value instead of a list."
     2 lisp-eval-n))
 
 (he--define-composed-macro 'target-insert
-  '(swap car swap insert-at))
+  '(swap car insert-at))
 
 (he--define-composed-macro 'target-bring
   '(target-string insert))

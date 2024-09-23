@@ -48,7 +48,7 @@
 
 (ert-deftest he--substack ()
   "stack, unstack, value-stack."
-  (he--should-equal '((5 3 1))
+  (he--should-equal '((1 3 5))
       (he--evaluate
        '(5 3 1 3 stack)))
   (he--should-equal '(5 3 1)
@@ -90,17 +90,17 @@
 effectful computation.)."
   (he--should-equal '("FirstSecond")
     (he--evaluate
-     '("First"
-       "Second"
+     '("Second"
+       "First"
        2 stack
       (concat)
       lisp-apply)))
 
-  (he--should-equal '(15)
+  (he--should-equal '("FirstSecond")
     (he--evaluate
-     '(5
-       3
-       (*)
+     '("First"
+       "Second"
+       (concat)
        2
        lisp-apply-n)))
 
@@ -141,7 +141,7 @@ effectful computation.)."
   (should (equal
            '((5 . 3))
            (he--evaluate
-            '(3 5 cons))))
+            '(5 3 cons))))
   (should (equal
            '(5 3)
            (he--evaluate
@@ -194,13 +194,6 @@ This only replaces occurences in top-level forms."
 
 
 ;;;; Editing
-
-(ert-deftest he--target-insert ()
-  "target-insert."
-  (with-temp-buffer
-    (he--evaluate
-     '(push "Success" target-insert))
-    (should (string= (buffer-string) "Success"))))
 
 (ert-deftest he--target-insert ()
   "target-insert."
