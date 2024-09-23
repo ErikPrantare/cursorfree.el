@@ -125,7 +125,7 @@
   (he--evaluate-environment
     (he--make-environment instructions)))
 
-;; TODO: Do not halt on missing delimiters!
+;; NOTE: Use the wrapper he--lambda instead!
 (he--define-macro '->
   (lambda (environment)
     (let (parameters mapping body)
@@ -163,6 +163,10 @@
        (mapcar (lambda (instruction)
                  (alist-get instruction mapping instruction))
                body)))))
+
+(defmacro he--lambda (args &rest body)
+  (declare (indent defun))
+  `'(-> ,@args : ,@body ..))
 
 (defun he--define-rewrite-macro (name stack-before stack-after)
   "Create macro rewriting top of stack.
