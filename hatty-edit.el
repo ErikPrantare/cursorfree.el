@@ -46,7 +46,7 @@
   (instruction-stack nil) (value-stack nil))
 
 (defun he--make-environment (instructions)
-  (make-he--environment
+  (make-hatty-edit--environment
    :instruction-stack instructions))
 
 (defun he--push-instruction (environment instruction)
@@ -74,9 +74,8 @@
 
 (defun he--pop-values (environment n)
   (let ((acc nil))
-    (dotimes (i n)
-      (push (he--pop-value environment) acc))
-    (reverse acc)))
+    (dotimes (i n acc)
+      (push (he--pop-value environment) acc))))
 
 (defun he--lift-stack-function (stack-function)
   `(amalgamate-stack
@@ -124,8 +123,7 @@
 
 (defun he--evaluate (instructions)
   (he--evaluate-environment
-    (make-he--environment
-     :instruction-stack instructions)))
+    (he--make-environment instructions)))
 
 ;; TODO: Do not halt on missing delimiters!
 (he--define-macro '->
@@ -201,7 +199,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
 ;; having (P) as its program and (S) as its initial state.
 (he--define-compound-macro 'make-subenvironment
   `(,(lambda (program stack)
-       (make-he--environment
+       (make-hatty-edit--environment
         :instruction-stack program
         :value-stack stack))
     2 lisp-apply-n))
@@ -306,7 +304,7 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   `(,(lambda (function substack)
        (mapcar (lambda (value)
                  (he--evaluate-environment
-                   (make-he--environment
+                   (make-hatty-edit--environment
                     ;; Wrap operation in list: If it is a single
                     ;; symbol, it will become a valid program.  If it
                     ;; is a list, evaluation of that list will push it
@@ -507,13 +505,13 @@ cursors, return a single value instead of a list."
     (multiple-cursors-mode 1)
 
     (he--evaluate-environment
-      (make-he--environment
+      (make-hatty-edit--environment
        :instruction-stack function
        :value-stack (list (car values))))
     (dolist (value (cdr values))
       (mc/create-fake-cursor-at-point)
       (he--evaluate-environment
-        (make-he--environment
+        (make-hatty-edit--environment
          :instruction-stack function
          :value-stack (list value))))))
 

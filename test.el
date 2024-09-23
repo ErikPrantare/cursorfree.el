@@ -32,7 +32,7 @@
 
 ;; Deprecated
 (defun hatty-edit--result-should-equal (initial-stack expected-stack instructions)
-  "Performing INSTRUCTIONS with INITIAL-STACk yields EXPECTED-STACK."
+  "Performing INSTRUCTIONS with INITIAL-STACK yields EXPECTED-STACK."
   (declare (indent defun))
   (should (equal expected-stack
                  (hatty-edit--evaluate-environment
@@ -63,7 +63,7 @@
   "stack, unstack, value-stack."
   (hatty-edit--should-equal '((5 3 1))
       (hatty-edit--evaluate
-       '(1 3 5 3 stack)))
+       '(5 3 1 3 stack)))
   (hatty-edit--should-equal '(5 3 1)
       (hatty-edit--evaluate
        '((5 3 1) unstack)))
@@ -88,21 +88,24 @@
 
 (ert-deftest hatty-edit--interpreter-substack ()
   "Substacks evaluate as if flattened onto the instruction stack."
-  (hatty-edit--result-should-equal '(5 3) '(8)
-    '((nop
-       push 2
+  (hatty-edit--should-equal '(8)
+    (hatty-edit--evaluate
+     '(5
+       3
+       2
        stack
-       push +
+       (+)
        lisp-apply))))
 
 (ert-deftest hatty-edit--interpreter-function-invocation ()
   "lisp-apply, lisp-apply-n, lisp-funcall, (lisp-eval..?  For
 effectful computation.)."
-  (hatty-edit--should-equal '(15)
+  (hatty-edit--should-equal '("FirstSecond")
     (hatty-edit--evaluate
-     '(5 3
-      2 stack
-      (*)
+     '("First"
+       "Second"
+       2 stack
+      (concat)
       lisp-apply)))
 
   (hatty-edit--should-equal '(15)
