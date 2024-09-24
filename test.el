@@ -47,16 +47,13 @@
      '(1 2 3 drop))))
 
 (ert-deftest he--substack ()
-  "stack, unstack, value-stack."
-  (he--should-equal '((1 3 5))
-      (he--evaluate
-       '(5 3 1 3 stack)))
+  "stack, unstack."
   (he--should-equal '(5 3 1)
       (he--evaluate
        '((5 3 1) unstack)))
   (he--should-equal '((5 3 1) 5 3 1)
       (he--evaluate
-       '(1 3 5 value-stack))))
+       '(1 3 5 stack))))
 
 (ert-deftest he--interpreter-unstack ()
   "Pack unwrapping."
@@ -69,40 +66,27 @@
   ;; Create uninterned symbol to avoid polluting the global namespace
   (let ((sum (make-symbol "sum")))
     (he--define-compound-macro sum
-      '((+) 2 lisp-apply-n))
+      '((+) 2 lisp-funcall-n))
     (he--should-equal '(8)
       (he--evaluate
        `(5 3 ,sum)))))
 
-(ert-deftest he--interpreter-substack ()
-  "Substacks evaluate as if flattened onto the instruction stack."
-  (he--should-equal '(8)
-    (he--evaluate
-     '(5
-       3
-       2
-       stack
-       (+)
-       lisp-apply))))
-
-(ert-deftest he--interpreter-function-invocation ()
-  "lisp-apply, lisp-apply-n, lisp-funcall, (lisp-eval..?  For
+(ert-deftest he--function-invocation ()
+  "lisp-apply, lisp-funcall-n, lisp-funcall, (lisp-eval..?  For
 effectful computation.)."
   (he--should-equal '("FirstSecond")
     (he--evaluate
-     '("Second"
-       "First"
-       2 stack
-      (concat)
+     '(("First" "Second")
+      \\ concat
       lisp-apply)))
 
   (he--should-equal '("FirstSecond")
     (he--evaluate
      '("First"
        "Second"
-       (concat)
+       \\ concat
        2
-       lisp-apply-n)))
+       lisp-funcall-n)))
 
   (he--should-equal '(25)
     (he--evaluate
@@ -116,24 +100,24 @@ effectful computation.)."
        (reverse)
        lisp-funcall))))
 
-(ert-deftest he--interpreter-stack-amalgamation ()
+(ert-deftest he--stack-amalgamation ()
   "Turn whole stack into a substack."
   (he--should-equal '((5 3 1))
     (he--evaluate
      '(1 3 5         
        amalgamate-stack))))
 
-(ert-deftest he--interpreter-map ()
+(ert-deftest he--map ()
   "map, map-stack."
   (he--should-equal '((25 9 100))
     (he--evaluate
      `((5 3 10)
-       (,(lambda (x) (* x x)) lisp-funcall)
+       ,(he--lambda (x) x x *)
        map)))
   (he--should-equal '(25 9 100)
     (he--evaluate
      `(10 3 5
-       (,(lambda (x) (* x x)) lisp-funcall)
+       ,(he--lambda (x) x x *)
        map-stack))))
 
 (ert-deftest he--cons ()
@@ -143,7 +127,7 @@ effectful computation.)."
            (he--evaluate
             '(5 3 cons))))
   (should (equal
-           '(5 3)
+           '(3 5)
            (he--evaluate
             '((5 . 3) uncons)))))
 
@@ -165,6 +149,15 @@ effectful computation.)."
       (he--evaluate
        `(2 100 5 dupd))))
 
+(ert-deftest he--dip ()
+    "dip."
+    (he--should-equal '("covering" "testtest")
+      (he--evaluate
+       `("test"
+         "covering"
+         ,(he--lambda (v) v v (concat) 2 lisp-funcall-n)
+         dip))))
+
 (ert-deftest he--roll ()
     "rollup, rolldown."
     (he--should-equal '(2 7 5 3)
@@ -181,19 +174,50 @@ This only replaces occurences in top-level forms."
     (he--should-equal '(1 4 9 16 25)
       (he--evaluate
        '((1 2 3 4 5)
-         (-> x : x x (*) 2 lisp-apply-n ..)
+         (-> x : x x (*) 2 lisp-funcall-n ..)
          map
          unstack)))
 
     (he--should-equal '(1 4 9 16 25)
       (he--evaluate
        `((1 2 3 4 5)
-         ,(he--lambda (x) x x (*) 2 lisp-apply-n)
+         ,(he--lambda (x) x x (*) 2 lisp-funcall-n)
          map
          unstack))))
 
+(ert-deftest he--cleave ()
+    "cleave."
+    (he--should-equal '(10 25)
+      (he--evaluate
+       '(5
+         (dup *)
+         (dup +)
+         cleave))))
+
+(ert-deftest he--spread ()
+    "spread."
+    (he--should-equal '(9 25)
+      (he--evaluate
+       '(5
+         3
+         (dup *)
+         spread))))
+
+(ert-deftest he--keep ()
+    "keep."
+    (he--should-equal '(10 25)
+      (he--evaluate
+       '(15 10 (+) keep))))
 
 ;;;; Editing
+
+(ert-deftest he--save-excursion ()
+  "save-excursion."
+  (he--should-equal '(25)
+    (he--evaluate
+     '(5
+       (5 *)
+       save-excursion))))
 
 (ert-deftest he--target-insert ()
   "target-insert."
