@@ -428,6 +428,7 @@ cursors, return a single value instead of a list."
                  (- - 2)
                  (/ / 2)
                  (point point-marker 0)
+                 (mark mark-marker 0)
                  (append append 2)))
   (he--define-compound-macro (car entry)
     `(\\ ,(car entry) ,(caddr entry) lisp-funcall-n)))
@@ -506,6 +507,13 @@ cursors, return a single value instead of a list."
 (he--define-compound-macro 'thing-expand
   '(car \\ he--bounds-of-thing-at 2 lisp-funcall-n))
 
+(defun he--multiple-cursors-map (function)
+  (let ((return nil))
+    (push (he--evaluate function) return)
+    (mc/for-each-fake-cursor
+     (push (he--evaluate function) return))
+    (apply #'append return)))
+
 (defun he--multiple-cursors-do (values function)
   "Parallelize side effects on point, mark and active region."
   (when values
@@ -544,9 +552,27 @@ cursors, return a single value instead of a list."
     ("comment" .
      ((uncons \\ comment-region 2 lisp-eval-n) do-all))
     ("uncomment" .
-     ((uncomment-region) do-all))))
+     ((\\ uncomment-region 1 lisp-eval-n) do-all))
+    ("narrow" .
+     (uncons \\ narrow-to-region 2 lisp-eval-n))))
 
 ;;;; Default modifiers:
+
+(he--define-compound-macro 'skip-forward
+  `(,(lambda (position string)
+       (save-excursion
+         (goto-char position)
+         (skip-chars-forward string)
+         (point-marker)))
+    2 lisp-funcall-n))
+
+(he--define-compound-macro 'skip-backward
+  `(,(lambda (position string)
+       (save-excursion
+         (goto-char position)
+         (skip-chars-backward string)
+         (point-marker)))
+    2 lisp-funcall-n))
 
 (he--define-compound-macro 'find-occurrences
   `(,(lambda (string)
@@ -563,38 +589,70 @@ cursors, return a single value instead of a list."
 
 (he--define-compound-macro 'paint-right
   `(uncons
-    swap
-    (goto-char
-     ,(lambda ()
-        (skip-chars-forward "^[:space:]\n"))
-     lisp-eval
-     point)
-    save-excursion
-
-    swap
+    "^[:space:]\n"
+    skip-forward
     cons))
 
 (he--define-compound-macro 'paint-left
   `(uncons
-    (goto-char
-     ,(lambda ()
-        (skip-chars-backward "^[:space:]\n"))
-     lisp-eval
-     point)
-    save-excursion
-
+    ("^[:space:]\n" skip-backward)
+    dip
     cons))
 
+(he--define-compound-macro 'trim-right
+  `(uncons
+    "[:space:]\n"
+    skip-backward
+    cons))
+
+(he--define-compound-macro 'trim-left
+  `(uncons
+    ("[:space:]\n" skip-forward)
+    dip
+    cons))
+
+(defun he--every-thing (thing)
+  (save-excursion
+    (let ((things nil))
+      (goto-char (point-min))
+      (when (bounds-of-thing-at-point thing)
+        (push (bounds-of-thing-at-point thing) things))
+      (forward-thing thing)
+      (while (< (point) (point-max))
+        (push (bounds-of-thing-at-point thing) things)
+        (forward-thing thing))
+      things)))
+
 (defvar he-modifiers
-  `(("leftpaint" . ((paint-left) map-stack))
-    ("rightpaint" . ((paint-right) map-stack))
-    ("paint" . ((paint-left paint-right) map-stack))
+  `(("leftpaint" .
+     ((paint-left) map-stack))
+    ("rightpaint" .
+     ((paint-right) map-stack))
+    ("paint" .
+     ((paint-left paint-right) map-stack))
+    ("trim" .
+     ((trim-left trim-right) map-stack))
     ("past" .
      (-> t1 t2 :
          t1 cdr t2 cdr max
          t1 car t2 car min
          cons ..))
-    ("every instance" . (target-string find-occurrences unstack))))
+    ("selection" .
+     ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
+    ("every instance" .
+     (target-string find-occurrences unstack))
+    ("every line" .
+     (,(lambda () (he--every-thing 'line))
+      0 lisp-funcall-n
+      unstack))
+    ("brace inside" .
+     (((,(lambda (region)
+           (save-mark-and-excursion
+             (goto-char (car region))
+             (evil-inner- brace 1)
+             (cons (mark-marker) (point-marker))))
+        lisp-funcall)
+       map)))))
 
 (provide 'hatty-edit)
 
