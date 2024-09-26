@@ -31,8 +31,8 @@
   (should (equal expected actual)))
 
 
-(ert-deftest he--interpreter-push ()
-  "Literals and substacks are pushed unto the stack."
+(ert-deftest he--push ()
+  "Non-symbols are pushed unto the stack."
   (should (equal '(5)
                  (he--evaluate
                   '(5))))
@@ -55,17 +55,17 @@
       (he--evaluate
        '(1 3 5 stack))))
 
-(ert-deftest he--interpreter-unstack ()
+(ert-deftest he--unstack ()
   "Pack unwrapping."
   (he--should-equal '(5 a b 3 1)
       (he--evaluate
        `(1 3 (5 a b) unstack))))
 
-(ert-deftest he--interpreter-macro-definition ()
-  "One can define macros."
+(ert-deftest he--instruction-definition ()
+  "One can define instructions."
   ;; Create uninterned symbol to avoid polluting the global namespace
   (let ((sum (make-symbol "sum")))
-    (he--define-compound-macro sum
+    (he--define-compound-instruction sum
       '((+) 2 lisp-funcall-n))
     (he--should-equal '(8)
       (he--evaluate
@@ -100,12 +100,21 @@ effectful computation.)."
        (reverse)
        lisp-funcall))))
 
+(ert-deftest he--conditional ()
+  "if."
+  (he--should-equal '(5)
+    (he--evaluate
+     '(t 5 10 if)))
+  (he--should-equal '(10)
+    (he--evaluate
+     '(nil 5 10 if))))
+
 (ert-deftest he--stack-amalgamation ()
   "Turn whole stack into a substack."
   (he--should-equal '((5 3 1))
     (he--evaluate
      '(1 3 5         
-       amalgamate-stack))))
+         amalgamate-stack))))
 
 (ert-deftest he--map ()
   "map, map-stack."
@@ -315,6 +324,51 @@ This only replaces occurences in top-level forms."
                (+ 7 (point-min))))
        target-chuck))
     (should (string= (buffer-string) "aaa ccc"))))
+
+(ert-deftest he--inner-parenthesis ()
+  "inner-parenthesis, inner-parenthesis-any, inner-parenthesis-dwim."
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       ?\(
+       inner-parenthesis
+       target-delete))
+    (should (string= (buffer-string) "()")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       ?\[
+       inner-parenthesis
+       target-delete))
+    (should (string= (buffer-string) "([] bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       inner-parenthesis-any
+       target-delete))
+    (should (string= (buffer-string) "([] bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       inner-parenthesis-dwim
+       target-delete))
+    (should (string= (buffer-string) "([] bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       ?\(
+       inner-parenthesis-dwim
+       target-delete))
+    (should (string= (buffer-string) "()"))))
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (("he-" . "hatty-edit-"))
