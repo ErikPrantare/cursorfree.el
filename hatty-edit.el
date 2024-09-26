@@ -531,6 +531,9 @@ cursors, return a single value instead of a list."
 (he--define-compound-instruction 'thing-expand
   '(car \\ he--bounds-of-thing-at 2 lisp-funcall-n))
 
+(he--define-compound-instruction 'target-clone
+  `(dup target-string (cdr) dip insert-at))
+
 (defun he--multiple-cursors-map (function)
   (let ((return nil))
     (push (he--evaluate function) return)
@@ -564,6 +567,8 @@ cursors, return a single value instead of a list."
     ("bring" . (target-bring))
     ("move" . (target-move))
     ("swap" . (target-swap))
+    ("clone" . (target-clone))
+    ("jump" . ((car goto-char) multiple-cursors-do))
     ("pre" . ((car goto-char) multiple-cursors-do))
     ("post" . ((cdr goto-char) multiple-cursors-do))
     ("change" . ((-> t : t target-delete t car goto-char ..)
