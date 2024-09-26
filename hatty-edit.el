@@ -105,25 +105,6 @@
     (lambda (environment)
       (he--push-instructions environment forms))))
 
-(defmacro he--define-lisp-instruction (instruction-name args &rest body)
-  "Define instruction as a lisp function.
-
-ARGS must be a finite list of arguments to be popped from the
-stack.  The return value will be pushed back onto the stack."
-  (declare (indent defun))
-  (let ((internal-name
-         (intern (concat "hatty-edit-i--"
-                         (symbol-name instruction-name)))))
-    `(progn
-       (defun ,internal-name ,args ,@body)
-       (he--define-instruction
-         ',instruction-name
-         (lambda (environment)
-           (he--push-value environment
-             (apply #',internal-name
-                    (reverse
-                     (he--pop-values environment ,(length args))))))))))
-
 (defun he--step (environment)
   (let ((instruction (he--pop-instruction environment)))
     (if (symbolp instruction)
@@ -305,6 +286,48 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   (apply 'he--define-rewrite-instruction
          definition))
 
+(defmacro he--define-lisp-instruction-impl (instruction-name args post-process body)
+  "Define instruction as a lisp function.
+
+ARGS must be a finite list of arguments to be popped from the
+stack.  The return value will be pushed back onto the stack and
+processed by the words in POST-PROCESS."
+  (declare (indent defun))
+  (let ((internal-name
+         (intern (concat "hatty-edit-i--"
+                         (symbol-name instruction-name)))))
+    `(progn
+       (defun ,internal-name ,args ,@body)
+       (he--define-compound-instruction ',instruction-name
+         '(\\ ,internal-name ,@post-process)))))
+
+(defmacro he--define-lisp-instruction-1 (instruction-name args &rest body)
+  (declare (indent defun))
+  (macroexpand
+   `(he--define-lisp-instruction-impl
+      ,instruction-name
+      ,args
+      (,(length args) lisp-funcall-n)
+      ,body)))
+
+(defmacro he--define-lisp-instruction-0 (instruction-name args &rest body)
+  (declare (indent defun))
+  (macroexpand
+   `(he--define-lisp-instruction-impl
+      ,instruction-name
+      ,args
+      (,(length args) lisp-eval-n)
+      ,body)))
+
+(defmacro he--define-lisp-instruction-n (instruction-name args &rest body)
+  (declare (indent defun))
+  (macroexpand
+   `(he--define-lisp-instruction-impl
+      ,instruction-name
+      ,args
+      (,(length args) lisp-funcall-n flatten)
+      ,body)))
+
 (he--define-compound-instruction 'nop '())
 
 (he--define-compound-instruction 'nil
@@ -477,14 +500,14 @@ cursors, return a single value instead of a list."
 (he--define-compound-instruction 'keep
   `(dupd swap (eval) dip))
 
-(he--define-lisp-instruction target-select (target)
+(he--define-lisp-instruction-1 target-select (target)
   (set-mark (car target))
   (goto-char (cdr target)))
 
-(he--define-lisp-instruction target-deletion-region (target)
+(he--define-lisp-instruction-1 target-deletion-region (target)
   (he--deletion-region target))
 
-(he--define-lisp-instruction target-delete (target)
+(he--define-lisp-instruction-1 target-delete (target)
   (delete-region (car target) (cdr target)))
 
 (he--define-compound-instruction 'target-chuck
@@ -534,6 +557,9 @@ cursors, return a single value instead of a list."
 (he--define-compound-instruction 'target-clone
   `(dup target-string (cdr) dip insert-at))
 
+(he--define-lisp-instruction-0 target-copy (target)
+  (copy-region-as-kill (car target) (cdr target)))
+
 (defun he--multiple-cursors-map (function)
   (let ((return nil))
     (push (he--evaluate function) return)
@@ -563,6 +589,7 @@ cursors, return a single value instead of a list."
 
 (defvar he-actions
   `(("select" . ((target-select) multiple-cursors-do))
+    ("copy" . (target-copy))
     ("chuck" . ((target-chuck) do-all))
     ("bring" . (target-bring))
     ("move" . (target-move))
@@ -657,7 +684,7 @@ cursors, return a single value instead of a list."
        `(,f lisp-funcall))
     lisp-funcall))
 
-(he--define-lisp-instruction inner-parenthesis (region delimiter)
+(he--define-lisp-instruction-1 inner-parenthesis (region delimiter)
   (let ((expanded
          (pcase delimiter
            ((or ?\( ?\))
@@ -670,17 +697,17 @@ cursors, return a single value instead of a list."
             (evil-inner-angle 1 (car region) (cdr region))))))
     (cons (car expanded) (cadr expanded))))
 
-(he--define-lisp-instruction curry (f)
+(he--define-lisp-instruction-1 curry (f)
   `(-> x : \\ x \\ ,f eval))
 
-(he--define-lisp-instruction inner-parenthesis-any (region)
+(he--define-lisp-instruction-1 inner-parenthesis-any (region)
   (-max-by (-on #'> #'car)
            (--keep (condition-case nil
                        (he-i--inner-parenthesis region it)
                      (error nil))
                    '(?< ?{ ?\( ?\[))))
 
-(he--define-lisp-instruction if (condition then else)
+(he--define-lisp-instruction-1 if (condition then else)
   (if condition then else))
 
 (he--define-compound-instruction 'inner-parenthesis-dwim
