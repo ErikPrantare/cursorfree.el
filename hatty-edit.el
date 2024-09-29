@@ -30,13 +30,13 @@
 ;;;; Commentary.
 ;;;; Docstrings.
 ;;;; TODO file.
-;;;; Debugger.  Better visualizer for hatty-edit--step.
 ;;;; goto-def of words.
-;;;; rename stack -> stackn, value-stack -> stack.
 
 ;;; Code:
 
 (require 'hatty)
+(require 'evil)
+(require 'dash)
 (require 'multiple-cursors)
 
 
@@ -129,8 +129,10 @@
          (state-history (list))
          (format-state (lambda (state)
                          (format "Data:\n%s\n\nInstructions:\n%s"
-                                 (he--environment-value-stack state)
-                                 (he--environment-instruction-stack state)))))
+                                 (mapconcat (lambda (v) (format "%s" v))
+                                            (he--environment-value-stack state) "\n")
+                                 (mapconcat (lambda (v) (format "%s" v))
+                                            (he--environment-instruction-stack state) "\n")))))
     (switch-to-buffer debug-buffer)
     (insert (funcall format-state state))
 
@@ -163,9 +165,9 @@
     (local-set-key (kbd "q")
                    #'kill-this-buffer)))
 
-;;; Level 0: Core words
+;;; Level 0: Core instructions
 
-;; The core words are what all other words build upon.
+;; The core instructions are what all other words build upon.
 
 (he--define-instruction 'lisp-funcall-n
   (lambda (environment)
@@ -174,22 +176,30 @@
            (arguments (reverse (he--pop-values environment arity))))
       ;; Function symbols may be wrapped in a stack, so they are
       ;; treated like literals.
-      ;; TODO: Use \\ to escape them instead?
-      (he--push-value
-       environment
-       (apply (if (functionp function) function (car function))
-              arguments)))))
+      (he--push-value environment
+        (apply function arguments)))))
 
 (he--define-instruction 'stack
   (lambda (environment)
     (he--push-value environment
      (he--environment-value-stack environment))))
 
-(he--define-instruction 'drop-stack
+(he--define-instruction 'instructions
   (lambda (environment)
-    (setf (he--environment-value-stack environment) nil)))
+    (he--push-value environment
+     (he--environment-instruction-stack environment))))
 
-;; NOTE: Use the wrapper he--lambda instead!
+(he--define-instruction 'replace-stack
+  (lambda (environment)
+    (setf (he--environment-value-stack environment)
+          (he--pop-value environment))))
+
+(he--define-instruction 'replace-instructions
+  (lambda (environment)
+    (setf (he--environment-instruction-stack environment)
+          (he--pop-value environment))))
+
+;; NOTE: Use the wrapper he--lambda if possible!
 (he--define-instruction '->
   (lambda (environment)
     (let (parameters mapping body)
@@ -220,13 +230,11 @@
       (pop body)
       (setq body (reverse body))
 
-      ;; Substitute top-level occurences of parameters, push new body
+      ;; Substitute occurences of parameters, push new body
       ;; to instruction stack.
       (he--push-instructions
        environment
-       (mapcar (lambda (instruction)
-                 (alist-get instruction mapping instruction))
-               body)))))
+       (--tree-map (alist-get it mapping it) body)))))
 
 (defmacro he--lambda (args &rest body)
   (declare (indent defun))
@@ -240,9 +248,8 @@
 
 (he--define-instruction '\\
   (lambda (environment)
-    (he--push-value
-     environment
-     (he--pop-instruction environment))))
+    (he--push-value environment
+      (he--pop-instruction environment))))
 
 (he--define-instruction 'unstack
   (lambda (environment)
@@ -250,41 +257,13 @@
      environment
      (he--pop-value environment))))
 
-;;; Level 1: Convenience words
+;;; Level 1: Alow defining instructions as if they were lisp functions
 
-(he--define-compound-instruction 'dip
-  (he--lambda (v f) f eval v))
+(he--define-compound-instruction 'drop
+  (he--lambda (x)))
 
-(he--define-compound-instruction 'amalgamate-stack
-  '(stack (drop-stack) dip))
-
-(he--define-compound-instruction 'replace-stack
-  '((drop-stack) dip unstack))
-
-(he--define-compound-instruction 'lisp-apply-stack
-  '((amalgamate-stack) dip
-    lisp-funcall
-    unstack))
-
-(defun he--define-rewrite-instruction (name stack-before stack-after)
-  "Create instruction rewriting top of stack.
-
-All elements in STACK-AFTER must occur in STACK-BEFORE."
-  (declare (indent defun))
-  ;; STACK-AFTER needs to be reversed to be pushed in the correct
-  ;; order.
-  (he--define-compound-instruction name
-    `(-> ,@stack-before : ,@(reverse stack-after) ..)))
-
-(dolist (definition '((drop (x) ())
-                      (swap (x y) (y x))
-                      (swapd (x y z) (x z y))
-                      (dup (x) (x x))
-                      (dupd (x y) (x y y))
-                      (rollup (x y z) (y z x))
-                      (rolldown (x y z) (z x y))))
-  (apply 'he--define-rewrite-instruction
-         definition))
+(he--define-compound-instruction 'lisp-eval-n
+  '(lisp-funcall-n drop))
 
 (defmacro he--define-lisp-instruction-impl (instruction-name args post-process body)
   "Define instruction as a lisp function.
@@ -325,10 +304,10 @@ processed by the words in POST-PROCESS."
    `(he--define-lisp-instruction-impl
       ,instruction-name
       ,args
-      (,(length args) lisp-funcall-n flatten)
+      (,(length args) lisp-funcall-n unstack)
       ,body)))
 
-(he--define-compound-instruction 'nop '())
+;;; Level 2: Convenience
 
 (he--define-compound-instruction 'nil
   '(\\ nil))
@@ -336,14 +315,46 @@ processed by the words in POST-PROCESS."
 (he--define-compound-instruction 't
   '(\\ t))
 
-;; (P) (S) ... -> (E) ... Take program (P) and push environment (E)
-;; having (P) as its program and (S) as its initial state.
-(he--define-compound-instruction 'make-subenvironment
-  `(,(lambda (stack program)
-       (make-hatty-edit--environment
-        :instruction-stack program
-        :value-stack stack))
-    2 lisp-funcall-n))
+(he--define-compound-instruction 'dip
+  (he--lambda (v f) f eval v))
+
+(he--define-compound-instruction 'amalgamate-stack
+  '(stack (drop-stack) dip))
+
+(he--define-compound-instruction 'drop-stack
+  '(nil replace-stack))
+
+(he--define-compound-instruction 'lisp-apply-stack
+  '((amalgamate-stack) dip
+    lisp-funcall
+    unstack))
+
+(defun he--define-rewrite-instruction (name stack-before stack-after)
+  "Create instruction rewriting top of stack.
+
+All elements in STACK-AFTER must occur in STACK-BEFORE."
+  (declare (indent defun))
+  ;; STACK-AFTER needs to be reversed to be pushed in the correct
+  ;; order.
+  (he--define-compound-instruction name
+    `(-> ,@stack-before : ,@(reverse stack-after) ..)))
+
+(dolist (definition '((swap (x y) (y x))
+                      (swapd (x y z) (x z y))
+                      (dup (x) (x x))
+                      (dupd (x y) (x y y))
+                      (rollup (x y z) (y z x))
+                      (rolldown (x y z) (z x y))))
+  (apply 'he--define-rewrite-instruction
+         definition))
+
+(he--define-lisp-instruction-1 make-subenvironment (values instructions)
+  (make-hatty-edit--environment
+   :instruction-stack instructions
+   :value-stack values))
+
+(he--define-lisp-instruction-1 evaluate-subenvironment (subenvironment)
+  (he--evaluate-environment subenvironment))
 
 (he--define-compound-instruction 'save-excursion
   `((stack)
@@ -355,36 +366,71 @@ processed by the words in POST-PROCESS."
     lisp-funcall
     replace-stack))
 
-(he--define-compound-instruction 'lisp-apply
-  `(,(lambda (arguments function) (apply function arguments))
-    2 lisp-funcall-n))
+(he--define-lisp-instruction-1 lisp-apply (xs f)
+  (apply f xs))
 
-(he--define-compound-instruction 'lisp-funcall
-  '(1 lisp-funcall-n))
+(he--define-lisp-instruction-1 lisp-funcall (x f)
+  (funcall f x))
 
-(he--define-compound-instruction 'lisp-eval-n
-  '(lisp-funcall-n drop))
+(he--define-lisp-instruction-0 lisp-eval (f)
+  (funcall f))
 
-(he--define-compound-instruction 'lisp-eval
-  '(0 lisp-eval-n))
+(he--define-lisp-instruction-0 flatten (xs)
+  (apply #'append xs))
 
-(he--define-compound-instruction 'flatten
-  '(\\ append lisp-apply))
-
-;; TODO: Implement with more basic primitives
-(he--define-compound-instruction 'map
-  `(,(lambda (substack function)
-       (mapcar (lambda (value)
-                 (he--evaluate-environment
-                   (make-hatty-edit--environment
-                    :instruction-stack function
-                    :value-stack (list value))))
-               substack))
-    2 lisp-funcall-n
-    flatten))
+(he--define-lisp-instruction-1 map (xs f)
+  (--mapcat (he--evaluate-environment
+              (make-hatty-edit--environment
+               :instruction-stack f
+               :value-stack (list it)))
+            xs))
 
 (he--define-compound-instruction 'map-stack
   '((amalgamate-stack) dip map unstack))
+
+(dolist (entry '((cons cons 2)
+                 (car car 1)
+                 (cdr cdr 1)
+                 (* * 2)
+                 (+ + 2)
+                 (- - 2)
+                 (/ / 2)
+                 (point point-marker 0)
+                 (mark mark-marker 0)
+                 (append append 2)))
+  (he--define-compound-instruction (car entry)
+    `(\\ ,(cadr entry) ,(caddr entry) lisp-funcall-n)))
+
+;; Custom definitions to make sure markers are returned if passed as
+;; arguments.
+(he--define-lisp-instruction-1 min (a b)
+  (if (< a b) a b))
+(he--define-lisp-instruction-1 max (a b)
+  (if (> a b) a b))
+
+(dolist (entry '((set-mark set-mark 1)
+                 (goto-char goto-char 1)))
+  (he--define-compound-instruction (car entry)
+    `(\\ ,(cadr entry) ,(caddr entry) lisp-eval-n)))
+
+(he--define-compound-instruction 'cleave
+  (he--lambda (object f g)
+    \\ object f eval
+    \\ object g eval))
+
+(he--define-compound-instruction 'spread
+  (he--lambda (object1 object2 f)
+    \\ object1 f eval
+    \\ object2 f eval))
+
+(he--define-compound-instruction 'uncons
+  `((car) (cdr) cleave))
+
+(he--define-compound-instruction 'keep
+  `(dupd swap (eval) dip))
+
+(he--define-lisp-instruction-1 curry (f)
+  `(-> x : (\\ x \\ ,f eval) ..))
 
 ;;;; Targets, modifiers, actions:
 
@@ -409,9 +455,7 @@ processed by the words in POST-PROCESS."
 
 (defun he--make-target-from-hat (character &optional color shape)
   (he--make-target
-   (he--bounds-of-thing-at
-    'symbol
-    (hatty-locate character color shape))))
+   (hatty-locate-token-region character color shape)))
 
 (defun he--make-thing-modifier (thing)
   ;; Expands from car of region
@@ -434,24 +478,6 @@ cursors, return a single value instead of a list."
         (car result)
       result)))
 
-(defun he--default-target ()
-  (he--map-all-cursors
-   (if (region-active-p)
-       (lambda ()
-         (he--make-target
-          (cons (region-beginning)
-                (region-end))))
-     (lambda ()
-       (he--make-target
-        (bounds-of-thing-at-point 'symbol))))))
-
-(defun he--make-parallel-action (action)
-  `(,(lambda (regions)
-     (mapcar action regions)
-     nil)
-    lisp-apply-stack))
-
-
 ;;;; Default actions:
 
 (defun he--deletion-region (region)
@@ -464,60 +490,24 @@ cursors, return a single value instead of a list."
        (skip-chars-backward "[:space:]\n")
        (cons (point) (cdr region))))))
 
-(dolist (entry '((cons cons 2)
-                 (car car 1)
-                 (cdr cdr 1)
-                 (min min 2)
-                 (max max 2)
-                 (* * 2)
-                 (+ + 2)
-                 (- - 2)
-                 (/ / 2)
-                 (point point-marker 0)
-                 (mark mark-marker 0)
-                 (append append 2)))
-  (he--define-compound-instruction (car entry)
-    `(\\ ,(car entry) ,(caddr entry) lisp-funcall-n)))
-
-(dolist (entry '((set-mark set-mark 1)
-                 (goto-char goto-char 1)))
-  (he--define-compound-instruction (car entry)
-    `(\\ ,(car entry) ,(caddr entry) lisp-eval-n)))
-
-(he--define-compound-instruction 'cleave
-  (he--lambda (object f g)
-    \\ object f eval
-    \\ object g eval))
-
-(he--define-compound-instruction 'spread
-  (he--lambda (object1 object2 f)
-    \\ object1 f eval
-    \\ object2 f eval))
-
-(he--define-compound-instruction 'uncons
-  `((car) (cdr) cleave))
-
-(he--define-compound-instruction 'keep
-  `(dupd swap (eval) dip))
-
-(he--define-lisp-instruction-1 target-select (target)
+(he--define-lisp-instruction-0 target-select (target)
   (set-mark (car target))
   (goto-char (cdr target)))
 
 (he--define-lisp-instruction-1 target-deletion-region (target)
   (he--deletion-region target))
 
-(he--define-lisp-instruction-1 target-delete (target)
+(he--define-lisp-instruction-0 target-delete (target)
   (delete-region (car target) (cdr target)))
 
 (he--define-compound-instruction 'target-chuck
   '(target-deletion-region target-delete))
 
-(he--define-compound-instruction 'target-string
-  '(uncons (buffer-substring) 2 lisp-funcall-n))
+(he--define-lisp-instruction-1 target-string (target)
+  (buffer-substring (car target) (cdr target)))
 
-(he--define-compound-instruction 'insert
-  '(\\ insert 1 lisp-eval-n))
+(he--define-lisp-instruction-0 insert (string)
+  (insert string))
 
 (he--define-compound-instruction 'insert-at
   `(((goto-char) dip insert) save-excursion))
@@ -543,10 +533,6 @@ cursors, return a single value instead of a list."
        t2 t1 target-string
        target-overwrite
        target-overwrite))
-
-(he--define-compound-instruction 'multiple-cursors-do
-  '((amalgamate-stack) dip
-    \\ he--multiple-cursors-do 2 lisp-eval-n))
 
 (he--define-compound-instruction 'do-all
   '(-> f : amalgamate-stack f map drop ..))
@@ -587,6 +573,26 @@ cursors, return a single value instead of a list."
            :instruction-stack function
            :value-stack (list value)))))))
 
+(he--define-compound-instruction 'multiple-cursors-do
+  '((amalgamate-stack) dip
+    \\ he--multiple-cursors-do 2 lisp-eval-n))
+
+(he--define-compound-instruction 'target-change
+  '((target-delete) keep car goto-char))
+
+(he--define-lisp-instruction-0 target-wrap-parentheses (target parenthesis)
+  (save-excursion
+    (goto-char (car target))
+    (insert parenthesis)
+    (goto-char (cdr target))
+    (insert
+     (pcase parenthesis
+       (?\( ?\))
+       (?\[ ?\])
+       (?< ?>)
+       (?{ ?})
+       (_ parenthesis)))))
+
 (defvar he-actions
   `(("select" . ((target-select) multiple-cursors-do))
     ("copy" . (target-copy))
@@ -594,11 +600,11 @@ cursors, return a single value instead of a list."
     ("bring" . (target-bring))
     ("move" . (target-move))
     ("swap" . (target-swap))
-    ("clone" . (target-clone))
+    ("clone" . ((target-clone) do-all))
     ("jump" . ((car goto-char) multiple-cursors-do))
     ("pre" . ((car goto-char) multiple-cursors-do))
     ("post" . ((cdr goto-char) multiple-cursors-do))
-    ("change" . ((-> t : t target-delete t car goto-char ..)
+    ("change" . ((target-change)
                  multiple-cursors-do))
     ("unwrap" . ((t ->
                     t (my/surrounding-inner) thing-expand target-string
@@ -610,7 +616,8 @@ cursors, return a single value instead of a list."
     ("uncomment" .
      ((\\ uncomment-region 1 lisp-eval-n) do-all))
     ("narrow" .
-     (uncons \\ narrow-to-region 2 lisp-eval-n))))
+     (uncons \\ narrow-to-region 2 lisp-eval-n))
+    ("wrap" . ((target-wrap-parentheses) curry eval do-all))))
 
 ;;;; Default modifiers:
 
@@ -697,9 +704,6 @@ cursors, return a single value instead of a list."
             (evil-inner-angle 1 (car region) (cdr region))))))
     (cons (car expanded) (cadr expanded))))
 
-(he--define-lisp-instruction-1 curry (f)
-  `(-> x : \\ x \\ ,f eval))
-
 (he--define-lisp-instruction-1 inner-parenthesis-any (region)
   (-max-by (-on #'> #'car)
            (--keep (condition-case nil
@@ -716,6 +720,32 @@ cursors, return a single value instead of a list."
     (inner-parenthesis-any)
     if eval))
 
+(he--define-lisp-instruction-1 nthcdr (list n)
+  (nthcdr n list))
+
+(he--define-compound-instruction 'swons
+  '(uncons swap))
+
+(he--define-compound-instruction 'unswons
+  '(swap cons))
+
+;; NEXT: How?
+(he--define-compound-instruction 'on-instructions
+  `(instructions
+    (,(he--lambda (f instructions) \\ map-stack \\ f \\ \\)
+     make-subenvironment
+     evaluate-subenvironment
+     replace-instructions)
+    eval))
+
+(he--define-compound-instruction 'map-next
+  `(instructions
+    (,(he--lambda (f dummy dummy) \\ map-stack \\ f \\ \\)
+     make-subenvironment
+     evaluate-subenvironment
+     replace-instructions)
+    eval))
+
 (defvar he-modifiers
   `(("leftpaint" .
      ((paint-left) map-stack))
@@ -726,10 +756,10 @@ cursors, return a single value instead of a list."
     ("trim" .
      ((trim-left trim-right) map-stack))
     ("past" .
-     (-> t1 t2 :
-         t1 cdr t2 cdr max
-         t1 car t2 car min
-         cons ..))
+     ,(he--lambda (t1 t2)
+        t1 t2 (car) spread min
+        t1 t2 (cdr) spread max
+        cons))
     ("selection" .
      ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
     ("every instance" .
@@ -738,12 +768,13 @@ cursors, return a single value instead of a list."
      (,(lambda () (he--every-thing 'line))
       0 lisp-funcall-n
       unstack))
-    ("inside" . (inner-parenthesis-dwim))))
+    ("inside" . (inner-parenthesis-dwim))
+    ("map" . (map-next))))
 
 (provide 'hatty-edit)
 
 ;;; hatty-edit.el ends soon
 ;; Local Variables:
-;; read-symbol-shorthands: (("he-" . "hatty-edit-")
+;; read-symbol-shorthands: (("he-" . "hatty-edit-"))
 ;; End:
 ;;; hatty-edit.el ends here

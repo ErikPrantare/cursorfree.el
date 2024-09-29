@@ -21,7 +21,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -32,7 +32,7 @@
 
 
 (ert-deftest he--push ()
-  "Non-symbols are pushed unto the stack."
+  "Non-symbols are pushed unto the stack.  pusher."
   (should (equal '(5)
                  (he--evaluate
                   '(5))))
@@ -55,6 +55,18 @@
       (he--evaluate
        '(1 3 5 stack))))
 
+(ert-deftest he--instructions ()
+  "instructions, replae-instructions."
+  (he--should-equal '((cdr 5 (1337)))
+    (he--environment-value-stack
+     (he--step
+      (he--make-environment
+       '(instructions cdr 5 (1337))))))
+
+  (he--should-equal '(3)
+    (he--evaluate
+     '((5 3 1) (cdr car) replace-instructions))))
+
 (ert-deftest he--unstack ()
   "Pack unwrapping."
   (he--should-equal '(5 a b 3 1)
@@ -66,7 +78,7 @@
   ;; Create uninterned symbol to avoid polluting the global namespace
   (let ((sum (make-symbol "sum")))
     (he--define-compound-instruction sum
-      '((+) 2 lisp-funcall-n))
+      '(\\ + 2 lisp-funcall-n))
     (he--should-equal '(8)
       (he--evaluate
        `(5 3 ,sum)))))
@@ -97,7 +109,7 @@ effectful computation.)."
   (he--should-equal '("olleH")
     (he--evaluate
      `("Hello"
-       (reverse)
+       \\ reverse
        lisp-funcall))))
 
 (ert-deftest he--conditional ()
@@ -117,7 +129,7 @@ effectful computation.)."
          amalgamate-stack))))
 
 (ert-deftest he--map ()
-  "map, map-stack."
+  "map, map-stack, map-next."
   (he--should-equal '((25 9 100))
     (he--evaluate
      `((5 3 10)
@@ -127,7 +139,12 @@ effectful computation.)."
     (he--evaluate
      `(10 3 5
        ,(he--lambda (x) x x *)
-       map-stack))))
+       map-stack)))
+  (he--should-equal '(25 9 100)
+    (he--evaluate
+     `(10 3 5
+          map-next
+          ,(he--lambda (x) x x *)))))
 
 (ert-deftest he--cons ()
   "cons, uncons."
@@ -164,7 +181,7 @@ effectful computation.)."
       (he--evaluate
        `("test"
          "covering"
-         ,(he--lambda (v) v v (concat) 2 lisp-funcall-n)
+         ,(he--lambda (v) v v \\ concat 2 lisp-funcall-n)
          dip))))
 
 (ert-deftest he--roll ()
@@ -183,14 +200,14 @@ This only replaces occurences in top-level forms."
     (he--should-equal '(1 4 9 16 25)
       (he--evaluate
        '((1 2 3 4 5)
-         (-> x : x x (*) 2 lisp-funcall-n ..)
+         (-> x : x x \\ * 2 lisp-funcall-n ..)
          map
          unstack)))
 
     (he--should-equal '(1 4 9 16 25)
       (he--evaluate
        `((1 2 3 4 5)
-         ,(he--lambda (x) x x (*) 2 lisp-funcall-n)
+         ,(he--lambda (x) x x \\ * 2 lisp-funcall-n)
          map
          unstack))))
 
@@ -217,6 +234,16 @@ This only replaces occurences in top-level forms."
     (he--should-equal '(10 25)
       (he--evaluate
        '(15 10 (+) keep))))
+
+(ert-deftest he--curry ()
+    "curry."
+    (he--should-equal '((5 15 25))
+      (he--evaluate
+       '((1 3 5)
+         (\\ * 2 lisp-funcall-n)
+         curry
+         (5) dip eval
+         map))))
 
 ;;;; Editing
 
@@ -263,20 +290,29 @@ This only replaces occurences in top-level forms."
        "ccc"
        target-overwrite))
     (should (string= (buffer-string) "aaa ccc"))))
-
-(ert-deftest he--target-swap ()
-  "target-swap."
+(ert-deftest he--target-overwrite ()
+  "target-overwrite."
   (with-temp-buffer
     (insert "aaa bbb")
     (he--evaluate
      `(,(he--markify-region
          (cons (+ 4 (point-min))
                (point-max)))
-       ,(he--markify-region
-         (cons (point-min)
-               (+ 3 (point-min))))
-       target-swap))
-    (should (string= (buffer-string) "bbb aaa"))))
+       "ccc"
+       target-overwrite))
+    (should (string= (buffer-string) "aaa ccc"))))
+
+(ert-deftest he--target-change ()
+  "target-change."
+  (with-temp-buffer
+    (insert "aaa bbb")
+    (he--evaluate
+     `(,(he--markify-region
+         (cons (+ 2 (point-min))
+               (+ 5 (point-min))))
+       target-change))
+    (should (string= (buffer-string) "aabb"))
+    (should (= (point) (+ 2 (point-min))))))
 
 (ert-deftest he--target-delete ()
   "targets-delete."
@@ -369,6 +405,25 @@ This only replaces occurences in top-level forms."
        inner-parenthesis-dwim
        target-delete))
     (should (string= (buffer-string) "()"))))
+
+(ert-deftest he--wrap-parentheses ()
+  "wrap-parentheses."
+  (with-temp-buffer
+    (insert "aaa bbb ccc")
+    (he--evaluate
+     `(,(he--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
+       ?{
+       target-wrap-parentheses))
+    (should (string= (buffer-string) "aaa {bbb} ccc")))
+
+  ;; Non-parentheses use same character for both ends
+  (with-temp-buffer
+    (insert "aaa bbb ccc")
+    (he--evaluate
+     `(,(he--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
+       ?$
+       target-wrap-parentheses))
+    (should (string= (buffer-string) "aaa $bbb$ ccc"))))
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (("he-" . "hatty-edit-"))
