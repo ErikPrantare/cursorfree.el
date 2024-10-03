@@ -692,24 +692,30 @@ cursors, return a single value instead of a list."
     lisp-funcall))
 
 (he--define-lisp-instruction-1 inner-parenthesis (region delimiter)
-  (let ((expanded
-         (pcase delimiter
-           ((or ?\( ?\))
-            (evil-inner-paren 1 (car region) (cdr region)))
-           ((or ?{ ?})
-            (evil-inner-curly 1 (car region) (cdr region)))
-           ((or ?\[ ?\])
-            (evil-inner-bracket 1 (car region) (cdr region)))
-           ((or ?< ?>)
-            (evil-inner-angle 1 (car region) (cdr region))))))
-    (cons (car expanded) (cadr expanded))))
+  (save-excursion
+    ;; evil-inner-double-quote uses the location of point for the
+    ;; expansion.  Put point at the beginning of the region.
+    (goto-char (car region))
+    (let ((expanded
+           (funcall
+            (cl-case delimiter
+              (?\( #'evil-inner-paren)
+              (?\[ #'evil-inner-bracket)
+              (?< #'evil-inner-angle)
+              (?{ #'evil-inner-curly)
+              (?\" #'evil-inner-double-quote)
+              (?\' #'evil-inner-single-quote)))))
+      (cons (car expanded) (cadr expanded)))))
 
 (he--define-lisp-instruction-1 inner-parenthesis-any (region)
   (-max-by (-on #'> #'car)
-           (--keep (condition-case nil
-                       (he-i--inner-parenthesis region it)
-                     (error nil))
-                   '(?< ?{ ?\( ?\[))))
+           ;; Filter out whenever the evil-inner-*-quote messes up the
+           ;; region
+           (--filter (<= (car it) (car region))
+                     (--keep (condition-case nil
+                                 (he-i--inner-parenthesis region it)
+                               (error nil))
+                             '(?< ?{ ?\( ?\[ ?\" ?\')))))
 
 (he--define-lisp-instruction-1 if (condition then else)
   (if condition then else))
@@ -722,12 +728,6 @@ cursors, return a single value instead of a list."
 
 (he--define-lisp-instruction-1 nthcdr (list n)
   (nthcdr n list))
-
-(he--define-compound-instruction 'swons
-  '(uncons swap))
-
-(he--define-compound-instruction 'unswons
-  '(swap cons))
 
 ;; NEXT: How?
 (he--define-compound-instruction 'on-instructions

@@ -404,7 +404,15 @@ This only replaces occurences in top-level forms."
        ?\(
        inner-parenthesis-dwim
        target-delete))
-    (should (string= (buffer-string) "()"))))
+    (should (string= (buffer-string) "()")))
+
+  (with-temp-buffer
+    (insert "(\"aaa\" bbb ccc)")
+    (he--evaluate
+     `(,(cons (+ (point-min) 2) (+ (point-min) 3))
+       inner-parenthesis-dwim
+       target-delete))
+    (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
 (ert-deftest he--wrap-parentheses ()
   "wrap-parentheses."
