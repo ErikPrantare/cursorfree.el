@@ -356,12 +356,23 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
 (he--define-lisp-instruction-1 evaluate-subenvironment (subenvironment)
   (he--evaluate-environment subenvironment))
 
+;; TODO: "evaluate-inside-lisp" function?
 (he--define-compound-instruction 'save-excursion
   `((stack)
     dip
     make-subenvironment
     ,(lambda (subenvironment)
        (save-excursion
+         (he--evaluate-environment subenvironment)))
+    lisp-funcall
+    replace-stack))
+
+(he--define-compound-instruction 'save-mark-and-excursion
+  `((stack)
+    dip
+    make-subenvironment
+    ,(lambda (subenvironment)
+       (save-mark-and-excursion
          (he--evaluate-environment subenvironment)))
     lisp-funcall
     replace-stack))
@@ -550,7 +561,10 @@ cursors, return a single value instead of a list."
   (let ((return nil))
     (push (he--evaluate function) return)
     (mc/for-each-fake-cursor
-     (push (he--evaluate function) return))
+     (save-mark-and-excursion
+       (goto-char (overlay-get cursor 'point))
+       (set-mark (overlay-get cursor 'mark))
+       (push (he--evaluate function) return)))
     (apply #'append return)))
 
 (defun he--multiple-cursors-do (values function)
@@ -597,7 +611,7 @@ cursors, return a single value instead of a list."
   `(("select" . ((target-select) multiple-cursors-do))
     ("copy" . (target-copy))
     ("chuck" . ((target-chuck) do-all))
-    ("bring" . (target-bring))
+    ("bring" . ((target-bring) curry eval \\ he--multiple-cursors-map lisp-funcall))
     ("move" . (target-move))
     ("swap" . (target-swap))
     ("clone" . ((target-clone) do-all))
@@ -615,6 +629,9 @@ cursors, return a single value instead of a list."
      ((uncons \\ comment-region 2 lisp-eval-n) do-all))
     ("uncomment" .
      ((\\ uncomment-region 1 lisp-eval-n) do-all))
+    ("indent" . (((target-select \\ indent-for-tab-command lisp-eval)
+                  save-mark-and-excursion)
+                 do-all))
     ("narrow" .
      (uncons \\ narrow-to-region 2 lisp-eval-n))
     ("wrap" . ((target-wrap-parentheses) curry eval do-all))))
