@@ -56,7 +56,7 @@
        '(1 3 5 stack))))
 
 (ert-deftest he--instructions ()
-  "instructions, replae-instructions."
+  "instructions, replace-instructions, on-instructions."
   (he--should-equal '((cdr 5 (1337)))
     (he--environment-value-stack
      (he--step
@@ -65,7 +65,11 @@
 
   (he--should-equal '(3)
     (he--evaluate
-     '((5 3 1) (cdr car) replace-instructions))))
+     '((5 3 1) (cdr car) replace-instructions)))
+
+  (he--should-equal '(1337)
+    (he--evaluate
+     '((drop) on-instructions 100 1337))))
 
 (ert-deftest he--unstack ()
   "Pack unwrapping."
@@ -125,7 +129,7 @@ effectful computation.)."
   "Turn whole stack into a substack."
   (he--should-equal '((5 3 1))
     (he--evaluate
-     '(1 3 5         
+     '(1 3 5
          amalgamate-stack))))
 
 (ert-deftest he--map ()
@@ -244,6 +248,22 @@ This only replaces occurences in top-level forms."
          curry
          (5) dip eval
          map))))
+
+(ert-deftest he--subenvironment ()
+    "make-subenvironment, evaluate-subenvironment."
+    (he--should-equal '(9)
+      (he--evaluate
+       '((1 3 5)
+         (+ +)
+         make-subenvironment
+         evaluate-subenvironment
+         unstack))))
+
+(ert-deftest he--infix ()
+    "make-infix."
+    (he--should-equal '(9)
+      (he--evaluate
+       '(2 (+) make-infix 7))))
 
 ;;;; Editing
 
@@ -432,6 +452,27 @@ This only replaces occurences in top-level forms."
        ?$
        target-wrap-parentheses))
     (should (string= (buffer-string) "aaa $bbb$ ccc"))))
+
+(ert-deftest he--targets-join ()
+  "target-join."
+  (he--should-equal `(,(he--markify-region '(5 . 100)))
+    (he--evaluate
+     '(((43 . 30)
+        (5 . 20)
+        (65 . 100)
+        (23 . 25))
+       targets-join))))
+
+(ert-deftest he--crush ()
+  "crush."
+  (with-temp-buffer
+    (insert "aaa bbb ccc ddd eee")
+    (he--evaluate
+     `((,(he--markify-region (cons (+ (point-min) 1) (+ (point-min) 2)))
+        ,(he--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
+        ,(he--markify-region (cons (+ (point-min) 12) (+ (point-min) 15))))
+       crush))
+    (should (string= (buffer-string) "aabbbddd eee"))))
 
 ;; Local Variables:
 ;; read-symbol-shorthands: (("he-" . "hatty-edit-"))

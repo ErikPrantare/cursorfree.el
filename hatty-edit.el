@@ -607,6 +607,14 @@ cursors, return a single value instead of a list."
        (?{ ?})
        (_ parenthesis)))))
 
+
+;; Remove everything interspersing list of targets
+(he--define-compound-instruction 'crush
+  '(dup
+    (target-string) map \\ concat lisp-apply
+    (targets-join) dip
+    target-overwrite))
+
 (defvar he-actions
   `(("select" . ((target-select) multiple-cursors-do))
     ("copy" . (target-copy))
@@ -628,13 +636,15 @@ cursors, return a single value instead of a list."
     ("comment" .
      ((uncons \\ comment-region 2 lisp-eval-n) do-all))
     ("uncomment" .
-     ((\\ uncomment-region 1 lisp-eval-n) do-all))
+     ((uncons \\ uncomment-region 2 lisp-eval-n) do-all))
     ("indent" . (((target-select \\ indent-for-tab-command lisp-eval)
                   save-mark-and-excursion)
                  do-all))
     ("narrow" .
      (uncons \\ narrow-to-region 2 lisp-eval-n))
-    ("wrap" . ((target-wrap-parentheses) curry eval do-all))))
+    ("wrap" . ((target-wrap-parentheses) curry eval do-all))
+    ("crush" . (amalgamate-stack \\ reverse lisp-funcall crush))
+    ("filler" . (((car goto-char \\ fill-paragraph lisp-eval) save-excursion) do-all))))
 
 ;;;; Default modifiers:
 
@@ -746,11 +756,11 @@ cursors, return a single value instead of a list."
 (he--define-lisp-instruction-1 nthcdr (list n)
   (nthcdr n list))
 
-;; NEXT: How?
 (he--define-compound-instruction 'on-instructions
   `(instructions
-    (,(he--lambda (f instructions) \\ map-stack \\ f \\ \\)
-     make-subenvironment
+    (2 nthcdr ; Remove this instruction and the following eval
+       swap
+       make-subenvironment
      evaluate-subenvironment
      replace-instructions)
     eval))
@@ -763,6 +773,17 @@ cursors, return a single value instead of a list."
      replace-instructions)
     eval))
 
+(he--define-lisp-instruction-1 targets-join (targets)
+  (he--markify-region
+   (cons (apply #'min (mapcar #'car targets))
+         (apply #'max (mapcar #'cdr targets)))))
+
+(he--define-compound-instruction 'past
+  '(\\ list 2 lisp-funcall-n targets-join))
+
+(he--define-compound-instruction 'make-infix
+  (he--lambda (f) (((f eval) unstack) dip) on-instructions))
+
 (defvar he-modifiers
   `(("leftpaint" .
      ((paint-left) map-stack))
@@ -772,11 +793,8 @@ cursors, return a single value instead of a list."
      ((paint-left paint-right) map-stack))
     ("trim" .
      ((trim-left trim-right) map-stack))
-    ("past" .
-     ,(he--lambda (t1 t2)
-        t1 t2 (car) spread min
-        t1 t2 (cdr) spread max
-        cons))
+    ("past" . ((past) make-infix))
+    ("join" . (amalgamate-stack targets-join))
     ("selection" .
      ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
     ("every instance" .
@@ -788,9 +806,10 @@ cursors, return a single value instead of a list."
     ("inside" . (inner-parenthesis-dwim))
     ("map" . (map-next))))
 
-(provide 'hatty-edit)
 
 ;;; hatty-edit.el ends soon
+(provide 'hatty-edit)
+
 ;; Local Variables:
 ;; read-symbol-shorthands: (("he-" . "hatty-edit-"))
 ;; End:
