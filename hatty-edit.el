@@ -30,6 +30,8 @@
 ;;;; Commentary.
 ;;;; Docstrings.
 ;;;; TODO file.
+;;;; Decide the public API for initial release
+;;;; Try to reduce lisp <-> DSL friction
 ;;;; goto-def of words.
 
 ;;; Code:
@@ -257,7 +259,7 @@
      environment
      (he--pop-value environment))))
 
-;;; Level 1: Alow defining instructions as if they were lisp functions
+;;; Level 1: Allow defining instructions as if they were lisp functions
 
 (he--define-compound-instruction 'drop
   (he--lambda (x)))
@@ -644,6 +646,7 @@ cursors, return a single value instead of a list."
      (uncons \\ narrow-to-region 2 lisp-eval-n))
     ("wrap" . ((target-wrap-parentheses) curry eval do-all))
     ("crush" . (amalgamate-stack \\ reverse lisp-funcall crush))
+    ("fillout" . (dup target-string (paint) dip target-overwrite))
     ("filler" . (((car goto-char \\ fill-paragraph lisp-eval) save-excursion) do-all))))
 
 ;;;; Default modifiers:
@@ -689,6 +692,9 @@ cursors, return a single value instead of a list."
     dip
     cons))
 
+(he--define-compound-instruction 'paint
+  '(paint-left paint-right))
+
 (he--define-compound-instruction 'trim-right
   `(uncons
     "[:space:]\n"
@@ -700,6 +706,9 @@ cursors, return a single value instead of a list."
     ("[:space:]\n" skip-forward)
     dip
     cons))
+
+(he--define-compound-instruction 'trim
+  '(trim-left trim-right))
 
 (defun he--every-thing (thing)
   (save-excursion
@@ -790,9 +799,9 @@ cursors, return a single value instead of a list."
     ("rightpaint" .
      ((paint-right) map-stack))
     ("paint" .
-     ((paint-left paint-right) map-stack))
+     ((paint) map-stack))
     ("trim" .
-     ((trim-left trim-right) map-stack))
+     ((trim) map-stack))
     ("past" . ((past) make-infix))
     ("join" . (amalgamate-stack targets-join))
     ("selection" .
