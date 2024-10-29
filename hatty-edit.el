@@ -26,14 +26,6 @@
 
 ;;
 
-;;; TODO
-;;;; Commentary.
-;;;; Docstrings.
-;;;; TODO file.
-;;;; Decide the public API for initial release
-;;;; Try to reduce lisp <-> DSL friction
-;;;; goto-def of words.
-
 ;;; Code:
 
 (require 'hatty)
@@ -47,9 +39,10 @@
 (cl-defstruct he--environment
   (instruction-stack nil) (value-stack nil))
 
-(defun he--make-environment (instructions)
+(defun he--make-environment (instructions &optional value-stack)
   (make-hatty-edit--environment
-   :instruction-stack instructions))
+   :instruction-stack instructions
+   :value-stack value-stack))
 
 (defun he--clone-environment (environment)
   (make-hatty-edit--environment
@@ -267,12 +260,12 @@
 (he--define-compound-instruction 'lisp-eval-n
   '(lisp-funcall-n drop))
 
-(defmacro he--define-lisp-instruction-impl (instruction-name args post-process body)
+(defmacro he--define-lisp-instruction-impl (instruction-name args pre-process post-process body)
   "Define instruction as a lisp function.
 
-ARGS must be a finite list of arguments to be popped from the
-stack.  The return value will be pushed back onto the stack and
-processed by the words in POST-PROCESS."
+ARGS is a list of arguments as used in `defun'.  PRE-PROCESS is a
+list of words evaluated before running pushing the function on
+the stack.  POST-PROCESS is run after that."
   (declare (indent defun))
   (let ((internal-name
          (intern (concat "hatty-edit-i--"
@@ -280,7 +273,7 @@ processed by the words in POST-PROCESS."
     `(progn
        (defun ,internal-name ,args ,@body)
        (he--define-compound-instruction ',instruction-name
-         '(\\ ,internal-name ,@post-process)))))
+         '(,@pre-process \\ ,internal-name ,@post-process)))))
 
 (defmacro he--define-lisp-instruction-1 (instruction-name args &rest body)
   (declare (indent defun))
@@ -288,6 +281,7 @@ processed by the words in POST-PROCESS."
    `(he--define-lisp-instruction-impl
       ,instruction-name
       ,args
+      ()
       (,(length args) lisp-funcall-n)
       ,body)))
 
@@ -297,6 +291,7 @@ processed by the words in POST-PROCESS."
    `(he--define-lisp-instruction-impl
       ,instruction-name
       ,args
+      ()
       (,(length args) lisp-eval-n)
       ,body)))
 
@@ -306,7 +301,22 @@ processed by the words in POST-PROCESS."
    `(he--define-lisp-instruction-impl
       ,instruction-name
       ,args
+      ()
       (,(length args) lisp-funcall-n unstack)
+      ,body)))
+
+(he--define-lisp-instruction-1 lisp-apply (xs f)
+  (apply f xs))
+
+;; Top of the stack is first element
+(defmacro he--define-lisp-instruction-stack (instruction-name args &rest body)
+  (declare (indent defun))
+  (macroexpand
+   `(he--define-lisp-instruction-impl
+      ,instruction-name
+      ,args
+      (stack)
+      (lisp-apply replace-stack)
       ,body)))
 
 ;;; Level 2: Convenience
@@ -359,28 +369,16 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
   (he--evaluate-environment subenvironment))
 
 ;; TODO: "evaluate-inside-lisp" function?
-(he--define-compound-instruction 'save-excursion
-  `((stack)
-    dip
-    make-subenvironment
-    ,(lambda (subenvironment)
-       (save-excursion
-         (he--evaluate-environment subenvironment)))
-    lisp-funcall
-    replace-stack))
 
-(he--define-compound-instruction 'save-mark-and-excursion
-  `((stack)
-    dip
-    make-subenvironment
-    ,(lambda (subenvironment)
-       (save-mark-and-excursion
-         (he--evaluate-environment subenvironment)))
-    lisp-funcall
-    replace-stack))
+(he--define-lisp-instruction-stack save-excursion (f &rest stack)
+  (save-excursion
+    (he--evaluate-environment
+      (he--make-environment f stack))))
 
-(he--define-lisp-instruction-1 lisp-apply (xs f)
-  (apply f xs))
+(he--define-lisp-instruction-stack save-mark-and-excursion (f &rest stack)
+  (save-mark-and-excursion
+    (he--evaluate-environment
+      (he--make-environment f stack))))
 
 (he--define-lisp-instruction-1 lisp-funcall (x f)
   (funcall f x))
