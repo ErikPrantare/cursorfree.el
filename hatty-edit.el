@@ -800,8 +800,9 @@ cursors, return a single value instead of a list."
      ((paint) map-stack))
     ("trim" .
      ((trim) map-stack))
-    ("past" . (past))
-    ("join" . (amalgamate-stack targets-join))
+    ("past" . ((past) make-infix))
+    ("and past" . (past))
+    ("all past" . (amalgamate-stack targets-join))
     ("selection" .
      ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
     ("every instance" .
