@@ -720,11 +720,6 @@ cursors, return a single value instead of a list."
         (forward-thing thing))
       things)))
 
-(he--define-compound-instruction 'raise-lisp-function
-  `(,(lambda (f)
-       `(,f lisp-funcall))
-    lisp-funcall))
-
 (he--define-lisp-instruction-1 inner-parenthesis (region delimiter)
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
