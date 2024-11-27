@@ -49,11 +49,11 @@
 (ert-deftest he--substack ()
   "stack, unstack."
   (he--should-equal '(5 3 1)
-      (he--evaluate
-       '((5 3 1) unstack)))
+    (he--evaluate
+     '((5 3 1) unstack)))
   (he--should-equal '((5 3 1) 5 3 1)
-      (he--evaluate
-       '(1 3 5 stack))))
+    (he--evaluate
+     '(1 3 5 stack))))
 
 (ert-deftest he--instructions ()
   "instructions, replace-instructions, on-instructions."
@@ -74,12 +74,23 @@
 (ert-deftest he--unstack ()
   "Pack unwrapping."
   (he--should-equal '(5 a b 3 1)
-      (he--evaluate
-       `(1 3 (5 a b) unstack))))
+    (he--evaluate
+     `(1 3 (5 a b) unstack))))
 
 (ert-deftest he--instruction-definition ()
   "One can define instructions."
-  ;; Create uninterned symbol to avoid polluting the global namespace
+  ;; Create uninterned symbols to avoid polluting the global namespace
+  (let ((sum (make-symbol "sum")))
+    (he--define-instruction sum
+      (lambda (environment)
+        (he--push-value
+          environment
+          (+ (he--pop-value environment)
+             (he--pop-value environment)))))
+    (he--should-equal '(8)
+      (he--evaluate
+       `(5 3 ,sum))))
+
   (let ((sum (make-symbol "sum")))
     (he--define-compound-instruction sum
       '(\\ + 2 lisp-funcall-n))
@@ -93,8 +104,8 @@ effectful computation.)."
   (he--should-equal '("FirstSecond")
     (he--evaluate
      '(("First" "Second")
-      \\ concat
-      lisp-apply)))
+       \\ concat
+       lisp-apply)))
 
   (he--should-equal '("FirstSecond")
     (he--evaluate
@@ -142,8 +153,8 @@ effectful computation.)."
   (he--should-equal '(25 9 100)
     (he--evaluate
      `(10 3 5
-       ,(he--lambda (x) x x *)
-       map-stack)))
+          ,(he--lambda (x) x x *)
+          map-stack)))
   (he--should-equal '(25 9 100)
     (he--evaluate
      `(10 3 5
@@ -162,108 +173,108 @@ effectful computation.)."
             '((5 . 3) uncons)))))
 
 (ert-deftest he--swap ()
-    "swap, swapd."
-    (he--should-equal '(3 5)
-      (he--evaluate
-       `(3 5 swap)))
-    (he--should-equal '(5 100 3)
-      (he--evaluate
-       `(100 3 5 swapd))))
+  "swap, swapd."
+  (he--should-equal '(3 5)
+    (he--evaluate
+     `(3 5 swap)))
+  (he--should-equal '(5 100 3)
+    (he--evaluate
+     `(100 3 5 swapd))))
 
 (ert-deftest he--dup ()
-    "dup, dupd."
-    (he--should-equal '(5 5 2)
-      (he--evaluate
-       `(2 5 dup)))
-    (he--should-equal '(5 100 100 2)
-      (he--evaluate
-       `(2 100 5 dupd))))
+  "dup, dupd."
+  (he--should-equal '(5 5 2)
+    (he--evaluate
+     `(2 5 dup)))
+  (he--should-equal '(5 100 100 2)
+    (he--evaluate
+     `(2 100 5 dupd))))
 
 (ert-deftest he--dip ()
-    "dip."
-    (he--should-equal '("covering" "testtest")
-      (he--evaluate
-       `("test"
-         "covering"
-         ,(he--lambda (v) v v \\ concat 2 lisp-funcall-n)
-         dip))))
+  "dip."
+  (he--should-equal '("covering" "testtest")
+    (he--evaluate
+     `("test"
+       "covering"
+       ,(he--lambda (v) v v \\ concat 2 lisp-funcall-n)
+       dip))))
 
 (ert-deftest he--roll ()
-    "rollup, rolldown."
-    (he--should-equal '(2 7 5 3)
-      (he--evaluate
-       `(3 7 2 5 rollup)))
-    (he--should-equal '(7 5 2 3)
-      (he--evaluate
-       `(3 7 2 5 rolldown))))
+  "rollup, rolldown."
+  (he--should-equal '(2 7 5 3)
+    (he--evaluate
+     `(3 7 2 5 rollup)))
+  (he--should-equal '(7 5 2 3)
+    (he--evaluate
+     `(3 7 2 5 rolldown))))
 
 (ert-deftest he--variable-binding ()
-    "-> binds variables until .. (period period).
+  "-> binds variables until .. (period period).
 
 This only replaces occurences in top-level forms."
-    (he--should-equal '(1 4 9 16 25)
-      (he--evaluate
-       '((1 2 3 4 5)
-         (-> x : x x \\ * 2 lisp-funcall-n ..)
-         map
-         unstack)))
+  (he--should-equal '(1 4 9 16 25)
+    (he--evaluate
+     '((1 2 3 4 5)
+       (-> x : x x \\ * 2 lisp-funcall-n ..)
+       map
+       unstack)))
 
-    (he--should-equal '(1 4 9 16 25)
-      (he--evaluate
-       `((1 2 3 4 5)
-         ,(he--lambda (x) x x \\ * 2 lisp-funcall-n)
-         map
-         unstack))))
+  (he--should-equal '(1 4 9 16 25)
+    (he--evaluate
+     `((1 2 3 4 5)
+       ,(he--lambda (x) x x \\ * 2 lisp-funcall-n)
+       map
+       unstack))))
 
 (ert-deftest he--cleave ()
-    "cleave."
-    (he--should-equal '(10 25)
-      (he--evaluate
-       '(5
-         (dup *)
-         (dup +)
-         cleave))))
+  "cleave."
+  (he--should-equal '(10 25)
+    (he--evaluate
+     '(5
+       (dup *)
+       (dup +)
+       cleave))))
 
 (ert-deftest he--spread ()
-    "spread."
-    (he--should-equal '(9 25)
-      (he--evaluate
-       '(5
-         3
-         (dup *)
-         spread))))
+  "spread."
+  (he--should-equal '(9 25)
+    (he--evaluate
+     '(5
+       3
+       (dup *)
+       spread))))
 
 (ert-deftest he--keep ()
-    "keep."
-    (he--should-equal '(10 25)
-      (he--evaluate
-       '(15 10 (+) keep))))
+  "keep."
+  (he--should-equal '(10 25)
+    (he--evaluate
+     '(15 10 (+) keep))))
 
 (ert-deftest he--curry ()
-    "curry."
-    (he--should-equal '((5 15 25))
-      (he--evaluate
-       '((1 3 5)
-         (\\ * 2 lisp-funcall-n)
-         curry
-         (5) dip eval
-         map))))
+  "curry."
+  (he--should-equal '((5 15 25))
+    (he--evaluate
+     '((1 3 5)
+       (\\ * 2 lisp-funcall-n)
+       curry
+       (5) dip eval
+       map))))
 
 (ert-deftest he--subenvironment ()
-    "make-subenvironment, evaluate-subenvironment."
-    (he--should-equal '(9)
-      (he--evaluate
-       '((1 3 5)
-         (+ +)
-         make-subenvironment
-         evaluate-subenvironment
-         unstack))))
+  "make-subenvironment, evaluate-subenvironment."
+  (he--should-equal '(9)
+    (he--evaluate
+     '((1 3 5)
+       (+ +)
+       make-subenvironment
+       evaluate-subenvironment
+       unstack))))
 
 (ert-deftest he--infix ()
-    "make-infix."
-    (he--should-equal '(9)
-      (he--evaluate
-       '(2 (+) make-infix 7))))
+  "make-infix."
+  (he--should-equal '(9)
+    (he--evaluate
+     '(2 (+) make-infix 7))))
 
 ;;;; Editing
 
@@ -293,8 +304,8 @@ This only replaces occurences in top-level forms."
     (insert "aaa bbb")
     (he--evaluate
      `(,(he--markify-region
-              (cons (+ 4 (point-min))
-                    (point-max)))
+         (cons (+ 4 (point-min))
+               (point-max)))
        "ccc"
        target-overwrite))
     (should (string= (buffer-string) "aaa ccc"))))

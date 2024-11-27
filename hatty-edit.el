@@ -63,6 +63,12 @@
   (declare (indent defun))
   (push value (he--environment-value-stack environment)))
 
+(defun he--push-value-pure (environment value)
+  (declare (indent defun))
+  (let ((new-environment (he--clone-environment environment)))
+    (he--push-value new-environment value)
+    new-environment))
+
 (defun he--push-values (environment values)
   (declare (indent defun))
   (dolist (value (reverse values))
@@ -81,10 +87,18 @@
     (dotimes (i n (reverse acc))
       (push (he--pop-value environment) acc))))
 
-(defun he--define-instruction (name instruction)
+(defun he--define-instruction-pure (name instruction)
   (declare (indent defun))
   (put name 'he--instruction instruction)
   name)
+
+(defun he--define-instruction (name instruction)
+  (declare (indent defun))
+  (he--define-instruction-pure name
+    (lambda (environment)
+      (let ((mutable-environment (he--clone-environment environment)))
+        (funcall instruction mutable-environment)
+        mutable-environment))))
 
 (defun he--get-instruction (name)
   (let ((instruction
@@ -104,15 +118,13 @@
   (let ((instruction (he--pop-instruction environment)))
     (if (symbolp instruction)
         (funcall (he--get-instruction instruction) environment)
-      (he--push-value environment instruction)))
-  environment)
+      (he--push-value-pure environment instruction))))
 
 (defun he--evaluate-environment (environment)
   (declare (indent defun))
   (while (he--environment-instruction-stack environment)
-    (he--step environment))
-  (he--environment-value-stack
-   environment))
+    (setq environment (he--step environment)))
+  (he--environment-value-stack environment))
 
 (defun he--evaluate (instructions)
   (he--evaluate-environment
