@@ -173,22 +173,16 @@ effectful computation.)."
             '((5 . 3) uncons)))))
 
 (ert-deftest he--swap ()
-  "swap, swapd."
+  "swap."
   (he--should-equal '(3 5)
     (he--evaluate
-     `(3 5 swap)))
-  (he--should-equal '(5 100 3)
-    (he--evaluate
-     `(100 3 5 swapd))))
+     `(3 5 swap))))
 
 (ert-deftest he--dup ()
-  "dup, dupd."
+  "dup."
   (he--should-equal '(5 5 2)
     (he--evaluate
-     `(2 5 dup)))
-  (he--should-equal '(5 100 100 2)
-    (he--evaluate
-     `(2 100 5 dupd))))
+     `(2 5 dup))))
 
 (ert-deftest he--dip ()
   "dip."
@@ -198,15 +192,6 @@ effectful computation.)."
        "covering"
        ,(he--lambda (v) v v \\ concat 2 lisp-funcall-n)
        dip))))
-
-(ert-deftest he--roll ()
-  "rollup, rolldown."
-  (he--should-equal '(2 7 5 3)
-    (he--evaluate
-     `(3 7 2 5 rollup)))
-  (he--should-equal '(7 5 2 3)
-    (he--evaluate
-     `(3 7 2 5 rolldown))))
 
 (ert-deftest he--variable-binding ()
   "-> binds variables until .. (period period).
@@ -225,30 +210,6 @@ This only replaces occurences in top-level forms."
        ,(he--lambda (x) x x \\ * 2 lisp-funcall-n)
        map
        unstack))))
-
-(ert-deftest he--cleave ()
-  "cleave."
-  (he--should-equal '(10 25)
-    (he--evaluate
-     '(5
-       (dup *)
-       (dup +)
-       cleave))))
-
-(ert-deftest he--spread ()
-  "spread."
-  (he--should-equal '(9 25)
-    (he--evaluate
-     '(5
-       3
-       (dup *)
-       spread))))
-
-(ert-deftest he--keep ()
-  "keep."
-  (he--should-equal '(10 25)
-    (he--evaluate
-     '(15 10 (+) keep))))
 
 (ert-deftest he--curry ()
   "curry."
