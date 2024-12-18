@@ -121,6 +121,7 @@
       (he--push-value-pure environment instruction))))
 
 (defun he--evaluate-environment (environment)
+  "Evaluate ENVIRONMENT and return the final value stack."
   (declare (indent defun))
   (while (he--environment-instruction-stack environment)
     (setq environment (he--step environment)))
@@ -176,15 +177,16 @@
 
 ;; The core instructions are what all other words build upon.
 
-(he--define-instruction 'lisp-funcall-n
-  (lambda (environment)
-    (let* ((arity (he--pop-value environment))
+(defun he--lisp-funcall-n-impl (environment)
+  (let* ((arity (he--pop-value environment))
            (function (he--pop-value environment))
            (arguments (reverse (he--pop-values environment arity))))
       ;; Function symbols may be wrapped in a stack, so they are
       ;; treated like literals.
       (he--push-value environment
-        (apply function arguments)))))
+        (apply function arguments))))
+
+(he--define-instruction 'lisp-funcall-n #'he--lisp-funcall-n-impl)
 
 (he--define-instruction 'stack
   (lambda (environment)
@@ -272,64 +274,36 @@
 (he--define-compound-instruction 'lisp-eval-n
   '(lisp-funcall-n drop))
 
-(defmacro he--define-lisp-instruction-impl (instruction-name args pre-process post-process body)
-  "Define instruction as a lisp function.
-
-ARGS is a list of arguments as used in `defun'.  PRE-PROCESS is a
-list of words evaluated before running pushing the function on
-the stack.  POST-PROCESS is run after that."
-  (declare (indent defun))
+(defun he--defun-internal (instruction-name args body)
   (let ((internal-name
          (intern (concat "hatty-edit-i--"
                          (symbol-name instruction-name)))))
-    `(progn
-       (defun ,internal-name ,args ,@body)
-       (he--define-compound-instruction ',instruction-name
-         '(,@pre-process \\ ,internal-name ,@post-process)))))
+    (eval `(defun ,internal-name ,args ,@body))
+    internal-name))
 
 (defmacro he--define-lisp-instruction-1 (instruction-name args &rest body)
   (declare (indent defun))
-  (macroexpand
-   `(he--define-lisp-instruction-impl
-      ,instruction-name
-      ,args
-      ()
-      (,(length args) lisp-funcall-n)
-      ,body)))
+  (let ((internal-function
+         (he--defun-internal instruction-name args body)))
+    `(he--define-compound-instruction ',instruction-name
+       '(\\ ,internal-function ,(length args) lisp-funcall-n))))
 
 (defmacro he--define-lisp-instruction-0 (instruction-name args &rest body)
   (declare (indent defun))
-  (macroexpand
-   `(he--define-lisp-instruction-impl
-      ,instruction-name
-      ,args
-      ()
-      (,(length args) lisp-eval-n)
-      ,body)))
+  (let ((internal-function
+         (he--defun-internal instruction-name args body)))
+    `(he--define-compound-instruction ',instruction-name
+       '(\\ ,internal-function ,(length args) lisp-eval-n))))
 
 (defmacro he--define-lisp-instruction-n (instruction-name args &rest body)
   (declare (indent defun))
-  (macroexpand
-   `(he--define-lisp-instruction-impl
-      ,instruction-name
-      ,args
-      ()
-      (,(length args) lisp-funcall-n unstack)
-      ,body)))
+  (let ((internal-function
+         (he--defun-internal instruction-name args body)))
+    `(he--define-compound-instruction ',instruction-name
+       '(\\ ,internal-function ,(length args) lisp-funcall-n unstack))))
 
 (he--define-lisp-instruction-1 lisp-apply (xs f)
   (apply f xs))
-
-;; Top of the stack is first element
-(defmacro he--define-lisp-instruction-stack (instruction-name args &rest body)
-  (declare (indent defun))
-  (macroexpand
-   `(he--define-lisp-instruction-impl
-      ,instruction-name
-      ,args
-      (stack)
-      (lisp-apply replace-stack)
-      ,body)))
 
 ;;; Level 2: Convenience
 
@@ -382,15 +356,24 @@ All elements in STACK-AFTER must occur in STACK-BEFORE."
 
 ;; TODO: "evaluate-inside-lisp" function?
 
-(he--define-lisp-instruction-stack save-excursion (f &rest stack)
-  (save-excursion
-    (he--evaluate-environment
-      (he--make-environment f stack))))
 
-(he--define-lisp-instruction-stack save-mark-and-excursion (f &rest stack)
-  (save-mark-and-excursion
-    (he--evaluate-environment
-      (he--make-environment f stack))))
+(he--define-instruction 'save-excursion
+  (lambda (environment)
+    (setf (he--environment-value-stack environment)
+          (save-excursion
+            (he--evaluate-environment
+             (he--make-environment
+              (he--pop-value environment)
+              (he--environment-value-stack environment)))))))
+
+(he--define-instruction 'save-mark-and-excursion
+  (lambda (environment)
+    (setf (he--environment-value-stack environment)
+          (save-mark-and-excursion
+            (he--evaluate-environment
+             (he--make-environment
+              (he--pop-value environment)
+              (he--environment-value-stack environment)))))))
 
 (he--define-lisp-instruction-1 lisp-funcall (x f)
   (funcall f x))
@@ -514,20 +497,28 @@ cursors, return a single value instead of a list."
        (cons (point) (cdr region))))))
 
 (he--define-lisp-instruction-0 target-select (target)
+  "Set active region to TARGET."
   (set-mark (car target))
   (goto-char (cdr target)))
 
 (he--define-lisp-instruction-1 target-deletion-region (target)
   (he--deletion-region target))
 
+(he--define-lisp-instruction-1 target-string (target)
+  (buffer-substring (car target) (cdr target)))
+
 (he--define-lisp-instruction-0 target-delete (target)
   (delete-region (car target) (cdr target)))
 
-(he--define-compound-instruction 'target-chuck
-  '(target-deletion-region target-delete))
+(he--define-lisp-instruction-0 target-indent (target)
+  "Indent TARGET."
+  (indent-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-1 target-string (target)
-  (buffer-substring (car target) (cdr target)))
+(he--define-lisp-instruction-1 target-chuck (target)
+  "Delete TARGET and indent the resulting text."
+  (he-i--target-delete (he-i--target-deletion-region target))
+  (he-i--target-indent
+   (he--bounds-of-thing-at 'line (car target))))
 
 (he--define-lisp-instruction-0 insert (string)
   (insert string))
@@ -649,9 +640,7 @@ cursors, return a single value instead of a list."
      ((uncons \\ comment-region 2 lisp-eval-n) do-all))
     ("uncomment" .
      ((uncons \\ uncomment-region 2 lisp-eval-n) do-all))
-    ("indent" . (((target-select \\ indent-for-tab-command lisp-eval)
-                  save-mark-and-excursion)
-                 do-all))
+    ("indent" . ((target-indent) do-all))
     ("narrow" .
      (uncons \\ narrow-to-region 2 lisp-eval-n))
     ("wrap" . ((target-wrap-parentheses) curry eval do-all))

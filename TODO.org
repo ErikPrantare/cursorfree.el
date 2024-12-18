@@ -2,26 +2,10 @@
 * TODO Docstrings.
 * TODO Decide the public API for initial release.
 * TODO Try to reduce lisp <-> DSL friction.
-The goal should be something like a 1-1 correspondence between a
-sequence of words, and a composition of underlying lisp functions.
+** TODO Make help:hatty-edit--define-lisp-instruction-1 independent of composition.
+This is a step in slowly getting rid of the old interpreter.
 
-A "compound instruction", then, is simply the composition of the
-underlying functions (up to non-functions).
-
-How to deal with things to be pushed onto stack?  We could have a
-"compilation step", creating the composed lisp function.  During this,
-we process non-he-functions into a function that pushes the thing onto
-the stack.
-
-With this model, evaluation of a he-expression has two steps:
-Compilation (into a lisp function) and evaluation of said lisp
-function.
-
-We should therefore migrate back into letting words explicitly be
-functions on a stack.  I think it may be better to forego things like
-pushing the instruction stack to attain this kind of simplicity.  We
-could regain that ability by having a bit more clunky syntax for
-getting the full environment.
+** TODO Remove usage of help:hatty-edit--define-compound-instruction.
 
 * TODO goto-def of words.
 After implementing the above, going to definitions would be as simple
