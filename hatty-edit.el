@@ -392,9 +392,6 @@
                :value-stack (list it)))
             xs))
 
-(he--define-compound-instruction 'map-stack
-  '((amalgamate-stack) dip map unstack))
-
 (dolist (entry '((cons cons 2)
                  (car car 1)
                  (cdr cdr 1)
@@ -645,64 +642,43 @@ cursors, return a single value instead of a list."
 
 ;;;; Default modifiers:
 
-(he--define-compound-instruction 'skip-forward
-  `(,(lambda (position string)
-       (save-excursion
-         (goto-char position)
-         (skip-chars-forward string)
-         (point-marker)))
-    2 lisp-funcall-n))
+(he--define-lisp-instruction-1 skip-forward-from (position string)
+  (save-excursion
+    (goto-char position)
+    (skip-chars-forward string)
+    (point-marker)))
 
-(he--define-compound-instruction 'skip-backward
-  `(,(lambda (position string)
-       (save-excursion
-         (goto-char position)
-         (skip-chars-backward string)
-         (point-marker)))
-    2 lisp-funcall-n))
+(he--define-lisp-instruction-1 skip-backward-from (position string)
+  (save-excursion
+    (goto-char position)
+    (skip-chars-backward string)
+    (point-marker)))
 
-(he--define-compound-instruction 'find-occurrences
-  `(,(lambda (string)
-       (save-excursion
-         (let ((length (length string))
-               matches)
-           (goto-char (point-min))
-           (while (search-forward string nil t)
-             (push (he--markify-region
-                    (cons (- (point) length) (point)))
-                   matches))
-           matches)))
-    lisp-funcall))
+(he--define-lisp-instruction-1 find-occurrences (string)
+  (save-excursion
+    (let ((length (length string))
+          matches)
+      (goto-char (point-min))
+      (while (search-forward string nil t)
+        (push (he--markify-region
+               (cons (- (point) length) (point)))
+              matches))
+      matches)))
 
-(he--define-compound-instruction 'paint-right
-  `(uncons
-    "^[:space:]\n"
-    skip-forward
-    cons))
+(he--define-lisp-instruction-1 paint-left (target)
+  (cons (he-i--skip-backward-from (car target) "^[:space:]\n")
+        (cdr target)))
 
-(he--define-compound-instruction 'paint-left
-  `(uncons
-    ("^[:space:]\n" skip-backward)
-    dip
-    cons))
+(he--define-lisp-instruction-1 paint-right (target)
+  (cons (car target)
+        (he-i--skip-forward-from (cdr target) "^[:space:]\n")))
 
-(he--define-compound-instruction 'paint
-  '(paint-left paint-right))
+(he--define-lisp-instruction-1 paint (target)
+  (he-i--paint-right (he-i--paint-left target)))
 
-(he--define-compound-instruction 'trim-right
-  `(uncons
-    "[:space:]\n"
-    skip-backward
-    cons))
-
-(he--define-compound-instruction 'trim-left
-  `(uncons
-    ("[:space:]\n" skip-forward)
-    dip
-    cons))
-
-(he--define-compound-instruction 'trim
-  '(trim-left trim-right))
+(he--define-lisp-instruction-1 trim (target)
+  (cons (he-i--skip-forward-from (car target) "[:space:]\n")
+        (he-i--skip-backward-from (cdr target) "[:space:]\n")))
 
 (defun he--every-thing (thing)
   (save-excursion
@@ -742,9 +718,6 @@ cursors, return a single value instead of a list."
                                (error nil))
                              '(?< ?{ ?\( ?\[ ?\" ?\')))))
 
-(he--define-lisp-instruction-1 if (condition then else)
-  (if condition then else))
-
 (he--define-instruction 'inner-parenthesis-dwim
   (lambda (environment)
     (let ((head (he--peek-value environment)))
@@ -752,59 +725,39 @@ cursors, return a single value instead of a list."
           (he--on-environment #'he-i--inner-parenthesis environment)
         (he--on-environment #'he-i--inner-parenthesis-any environment)))))
 
-(he--define-lisp-instruction-1 nthcdr (list n)
-  (nthcdr n list))
-
-(he--define-compound-instruction 'on-instructions
-  `(instructions
-    (2 nthcdr ; Remove this instruction and the following eval
-       swap
-       make-subenvironment
-     evaluate-subenvironment
-     replace-instructions)
-    eval))
-
-(he--define-compound-instruction 'map-next
-  `(instructions
-    (,(he--lambda (f dummy dummy) \\ map-stack \\ f \\ \\)
-     make-subenvironment
-     evaluate-subenvironment
-     replace-instructions)
-    eval))
+(he--define-compound-instruction 'map-stack
+  '((amalgamate-stack) dip map unstack))
 
 (he--define-lisp-instruction-1 targets-join (targets)
   (he--markify-region
    (cons (apply #'min (mapcar #'car targets))
          (apply #'max (mapcar #'cdr targets)))))
 
-(he--define-compound-instruction 'past
-  '(\\ list 2 lisp-funcall-n targets-join))
+(he--define-lisp-instruction-1 past (target1 target2)
+  (he-i--targets-join (list target1 target2)))
 
-(he--define-compound-instruction 'make-infix
-  (he--lambda (f) (((f eval) unstack) dip) on-instructions))
+(he--define-instruction 'make-infix
+  (lambda (environment)
+    (let ((function (he--pop-value environment))
+          (next-instruction (he--pop-instruction environment)))
+      (he--push-instructions environment function)
+      (he--push-instruction environment next-instruction))))
 
 (defvar he-modifiers
-  `(("leftpaint" .
+  `(("paint" .
+     ((paint) map-stack))
+    ("leftpaint" .
      ((paint-left) map-stack))
     ("rightpaint" .
      ((paint-right) map-stack))
-    ("paint" .
-     ((paint) map-stack))
     ("trim" .
      ((trim) map-stack))
     ("past" . ((past) make-infix))
-    ("and past" . (past))
-    ("all past" . (amalgamate-stack targets-join))
     ("selection" .
      ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
     ("every instance" .
      (target-string find-occurrences unstack))
-    ("every line" .
-     (,(lambda () (he--every-thing 'line))
-      0 lisp-funcall-n
-      unstack))
-    ("inside" . (inner-parenthesis-dwim))
-    ("map" . (map-next))))
+    ("inside" . (inner-parenthesis-dwim))))
 
 
 ;;; hatty-edit.el ends soon

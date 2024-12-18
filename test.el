@@ -56,7 +56,7 @@
      '(1 3 5 stack))))
 
 (ert-deftest he--instructions ()
-  "instructions, replace-instructions, on-instructions."
+  "instructions, replace-instructions."
   (he--should-equal '((cdr 5 (1337)))
     (he--environment-value-stack
      (he--step
@@ -65,11 +65,7 @@
 
   (he--should-equal '(3)
     (he--evaluate
-     '((5 3 1) (cdr car) replace-instructions)))
-
-  (he--should-equal '(1337)
-    (he--evaluate
-     '((drop) on-instructions 100 1337))))
+     '((5 3 1) (cdr car) replace-instructions))))
 
 (ert-deftest he--unstack ()
   "Pack unwrapping."
@@ -127,15 +123,6 @@ effectful computation.)."
        \\ reverse
        lisp-funcall))))
 
-(ert-deftest he--conditional ()
-  "if."
-  (he--should-equal '(5)
-    (he--evaluate
-     '(t 5 10 if)))
-  (he--should-equal '(10)
-    (he--evaluate
-     '(nil 5 10 if))))
-
 (ert-deftest he--stack-amalgamation ()
   "Turn whole stack into a substack."
   (he--should-equal '((5 3 1))
@@ -144,7 +131,7 @@ effectful computation.)."
          amalgamate-stack))))
 
 (ert-deftest he--map ()
-  "map, map-stack, map-next."
+  "map, map-stack"
   (he--should-equal '((25 9 100))
     (he--evaluate
      `((5 3 10)
@@ -154,12 +141,7 @@ effectful computation.)."
     (he--evaluate
      `(10 3 5
           ,(he--lambda (x) x x *)
-          map-stack)))
-  (he--should-equal '(25 9 100)
-    (he--evaluate
-     `(10 3 5
-          map-next
-          ,(he--lambda (x) x x *)))))
+          map-stack))))
 
 (ert-deftest he--cons ()
   "cons, uncons."
