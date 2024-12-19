@@ -1,12 +1,10 @@
 * TODO Commentary.
 * TODO Docstrings.
 * TODO Decide the public API for initial release.
-* TODO Try to reduce lisp <-> DSL friction.
-** TODO Make help:hatty-edit--define-lisp-instruction-1 independent of composition.
-This is a step in slowly getting rid of the old interpreter.
-
-** TODO Remove usage of help:hatty-edit--define-compound-instruction.
-
-* TODO goto-def of words.
-After implementing the above, going to definitions would be as simple
-as going to the definition of the underlying function.
+* TODO Commands:
+- unwrap: Remove containing parentheses.
+* TODO Reimplement the debugger.
+* TODO Unify instruction representation.
+We currently have instrx and he-i--instrx.  Let us unify these by
+tossing away the first type, and then storing all metadata in the
+latter symbol.

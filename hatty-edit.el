@@ -112,17 +112,10 @@
       (signal 'error (list "No such hatty-edit instruction: " name)))
     instruction))
 
-(defun he--define-compound-instruction (instruction-name forms)
-  (declare (indent defun))
-  (he--define-instruction instruction-name
-    (lambda (environment)
-      (he--push-instructions environment forms))))
-
 (defun he--step (environment)
-  (let ((instruction (he--pop-instruction environment)))
-    (if (symbolp instruction)
-        (funcall (he--get-instruction instruction) environment)
-      (he--push-value-pure environment instruction))))
+  (let* ((new-environment (he--clone-environment environment))
+         (instruction (he--pop-instruction new-environment)))
+    (funcall instruction new-environment)))
 
 (defun he--evaluate-environment (environment)
   "Evaluate ENVIRONMENT and return the final value stack."
@@ -177,13 +170,22 @@
     (local-set-key (kbd "q")
                    #'kill-this-buffer)))
 
-;;; Level 0: Core instructions
+;;; Core macros and functions for defining instructions
 
 ;; The core instructions are what all other words build upon.
 
-(defun he--lisp-funcall (function arity environment)
+(defun he--lisp-funcall-1 (function arity environment)
   (let ((arguments (reverse (he--pop-values environment arity))))
     (he--push-value environment
+      (apply function arguments))))
+
+(defun he--lisp-funcall-0 (function arity environment)
+  (let ((arguments (reverse (he--pop-values environment arity))))
+    (apply function arguments)))
+
+(defun he--lisp-funcall-n (function arity environment)
+  (let ((arguments (reverse (he--pop-values environment arity))))
+    (he--push-values environment
       (apply function arguments))))
 
 (defun he--defun-internal (instruction-name args body)
@@ -199,7 +201,41 @@
           (he--defun-internal instruction-name args body))
          (environment-function
           (lambda (environment)
-            (he--lisp-funcall internal-function
+            (he--lisp-funcall-1 internal-function
+                                (length args)
+                                environment))))
+    (he--define-instruction
+      instruction-name
+      environment-function)
+    (put internal-function
+         'he--environment-function
+         environment-function)
+    `(identity ',instruction-name)))
+
+(defmacro he--define-lisp-instruction-0 (instruction-name args &rest body)
+  (declare (indent defun))
+  (let* ((internal-function
+          (he--defun-internal instruction-name args body))
+         (environment-function
+          (lambda (environment)
+            (he--lisp-funcall-0 internal-function
+                              (length args)
+                              environment))))
+    (he--define-instruction
+      instruction-name
+      environment-function)
+    (put internal-function
+         'he--environment-function
+         environment-function)
+    `(identity ',instruction-name)))
+
+(defmacro he--define-lisp-instruction-n (instruction-name args &rest body)
+  (declare (indent defun))
+  (let* ((internal-function
+          (he--defun-internal instruction-name args body))
+         (environment-function
+          (lambda (environment)
+            (he--lisp-funcall-n internal-function
                               (length args)
                               environment))))
     (he--define-instruction
@@ -213,219 +249,7 @@
 (defun he--on-environment (function environment)
   (funcall (get function 'he--environment-function) environment))
 
-(defun he--lisp-funcall-n-impl (environment)
-  (let ((arity (he--pop-value environment))
-        (function (he--pop-value environment)))
-    (he--lisp-funcall function arity environment)))
-
-(he--define-instruction 'lisp-funcall-n #'he--lisp-funcall-n-impl)
-
-(he--define-instruction 'stack
-  (lambda (environment)
-    (he--push-value environment
-     (he--environment-value-stack environment))))
-
-(he--define-instruction 'instructions
-  (lambda (environment)
-    (he--push-value environment
-     (he--environment-instruction-stack environment))))
-
-(he--define-instruction 'replace-stack
-  (lambda (environment)
-    (setf (he--environment-value-stack environment)
-          (he--pop-value environment))))
-
-(he--define-instruction 'replace-instructions
-  (lambda (environment)
-    (setf (he--environment-instruction-stack environment)
-          (he--pop-value environment))))
-
-;; NOTE: Use the wrapper he--lambda if possible!
-(he--define-instruction '->
-  (lambda (environment)
-    (let (parameters mapping body)
-      ;; Read parameters until : (colon).
-      (push (he--pop-instruction environment) parameters)
-      (while (not (eq (car parameters) ':))
-        (push (he--pop-instruction environment) parameters))
-
-      ;; Pop delimiting : (colon), reverse (first parameter -> top of
-      ;; stack).
-      (pop parameters)
-      (setq parameters (reverse parameters))
-
-      ;; Read parameter values from stack.
-      (dolist (parameter parameters)
-        (push (cons parameter (he--pop-value environment))
-              mapping))
-
-      ;; Read body until .. (period period).  We don't use single
-      ;; period, as that clashes with the syntax of cons cells in
-      ;; Elisp.
-      (push (he--pop-instruction environment) body)
-      (while (not (eq (car body) '..))
-        (push (he--pop-instruction environment) body))
-
-      ;; Pop delimiting .. (period period), reverse (first instruction
-      ;; -> top of stack).
-      (pop body)
-      (setq body (reverse body))
-
-      ;; Substitute occurences of parameters, push new body
-      ;; to instruction stack.
-      (he--push-instructions
-       environment
-       (--tree-map (alist-get it mapping it) body)))))
-
-(defmacro he--lambda (args &rest body)
-  (declare (indent defun))
-  `'(-> ,@(reverse args) : ,@body ..))
-
-(he--define-instruction 'eval
-  (lambda (environment)
-    (he--push-instructions
-     environment
-     (he--pop-value environment))))
-
-(he--define-instruction '\\
-  (lambda (environment)
-    (he--push-value environment
-      (he--pop-instruction environment))))
-
-(he--define-instruction 'unstack
-  (lambda (environment)
-    (he--push-values
-     environment
-     (he--pop-value environment))))
-
-;;; Level 1: Allow defining instructions as if they were lisp functions
-
-(he--define-instruction 'lisp-eval-n
-  (lambda (environment)
-    (he--lisp-funcall-n-impl environment)
-    (he--pop-value environment)))
-
-(defmacro he--define-lisp-instruction-0 (instruction-name args &rest body)
-  (declare (indent defun))
-  (let ((internal-function
-         (he--defun-internal instruction-name args body)))
-    `(he--define-compound-instruction ',instruction-name
-       '(\\ ,internal-function ,(length args) lisp-eval-n))))
-
-(defmacro he--define-lisp-instruction-n (instruction-name args &rest body)
-  (declare (indent defun))
-  (let ((internal-function
-         (he--defun-internal instruction-name args body)))
-    `(he--define-compound-instruction ',instruction-name
-       '(\\ ,internal-function ,(length args) lisp-funcall-n unstack))))
-
-(he--define-lisp-instruction-1 lisp-apply (xs f)
-  (apply f xs))
-
-;;; Level 2: Convenience
-
-(he--define-lisp-instruction-0 drop (x))
-
-(he--define-lisp-instruction-1 nil ()
-  nil)
-
-(he--define-lisp-instruction-1 t ()
-  t)
-
-(he--define-compound-instruction 'dip
-  (he--lambda (v f) f eval v))
-
-(he--define-compound-instruction 'amalgamate-stack
-  '(stack (drop-stack) dip))
-
-(he--define-compound-instruction 'drop-stack
-  '(nil replace-stack))
-
-(he--define-lisp-instruction-n swap (x y)
-  (list x y))
-
-(he--define-lisp-instruction-n dup (x)
-  (list x x))
-
-(he--define-lisp-instruction-1 make-subenvironment (values instructions)
-  (make-hatty-edit--environment
-   :instruction-stack instructions
-   :value-stack values))
-
-(he--define-lisp-instruction-1 evaluate-subenvironment (subenvironment)
-  (he--evaluate-environment subenvironment))
-
-;; TODO: "evaluate-inside-lisp" function?
-
-
-(he--define-instruction 'save-excursion
-  (lambda (environment)
-    (setf (he--environment-value-stack environment)
-          (save-excursion
-            (he--evaluate-environment
-             (he--make-environment
-              (he--pop-value environment)
-              (he--environment-value-stack environment)))))))
-
-(he--define-instruction 'save-mark-and-excursion
-  (lambda (environment)
-    (setf (he--environment-value-stack environment)
-          (save-mark-and-excursion
-            (he--evaluate-environment
-             (he--make-environment
-              (he--pop-value environment)
-              (he--environment-value-stack environment)))))))
-
-(he--define-lisp-instruction-1 lisp-funcall (x f)
-  (funcall f x))
-
-(he--define-lisp-instruction-0 lisp-eval (f)
-  (funcall f))
-
-(he--define-lisp-instruction-0 flatten (xs)
-  (apply #'append xs))
-
-(he--define-lisp-instruction-1 map (xs f)
-  (--mapcat (he--evaluate-environment
-              (make-hatty-edit--environment
-               :instruction-stack f
-               :value-stack (list it)))
-            xs))
-
-(dolist (entry '((cons cons 2)
-                 (car car 1)
-                 (cdr cdr 1)
-                 (* * 2)
-                 (+ + 2)
-                 (- - 2)
-                 (/ / 2)
-                 (point point-marker 0)
-                 (mark mark-marker 0)
-                 (append append 2)))
-  (he--define-compound-instruction (car entry)
-    `(\\ ,(cadr entry) ,(caddr entry) lisp-funcall-n)))
-
-;; Custom definitions to make sure markers are returned if passed as
-;; arguments.
-(he--define-lisp-instruction-1 min (a b)
-  (if (< a b) a b))
-(he--define-lisp-instruction-1 max (a b)
-  (if (> a b) a b))
-
-(dolist (entry '((set-mark set-mark 1)
-                 (goto-char goto-char 1)))
-  (he--define-compound-instruction (car entry)
-    `(\\ ,(cadr entry) ,(caddr entry) lisp-eval-n)))
-
-
-(he--define-lisp-instruction-n uncons (cell)
-  (list (cdr cell) (car cell)))
-
-(he--define-lisp-instruction-1 curry (f)
-  `(-> x : (\\ x \\ ,f eval) ..))
-
-;;;; Targets, modifiers, actions:
-
+;;; Rest
 (defun he--markify-region (region)
   (cons (if (markerp (car region))
             (car region)
@@ -440,14 +264,14 @@
     (he--markify-region
      (bounds-of-thing-at-point thing))))
 
-(cl-defun he--make-target (content-region)
-  `(,(he--markify-region
-      (cons (car content-region)
-            (cdr content-region)))))
+(defun he--make-target (content-region)
+  (he--markify-region content-region))
 
 (defun he--make-target-from-hat (character &optional color shape)
-  (he--make-target
-   (hatty-locate-token-region character color shape)))
+  (lambda (environment)
+    (he--push-value-pure environment
+      (he--make-target
+       (hatty-locate-token-region character color shape)))))
 
 (defun he--make-thing-modifier (thing)
   ;; Expands from car of region
@@ -455,139 +279,97 @@
                     (he--bounds-of-thing-at thing (car target)))))
     `(,function lisp-funcall)))
 
-(defun he--map-all-cursors (function)
-  "Perform FUNCTION on point and all fake cursors.
-Return a list of the return value of FUNCTION applied with point
-and mark set to the corresponding cursor.  If there are no fake
-cursors, return a single value instead of a list."
-  (let ((result (cons (funcall function)
-                      (mapcar (lambda (fake-cursor)
-                                (save-mark-and-excursion
-                                  (mc/restore-state-from-overlay fake-cursor)
-                                  (funcall function)))
-                              (mc/all-fake-cursors)))))
-    (if (eq (cdr result) nil)
-        (car result)
-      result)))
-
-;;;; Default actions:
-
-(defun he--deletion-region (region)
+(defun he--deletion-region (target)
   (he--markify-region
    (save-excursion
-     (goto-char (cdr region))
+     (goto-char (cdr target))
      (if (/= 0 (skip-chars-forward "[:space:]\n"))
-         (cons (car region) (point))
-       (goto-char (car region))
+         (cons (car target) (point))
+       (goto-char (car target))
        (skip-chars-backward "[:space:]\n")
-       (cons (point) (cdr region))))))
+       (cons (point) (cdr target))))))
+
+(defun he--target-string (target)
+  (buffer-substring (car target) (cdr target)))
 
 (he--define-lisp-instruction-0 target-select (target)
   "Set active region to TARGET."
   (set-mark (car target))
   (goto-char (cdr target)))
 
-(he--define-lisp-instruction-1 target-deletion-region (target)
-  (he--deletion-region target))
+(he--define-lisp-instruction-0 target-jump-beginning (target)
+  "Move point to beginning of TARGET."
+  (goto-char (car target)))
 
-(he--define-lisp-instruction-1 target-string (target)
-  (buffer-substring (car target) (cdr target)))
+(he--define-lisp-instruction-0 target-jump-end (target)
+  "Move point to end of TARGET."
+  (goto-char (cdr target)))
 
-(he--define-lisp-instruction-0 target-delete (target)
+(defun he--target-delete (target)
   (delete-region (car target) (cdr target)))
 
 (he--define-lisp-instruction-0 target-indent (target)
   "Indent TARGET."
   (indent-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-1 target-chuck (target)
+
+(he--define-lisp-instruction-0 target-chuck (target)
   "Delete TARGET and indent the resulting text."
-  (he-i--target-delete (he-i--target-deletion-region target))
+  (he--target-delete (he--deletion-region target))
   (he-i--target-indent
    (he--bounds-of-thing-at 'line (car target))))
 
-(he--define-lisp-instruction-0 insert (string)
-  (insert string))
-
-(he--define-lisp-instruction-0 insert-at (position string)
+(defun he--insert-at (position string)
   (save-excursion
     (goto-char position)
     (insert string)))
 
 (he--define-lisp-instruction-0 target-insert (target string)
-  (he-i--insert-at (car target) string))
+  (he--insert-at (car target) string))
 
 (he--define-lisp-instruction-0 target-bring (target)
-  (insert (he-i--target-string target)))
+  (insert (he--target-string target)))
 
 (he--define-lisp-instruction-0 target-overwrite (target string)
-  (he-i--target-delete target)
+  (he--target-delete target)
   (he-i--target-insert target string))
 
 (he--define-lisp-instruction-0 target-bring-overwrite (target-to target-from)
   (he-i--target-overwrite
    target-to
-   (he-i--target-string target-from)))
+   (he--target-string target-from)))
 
 (he--define-lisp-instruction-0 target-move (target)
   (he-i--target-bring target)
   (he-i--target-chuck target))
 
 (he--define-lisp-instruction-0 target-swap (target1 target2)
-  (let ((string1 (he-i--target-string target1))
-        (string2 (he-i--target-string target2)))
+  (let ((string1 (he--target-string target1))
+        (string2 (he--target-string target2)))
     (he-i--target-overwrite target1 string2)
     (he-i--target-overwrite target2 string1)))
 
 (he--define-lisp-instruction-0 target-change (target)
-  (he-i--target-delete target)
+  (he--target-delete target)
   (goto-char (car target)))
 
-(he--define-lisp-instruction-1 thing-expand (thing target)
-  (he--bounds-of-thing-at thing (car target)))
-
 (he--define-lisp-instruction-0 target-clone (target)
-  (he-i--insert-at (cdr target) (he-i--target-string target)))
+  (he--insert-at (cdr target) (he--target-string target)))
 
 (he--define-lisp-instruction-0 target-copy (target)
   (copy-region-as-kill (car target) (cdr target)))
 
-(defun he--multiple-cursors-map (function)
-  (let ((return nil))
-    (push (he--evaluate function) return)
-    (mc/for-each-fake-cursor
-     (save-mark-and-excursion
-       (goto-char (overlay-get cursor 'point))
-       (set-mark (overlay-get cursor 'mark))
-       (push (he--evaluate function) return)))
-    (apply #'append return)))
+(he--define-lisp-instruction-0 target-comment (target)
+  (comment-region (car target) (cdr target)))
 
-(defun he--multiple-cursors-do (values function)
-  "Parallelize side effects on point, mark and active region."
-  (when values
-    ;; Clear any previous multiple cursors
-    (multiple-cursors-mode 0)
+(he--define-lisp-instruction-0 target-uncomment (target)
+  (uncomment-region (car target) (cdr target)))
 
-    (he--evaluate-environment
-      (make-hatty-edit--environment
-       :instruction-stack function
-       :value-stack (list (car values))))
+(he--define-lisp-instruction-0 target-narrow (target)
+  (narrow-to-region (car target) (cdr target)))
 
-    (when (cdr values)
-      (multiple-cursors-mode 1)
-      (dolist (value (cdr values))
-        (mc/create-fake-cursor-at-point)
-        (he--evaluate-environment
-          (make-hatty-edit--environment
-           :instruction-stack function
-           :value-stack (list value)))))))
-
-(he--define-compound-instruction 'multiple-cursors-do
-  '((amalgamate-stack) dip
-    \\ he--multiple-cursors-do 2 lisp-eval-n))
-
-(he--define-compound-instruction 'do-all
-  (he--lambda (f) amalgamate-stack f map drop))
+(he--define-lisp-instruction-0 target-fill (target)
+  (fill-region (car target) (cdr target)))
 
 (he--define-lisp-instruction-0 target-wrap-parentheses (target parenthesis)
   (save-excursion
@@ -604,41 +386,24 @@ cursors, return a single value instead of a list."
 
 
 ;; Remove everything interspersing list of targets
-(he--define-compound-instruction 'crush
-  '(dup
-    (target-string) map \\ concat lisp-apply
-    (targets-join) dip
-    target-overwrite))
-
 (defvar he-actions
-  `(("select" . ((target-select) multiple-cursors-do))
-    ("copy" . (target-copy))
-    ("chuck" . ((target-chuck) do-all))
-    ("bring" . ((target-bring) curry eval \\ he--multiple-cursors-map lisp-funcall))
-    ("move" . (target-move))
-    ("swap" . (target-swap))
-    ("clone" . ((target-clone) do-all))
-    ("jump" . ((car goto-char) multiple-cursors-do))
-    ("pre" . ((car goto-char) multiple-cursors-do))
-    ("post" . ((cdr goto-char) multiple-cursors-do))
-    ("change" . ((target-change)
-                 multiple-cursors-do))
-    ("unwrap" . ((t ->
-                    t (my/surrounding-inner) thing-expand target-string
-                    t (my/surrounding-outer) thing-expand target-delete
-                    t swap target-insert ..)
-                 do-all))
-    ("comment" .
-     ((uncons \\ comment-region 2 lisp-eval-n) do-all))
-    ("uncomment" .
-     ((uncons \\ uncomment-region 2 lisp-eval-n) do-all))
-    ("indent" . ((target-indent) do-all))
-    ("narrow" .
-     (uncons \\ narrow-to-region 2 lisp-eval-n))
-    ("wrap" . ((target-wrap-parentheses) curry eval do-all))
-    ("crush" . (amalgamate-stack \\ reverse lisp-funcall crush))
-    ("fillout" . (dup target-string (paint) dip target-overwrite))
-    ("filler" . (((car goto-char \\ fill-paragraph lisp-eval) save-excursion) do-all))))
+  `(("select" . (,(he--get-instruction 'target-select)))
+    ("copy" . (,(he--get-instruction 'target-copy)))
+    ("chuck" . (,(he--get-instruction 'target-chuck)))
+    ("bring" . (,(he--get-instruction 'target-bring)))
+    ("move" . (,(he--get-instruction 'target-move)))
+    ("swap" . (,(he--get-instruction 'target-swap)))
+    ("clone" . (,(he--get-instruction 'target-clone)))
+    ("jump" . (,(he--get-instruction 'target-jump-beginning)))
+    ("pre" . (,(he--get-instruction 'target-jump-beginning)))
+    ("post" . (,(he--get-instruction 'target-jump-end)))
+    ("change" . (,(he--get-instruction 'target-change)))
+    ("comment" . (,(he--get-instruction 'target-comment)))
+    ("uncomment" . (,(he--get-instruction 'target-uncomment)))
+    ("indent" . (,(he--get-instruction 'target-indent)))
+    ("narrow" . (,(he--get-instruction 'target-narrow)))
+    ("wrap" . (,(he--get-instruction 'target-wrap-parentheses)))
+    ("filler" . (,(he--get-instruction 'target-fill)))))
 
 ;;;; Default modifiers:
 
@@ -654,7 +419,7 @@ cursors, return a single value instead of a list."
     (skip-chars-backward string)
     (point-marker)))
 
-(he--define-lisp-instruction-1 find-occurrences (string)
+(he--define-lisp-instruction-n find-occurrences (string)
   (save-excursion
     (let ((length (length string))
           matches)
@@ -679,18 +444,6 @@ cursors, return a single value instead of a list."
 (he--define-lisp-instruction-1 trim (target)
   (cons (he-i--skip-forward-from (car target) "[:space:]\n")
         (he-i--skip-backward-from (cdr target) "[:space:]\n")))
-
-(defun he--every-thing (thing)
-  (save-excursion
-    (let ((things nil))
-      (goto-char (point-min))
-      (when (bounds-of-thing-at-point thing)
-        (push (bounds-of-thing-at-point thing) things))
-      (forward-thing thing)
-      (while (< (point) (point-max))
-        (push (bounds-of-thing-at-point thing) things)
-        (forward-thing thing))
-      things)))
 
 (he--define-lisp-instruction-1 inner-parenthesis (region delimiter)
   (save-excursion
@@ -725,10 +478,7 @@ cursors, return a single value instead of a list."
           (he--on-environment #'he-i--inner-parenthesis environment)
         (he--on-environment #'he-i--inner-parenthesis-any environment)))))
 
-(he--define-compound-instruction 'map-stack
-  '((amalgamate-stack) dip map unstack))
-
-(he--define-lisp-instruction-1 targets-join (targets)
+(defun he--targets-join (targets)
   (he--markify-region
    (cons (apply #'min (mapcar #'car targets))
          (apply #'max (mapcar #'cdr targets)))))
@@ -743,21 +493,28 @@ cursors, return a single value instead of a list."
       (he--push-instructions environment function)
       (he--push-instruction environment next-instruction))))
 
+(defun he--make-infix (instruction)
+  "Return INSTRUCTION as an infix function.
+
+Upon evaluation, this inserts the original INSTRUCTION under the
+top instruction of the instruction stack."
+  (lambda (environment)
+    (let ((next-instruction (he--pop-instruction environment)))
+      (he--push-instruction environment instruction)
+      (he--push-instruction environment next-instruction))))
+
+(he--define-lisp-instruction-1 current-selection ()
+  (region-bounds))
+
 (defvar he-modifiers
-  `(("paint" .
-     ((paint) map-stack))
-    ("leftpaint" .
-     ((paint-left) map-stack))
-    ("rightpaint" .
-     ((paint-right) map-stack))
-    ("trim" .
-     ((trim) map-stack))
-    ("past" . ((past) make-infix))
-    ("selection" .
-     ((mark point cons) \\ he--multiple-cursors-map lisp-funcall unstack))
-    ("every instance" .
-     (target-string find-occurrences unstack))
-    ("inside" . (inner-parenthesis-dwim))))
+  `(("paint" . (,(he--get-instruction 'paint)))
+    ("leftpaint" . (,(he--get-instruction 'paint-left)))
+    ("rightpaint" . (,(he--get-instruction 'paint-right)))
+    ("trim" . (,(he--get-instruction 'trim)))
+    ("past" . (,(he--make-infix (he--get-instruction 'past))))
+    ("selection" . (,(he--get-instruction 'current-selection)))
+    ("every instance" . (,(he--get-instruction 'find-occurrences)))
+    ("inside" . (,(he--get-instruction 'inner-parenthesis-dwim)))))
 
 
 ;;; hatty-edit.el ends soon
