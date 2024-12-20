@@ -1,5 +1,10 @@
-* TODO Commentary.
-* TODO Docstrings.
-* TODO Decide the public API for initial release.
+* Initial release
+** TODO Docstrings.
+- On /all/ functions and variables.
+** TODO Commentary.
+** TODO Decide the public API for initial release.
+** TODO README.org.
+
+
 * TODO Commands:
 - unwrap: Remove containing parentheses.
