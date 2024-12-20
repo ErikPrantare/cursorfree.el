@@ -91,14 +91,14 @@
   (declare (indent defun))
   (car (he--environment-value-stack environment)))
 
-(defun he--define-instruction-pure (name instruction)
+(defun he-define-instruction-pure (name instruction)
   (declare (indent defun))
   (put name 'he--instruction instruction)
   name)
 
-(defun he--define-instruction (name instruction)
+(defun he-define-instruction (name instruction)
   (declare (indent defun))
-  (he--define-instruction-pure name
+  (he-define-instruction-pure name
     (lambda (environment)
       (let ((mutable-environment (he--clone-environment environment)))
         (funcall instruction mutable-environment)
@@ -132,52 +132,65 @@
 
 ;; The core instructions are what all other words build upon.
 
+(defun he--lisp-funcall-list (function environment)
+  (setf (he--environment-value-stack environment)
+        (funcall function (he--environment-value-stack environment))))
+
 (defun he--lisp-funcall-1 (function arity environment)
-  (let ((arguments (reverse (he--pop-values environment arity))))
-    (he--push-value environment
-      (apply function arguments))))
+  (he--lisp-funcall-list
+   (lambda (value-stack)
+     (cons
+      (apply function (reverse (take arity value-stack)))
+      (nthcdr arity value-stack)))
+   environment))
 
 (defun he--lisp-funcall-0 (function arity environment)
-  (let ((arguments (reverse (he--pop-values environment arity))))
-    (apply function arguments)))
+  (he--lisp-funcall-list
+   (lambda (value-stack)
+     (apply function (reverse (take arity value-stack)))
+     (nthcdr arity value-stack))
+   environment))
 
 (defun he--lisp-funcall-n (function arity environment)
-  (let ((arguments (reverse (he--pop-values environment arity))))
-    (he--push-values environment
-      (apply function arguments))))
+  (he--lisp-funcall-list
+   (lambda (value-stack)
+     (append
+      (apply function (reverse (take arity value-stack)))
+      (nthcdr arity value-stack)))
+   environment))
 
-(defun he--defun-internal (instruction-name args body)
+(defun he-defun-internal (instruction-name args body)
   (eval `(defun ,instruction-name ,args ,@body)))
 
-(defun he--define-lisp-instruction-impl (funcaller instruction-name args body)
+(defun he-define-lisp-instruction-impl (funcaller instruction-name args body)
   (declare (indent defun))
-  (he--defun-internal instruction-name args body)
+  (he-defun-internal instruction-name args body)
   (let ((environment-function
          (lambda (environment)
            (funcall funcaller
                     instruction-name
                     (length args)
                     environment))))
-    (he--define-instruction
+    (he-define-instruction
       instruction-name
       environment-function)
     (put instruction-name
          'he--environment-function
          environment-function)))
 
-(defmacro he--define-lisp-instruction-1 (instruction-name args &rest body)
+(defmacro he-defmodifier (instruction-name args &rest body)
   (declare (indent defun))
-  (he--define-lisp-instruction-impl #'he--lisp-funcall-1 instruction-name args body)
+  (he-define-lisp-instruction-impl #'he--lisp-funcall-1 instruction-name args body)
   `(identity ',instruction-name))
 
-(defmacro he--define-lisp-instruction-0 (instruction-name args &rest body)
+(defmacro he-defaction (instruction-name args &rest body)
   (declare (indent defun))
-  (he--define-lisp-instruction-impl #'he--lisp-funcall-0 instruction-name args body)
+  (he-define-lisp-instruction-impl #'he--lisp-funcall-0 instruction-name args body)
   `(identity ',instruction-name))
 
-(defmacro he--define-lisp-instruction-n (instruction-name args &rest body)
+(defmacro he-defmodifier-multi (instruction-name args &rest body)
   (declare (indent defun))
-  (he--define-lisp-instruction-impl #'he--lisp-funcall-n instruction-name args body)
+  (he-define-lisp-instruction-impl #'he--lisp-funcall-n instruction-name args body)
   `(identity ',instruction-name))
 
 (defun he--on-environment (function environment)
@@ -210,12 +223,6 @@
   (lambda (environment)
     (he--push-value-pure environment value)))
 
-(defun he--make-thing-modifier (thing)
-  ;; Expands from car of region
-  (let ((function (lambda (target)
-                    (he--bounds-of-thing-at thing (car target)))))
-    `(,function lisp-funcall)))
-
 (defun he--deletion-region (target)
   (he--markify-region
    (save-excursion
@@ -237,99 +244,94 @@
     (goto-char position)
     (insert string)))
 
-(he--define-lisp-instruction-0 he--target-select (target)
+(he-defaction he--target-select (target)
   "Set active region to TARGET."
   (set-mark (car target))
   (goto-char (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-jump-beginning (target)
+(he-defaction he--target-jump-beginning (target)
   "Move point to beginning of TARGET."
   (goto-char (car target)))
 
-(he--define-lisp-instruction-0 he--target-jump-end (target)
+(he-defaction he--target-jump-end (target)
   "Move point to end of TARGET."
   (goto-char (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-indent (target)
+(he-defaction he--target-indent (target)
   "Indent TARGET."
   (indent-region (car target) (cdr target)))
 
 
-(he--define-lisp-instruction-0 he--target-chuck (target)
+(he-defaction he--target-chuck (target)
   "Delete TARGET and indent the resulting text."
   (he--target-delete (he--deletion-region target))
   (he--target-indent
    (he--bounds-of-thing-at 'line (car target))))
 
-(he--define-lisp-instruction-0 he--target-bring (target)
+(he-defaction he--target-bring (target)
   (insert (he--target-string target)))
 
-(he--define-lisp-instruction-0 he--target-overwrite (target string)
+(he-defaction he--target-overwrite (target string)
   (he--target-delete target)
   (he--insert-at (car target) string))
 
-(he--define-lisp-instruction-0 he--target-bring-overwrite (target-to target-from)
-  (he--target-overwrite
-   target-to
-   (he--target-string target-from)))
-
-(he--define-lisp-instruction-0 he--target-move (target)
+(he-defaction he--target-move (target)
   (he--target-bring target)
   (he--target-chuck target))
 
-(he--define-lisp-instruction-0 he--target-swap (target1 target2)
+(he-defaction he--target-swap (target1 target2)
   (let ((string1 (he--target-string target1))
         (string2 (he--target-string target2)))
     (he--target-overwrite target1 string2)
     (he--target-overwrite target2 string1)))
 
-(he--define-lisp-instruction-0 he--target-change (target)
+(he-defaction he--target-change (target)
   (he--target-delete target)
   (goto-char (car target)))
 
-(he--define-lisp-instruction-0 he--target-clone (target)
+(he-defaction he--target-clone (target)
   (he--insert-at (cdr target) (he--target-string target)))
 
-(he--define-lisp-instruction-0 he--target-copy (target)
+(he-defaction he--target-copy (target)
   (copy-region-as-kill (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-comment (target)
+(he-defaction he--target-comment (target)
   (comment-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-uncomment (target)
+(he-defaction he--target-uncomment (target)
   (uncomment-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-narrow (target)
+(he-defaction he--target-narrow (target)
   (narrow-to-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-fill (target)
+(he-defaction he--target-fill (target)
   (fill-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-capitalize (target)
+(he-defaction he--target-capitalize (target)
   (capitalize-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-upcase (target)
+(he-defaction he--target-upcase (target)
   (upcase-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-downcase (target)
+(he-defaction he--target-downcase (target)
   (downcase-region (car target) (cdr target)))
 
-(he--define-lisp-instruction-0 he--target-crown (target)
+(he-defaction he--target-crown (target)
   (save-excursion
     (he--target-jump-beginning target)
     (recenter 0)))
 
-(he--define-lisp-instruction-0 he--target-center (target)
+(he-defaction he--target-center (target)
   (save-excursion
     (he--target-jump-beginning target)
     (recenter nil)))
 
-(he--define-lisp-instruction-0 he--target-bottom (target)
+(he-defaction he--target-bottom (target)
   (save-excursion
     (he--target-jump-beginning target)
     (recenter -1)))
 
-(he--define-lisp-instruction-0 he--target-wrap-parentheses (target parenthesis)
+(he-defaction he--target-wrap-parentheses (target parenthesis)
   (save-excursion
     (goto-char (car target))
     (insert parenthesis)
@@ -341,6 +343,28 @@
        (?< ?>)
        (?{ ?})
        (_ parenthesis)))))
+
+(defvar he-dwim-follow-alist
+  `((org-mode . org-open-at-point)
+    (Info-mode . Info-try-follow-nearest-node)
+    (help-mode . push-button)
+    (dired-mode . dired-find-file)
+    (compilation-mode . compile-goto-error)
+    (grep-mode . compile-goto-error)
+    (eww-mode . ,(lambda ()
+                   (if (get-text-property (point) 'eww-form)
+                       (eww-submit)
+                    (eww-follow-link))))))
+
+(defun he--dwim-follow ()
+  "Try to follow the thing at point."
+  (if-let ((follow-action (alist-get major-mode he-dwim-follow-alist)))
+      (funcall follow-action)))
+
+(he-defaction he--target-pick (target)
+  (save-excursion
+    (goto-char (car target))
+    (he--dwim-follow)))
 
 (defvar he-actions
   `(("select" . ,(he--get-instruction 'he--target-select))
@@ -365,7 +389,8 @@
     ("downcase" . ,(he--get-instruction 'he--target-downcase))
     ("crown" . ,(he--get-instruction 'he--target-crown))
     ("center" . ,(he--get-instruction 'he--target-center))
-    ("bottom" . ,(he--get-instruction 'he--target-bottom))))
+    ("bottom" . ,(he--get-instruction 'he--target-bottom))
+    ("pick" . ,(he--get-instruction 'he--target-pick))))
 
 (defun he--skip-forward-from (position string)
   (save-excursion
@@ -379,7 +404,7 @@
     (skip-chars-backward string)
     (point-marker)))
 
-(he--define-lisp-instruction-n he--find-occurrences (string)
+(he-defmodifier-multi he--find-occurrences (string)
   (save-excursion
     (let ((length (length string))
           matches)
@@ -390,22 +415,22 @@
               matches))
       matches)))
 
-(he--define-lisp-instruction-1 he--paint-left (target)
+(he-defmodifier he--paint-left (target)
   (cons (he--skip-backward-from (car target) "^[:space:]\n")
         (cdr target)))
 
-(he--define-lisp-instruction-1 he--paint-right (target)
+(he-defmodifier he--paint-right (target)
   (cons (car target)
         (he--skip-forward-from (cdr target) "^[:space:]\n")))
 
-(he--define-lisp-instruction-1 he--paint (target)
+(he-defmodifier he--paint (target)
   (he--paint-right (he--paint-left target)))
 
-(he--define-lisp-instruction-1 he--trim (target)
+(he-defmodifier he--trim (target)
   (cons (he--skip-forward-from (car target) "[:space:]\n")
         (he--skip-backward-from (cdr target) "[:space:]\n")))
 
-(he--define-lisp-instruction-1 he--inner-parenthesis (region delimiter)
+(he-defmodifier he--inner-parenthesis (region delimiter)
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
@@ -421,7 +446,7 @@
               (?\' #'evil-inner-single-quote)))))
       (cons (car expanded) (cadr expanded)))))
 
-(he--define-lisp-instruction-1 he--inner-parenthesis-any (region)
+(he-defmodifier he--inner-parenthesis-any (region)
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
            ;; region
@@ -431,7 +456,7 @@
                                (error nil))
                              '(?< ?{ ?\( ?\[ ?\" ?\')))))
 
-(he--define-instruction 'he--inner-parenthesis-dwim
+(he-define-instruction 'he--inner-parenthesis-dwim
   (lambda (environment)
     (let ((head (he--peek-value environment)))
       (if (characterp head)
@@ -443,7 +468,7 @@
    (cons (apply #'min (mapcar #'car targets))
          (apply #'max (mapcar #'cdr targets)))))
 
-(he--define-lisp-instruction-1 he--past (target1 target2)
+(he-defmodifier he--past (target1 target2)
   (he--targets-join (list target1 target2)))
 
 (defun he--make-infix (instruction)
@@ -456,7 +481,7 @@ top instruction of the instruction stack."
       (he--push-instruction environment instruction)
       (he--push-instruction environment next-instruction))))
 
-(he--define-lisp-instruction-1 he--current-selection ()
+(he-defmodifier he--current-selection ()
   (region-bounds))
 
 (defvar he-modifiers
