@@ -25,22 +25,11 @@
 
 ;;; Code:
 
-(ert-deftest he--target-insert ()
-  "target-insert."
-  (with-temp-buffer
-    (insert "aaa bbb")
-    (he-i--target-insert
-     (he--markify-region
-         (cons (+ 4 (point-min))
-               (point-max)))
-     "ccc")
-    (should (string= (buffer-string) "aaa cccbbb"))))
-
 (ert-deftest he--target-overwrite ()
   "target-overwrite."
   (with-temp-buffer
     (insert "aaa bbb")
-    (he-i--target-overwrite
+    (he--target-overwrite
      (he--markify-region
          (cons (+ 4 (point-min))
                (point-max)))
@@ -63,7 +52,7 @@
   "target-overwrite."
   (with-temp-buffer
     (insert "aaa bbb")
-    (he-i--target-overwrite
+    (he--target-overwrite
      (he--markify-region
       (cons (+ 4 (point-min))
             (point-max)))
@@ -74,7 +63,7 @@
   "target-change."
   (with-temp-buffer
     (insert "aaa bbb")
-    (he-i--target-change
+    (he--target-change
      (he--markify-region
       (cons (+ 2 (point-min))
             (+ 5 (point-min)))))
@@ -86,7 +75,7 @@
   (with-temp-buffer
     (insert "aaa ")
     (goto-char (point-max))
-    (he-i--target-bring
+    (he--target-bring
      (he--markify-region
       (cons (point-min)
             (+ 3 (point-min)))))
@@ -97,7 +86,7 @@
   (with-temp-buffer
     (insert "aaa bbb ")
     (goto-char (point-max))
-    (he-i--target-move
+    (he--target-move
      (he--markify-region
       (cons (point-min)
             (+ 3 (point-min)))))
@@ -108,7 +97,7 @@
   (with-temp-buffer
     (insert "aaa bbb ccc")
     (goto-char (point-max))
-    (he-i--target-chuck
+    (he--target-chuck
      (he--markify-region
       (cons (+ 4 (point-min))
             (+ 7 (point-min)))))
@@ -118,8 +107,8 @@
   "inner-parenthesis, inner-parenthesis-any, inner-parenthesis-dwim."
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (he-i--target-chuck
-     (he-i--inner-parenthesis
+    (he--target-chuck
+     (he--inner-parenthesis
       (he--markify-region
        (cons (+ 2 (point-min))
              (+ 3 (point-min))))
@@ -129,7 +118,7 @@
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
     (he--target-delete
-     (he-i--inner-parenthesis
+     (he--inner-parenthesis
       (he--markify-region
        (cons (+ 2 (point-min))
              (+ 3 (point-min))))
@@ -139,7 +128,7 @@
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
     (he--target-delete
-     (he-i--inner-parenthesis-any
+     (he--inner-parenthesis-any
       (he--markify-region
        (cons (+ 2 (point-min))
              (+ 3 (point-min))))))
@@ -152,8 +141,8 @@
       (lambda (environment)
         (he--push-value-pure environment
           (cons (+ (point-min) 2) (+ (point-min) 3))))
-      (he--get-instruction 'inner-parenthesis-dwim)
-      (he--get-instruction 'target-chuck)))
+      (he--get-instruction 'he--inner-parenthesis-dwim)
+      (he--get-instruction 'he--target-chuck)))
     (should (string= (buffer-string) "([] bbb ccc)")))
 
   (with-temp-buffer
@@ -165,8 +154,8 @@
           (cons (+ (point-min) 2) (+ (point-min) 3))))
       (lambda (environment)
         (he--push-value-pure environment ?\())
-      (he--get-instruction 'inner-parenthesis-dwim)
-      (he--get-instruction 'target-chuck)))
+      (he--get-instruction 'he--inner-parenthesis-dwim)
+      (he--get-instruction 'he--target-chuck)))
     (should (string= (buffer-string) "()")))
 
   (with-temp-buffer
@@ -176,15 +165,15 @@
       (lambda (environment)
         (he--push-value-pure environment
           (cons (+ (point-min) 2) (+ (point-min) 3))))
-      (he--get-instruction 'inner-parenthesis-dwim)
-      (he--get-instruction 'target-chuck)))
+      (he--get-instruction 'he--inner-parenthesis-dwim)
+      (he--get-instruction 'he--target-chuck)))
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
 (ert-deftest he--wrap-parentheses ()
   "target-wrap-parentheses."
   (with-temp-buffer
     (insert "aaa bbb ccc")
-    (he-i--target-wrap-parentheses
+    (he--target-wrap-parentheses
      (he--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
      ?{)
     (should (string= (buffer-string) "aaa {bbb} ccc")))
@@ -192,7 +181,7 @@
   ;; Non-parentheses use same character for both ends
   (with-temp-buffer
     (insert "aaa bbb ccc")
-    (he-i--target-wrap-parentheses
+    (he--target-wrap-parentheses
      (he--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
      ?$)
     (should (string= (buffer-string) "aaa $bbb$ ccc"))))

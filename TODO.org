@@ -1,10 +1,6 @@
 * TODO Commentary.
+* TODO Better name.
 * TODO Docstrings.
 * TODO Decide the public API for initial release.
 * TODO Commands:
 - unwrap: Remove containing parentheses.
-* TODO Reimplement the debugger.
-* TODO Unify instruction representation.
-We currently have instrx and he-i--instrx.  Let us unify these by
-tossing away the first type, and then storing all metadata in the
-latter symbol.
