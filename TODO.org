@@ -1,5 +1,4 @@
 * TODO Commentary.
-* TODO Better name.
 * TODO Docstrings.
 * TODO Decide the public API for initial release.
 * TODO Commands:
