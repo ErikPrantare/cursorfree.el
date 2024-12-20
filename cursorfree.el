@@ -159,12 +159,12 @@
       (nthcdr arity value-stack)))
    environment))
 
-(defun cursorfree-defun-internal (instruction-name args body)
+(defun cursorfree--defun-internal (instruction-name args body)
   (eval `(defun ,instruction-name ,args ,@body)))
 
-(defun cursorfree-define-lisp-instruction-impl (funcaller instruction-name args body)
+(defun cursorfree--define-lisp-instruction-impl (funcaller instruction-name args body)
   (declare (indent defun))
-  (cursorfree-defun-internal instruction-name args body)
+  (cursorfree--defun-internal instruction-name args body)
   (let ((environment-function
          (lambda (environment)
            (funcall funcaller
@@ -180,17 +180,17 @@
 
 (defmacro cursorfree-defmodifier (instruction-name args &rest body)
   (declare (indent defun))
-  (cursorfree-define-lisp-instruction-impl #'cursorfree--lisp-funcall-1 instruction-name args body)
+  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-1 instruction-name args body)
   `(identity ',instruction-name))
 
 (defmacro cursorfree-defaction (instruction-name args &rest body)
   (declare (indent defun))
-  (cursorfree-define-lisp-instruction-impl #'cursorfree--lisp-funcall-0 instruction-name args body)
+  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-0 instruction-name args body)
   `(identity ',instruction-name))
 
 (defmacro cursorfree-defmodifier-multi (instruction-name args &rest body)
   (declare (indent defun))
-  (cursorfree-define-lisp-instruction-impl #'cursorfree--lisp-funcall-n instruction-name args body)
+  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-n instruction-name args body)
   `(identity ',instruction-name))
 
 (defun cursorfree--on-environment (function environment)
