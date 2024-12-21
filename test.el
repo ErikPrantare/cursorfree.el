@@ -138,35 +138,31 @@
     (insert "([aaa] bbb ccc)")
     (cursorfree--evaluate
      (list
-      (lambda (environment)
-        (cursorfree--push-value-pure environment
-          (cons (+ (point-min) 2) (+ (point-min) 3))))
-      (cursorfree--get-instruction 'cursorfree--inner-parenthesis-dwim)
-      (cursorfree--get-instruction 'cursorfree--target-chuck)))
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree--inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree--target-chuck)))
     (should (string= (buffer-string) "([] bbb ccc)")))
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
     (cursorfree--evaluate
      (list
-      (lambda (environment)
-        (cursorfree--push-value-pure environment
-          (cons (+ (point-min) 2) (+ (point-min) 3))))
-      (lambda (environment)
-        (cursorfree--push-value-pure environment ?\())
-      (cursorfree--get-instruction 'cursorfree--inner-parenthesis-dwim)
-      (cursorfree--get-instruction 'cursorfree--target-chuck)))
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      (cursorfree--pusher ?\()
+      #'cursorfree--inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree--target-chuck)))
     (should (string= (buffer-string) "()")))
 
   (with-temp-buffer
     (insert "(\"aaa\" bbb ccc)")
     (cursorfree--evaluate
      (list
-      (lambda (environment)
-        (cursorfree--push-value-pure environment
-          (cons (+ (point-min) 2) (+ (point-min) 3))))
-      (cursorfree--get-instruction 'cursorfree--inner-parenthesis-dwim)
-      (cursorfree--get-instruction 'cursorfree--target-chuck)))
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree--inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree--target-chuck)))
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
 (ert-deftest cursorfree--wrap-parentheses ()

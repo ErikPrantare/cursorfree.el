@@ -91,27 +91,6 @@
   (declare (indent defun))
   (car (cursorfree--environment-value-stack environment)))
 
-(defun cursorfree-define-instruction-pure (name instruction)
-  (declare (indent defun))
-  (put name 'cursorfree--instruction instruction)
-  name)
-
-(defun cursorfree-define-instruction (name instruction)
-  (declare (indent defun))
-  (cursorfree-define-instruction-pure name
-    (lambda (environment)
-      (let ((mutable-environment (cursorfree--clone-environment environment)))
-        (funcall instruction mutable-environment)
-        mutable-environment))))
-
-(defun cursorfree--get-instruction (name)
-  (let ((instruction
-         (get name 'cursorfree--instruction)))
-    (unless instruction
-      ;; TODO: Custom error symbol?
-      (signal 'error (list "No such cursorfree instruction: " name)))
-    instruction))
-
 (defun cursorfree--step (environment)
   (let* ((new-environment (cursorfree--clone-environment environment))
          (instruction (cursorfree--pop-instruction new-environment)))
@@ -128,75 +107,29 @@
   (cursorfree--evaluate-environment
     (cursorfree--make-environment instructions)))
 
-;;; Core macros and functions for defining instructions
+(defun cursorfree--apply-on-stack (function stack)
+  (let* ((arity (car (func-arity function)))
+         (args (reverse (take arity stack)))
+         (tail (nthcdr arity stack)))
+    (cons (apply function args) tail)))
 
-;; The core instructions are what all other words build upon.
+(defun cursorfree--to-action (function)
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree--environment-value-stack e)))
+      (setf (cursorfree--environment-value-stack e)
+            (cursorfree--apply-on-stack function values))
+      (cursorfree--pop-value e) ; Ignore return value
+      e)))
 
-(defun cursorfree--lisp-funcall-list (function environment)
-  (setf (cursorfree--environment-value-stack environment)
-        (funcall function (cursorfree--environment-value-stack environment))))
+(defun cursorfree--to-modifier (function)
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree--environment-value-stack e)))
+      (setf (cursorfree--environment-value-stack e)
+            (cursorfree--apply-on-stack function values))
+      e)))
 
-(defun cursorfree--lisp-funcall-1 (function arity environment)
-  (cursorfree--lisp-funcall-list
-   (lambda (value-stack)
-     (cons
-      (apply function (reverse (take arity value-stack)))
-      (nthcdr arity value-stack)))
-   environment))
-
-(defun cursorfree--lisp-funcall-0 (function arity environment)
-  (cursorfree--lisp-funcall-list
-   (lambda (value-stack)
-     (apply function (reverse (take arity value-stack)))
-     (nthcdr arity value-stack))
-   environment))
-
-(defun cursorfree--lisp-funcall-n (function arity environment)
-  (cursorfree--lisp-funcall-list
-   (lambda (value-stack)
-     (append
-      (apply function (reverse (take arity value-stack)))
-      (nthcdr arity value-stack)))
-   environment))
-
-(defun cursorfree--defun-internal (instruction-name args body)
-  (eval `(defun ,instruction-name ,args ,@body)))
-
-(defun cursorfree--define-lisp-instruction-impl (funcaller instruction-name args body)
-  (declare (indent defun))
-  (cursorfree--defun-internal instruction-name args body)
-  (let ((environment-function
-         (lambda (environment)
-           (funcall funcaller
-                    instruction-name
-                    (length args)
-                    environment))))
-    (cursorfree-define-instruction
-      instruction-name
-      environment-function)
-    (put instruction-name
-         'cursorfree--environment-function
-         environment-function)))
-
-(defmacro cursorfree-defmodifier (instruction-name args &rest body)
-  (declare (indent defun))
-  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-1 instruction-name args body)
-  `(identity ',instruction-name))
-
-(defmacro cursorfree-defaction (instruction-name args &rest body)
-  (declare (indent defun))
-  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-0 instruction-name args body)
-  `(identity ',instruction-name))
-
-(defmacro cursorfree-defmodifier-multi (instruction-name args &rest body)
-  (declare (indent defun))
-  (cursorfree--define-lisp-instruction-impl #'cursorfree--lisp-funcall-n instruction-name args body)
-  `(identity ',instruction-name))
-
-(defun cursorfree--on-environment (function environment)
-  (funcall (get function 'cursorfree--environment-function) environment))
-
-;;; Rest
 (defun cursorfree--markify-region (region)
   (cons (if (markerp (car region))
             (car region)
@@ -244,94 +177,94 @@
     (goto-char position)
     (insert string)))
 
-(cursorfree-defaction cursorfree--target-select (target)
+(defun cursorfree--target-select (target)
   "Set active region to TARGET."
   (set-mark (car target))
   (goto-char (cdr target)))
 
-(cursorfree-defaction cursorfree--target-jump-beginning (target)
+(defun cursorfree--target-jump-beginning (target)
   "Move point to beginning of TARGET."
   (goto-char (car target)))
 
-(cursorfree-defaction cursorfree--target-jump-end (target)
+(defun cursorfree--target-jump-end (target)
   "Move point to end of TARGET."
   (goto-char (cdr target)))
 
-(cursorfree-defaction cursorfree--target-indent (target)
+(defun cursorfree--target-indent (target)
   "Indent TARGET."
   (indent-region (car target) (cdr target)))
 
 
-(cursorfree-defaction cursorfree--target-chuck (target)
+(defun cursorfree--target-chuck (target)
   "Delete TARGET and indent the resulting text."
   (cursorfree--target-delete (cursorfree--deletion-region target))
   (cursorfree--target-indent
    (cursorfree--bounds-of-thing-at 'line (car target))))
 
-(cursorfree-defaction cursorfree--target-bring (target)
+(defun cursorfree--target-bring (target)
   (insert (cursorfree--target-string target)))
 
-(cursorfree-defaction cursorfree--target-overwrite (target string)
+(defun cursorfree--target-overwrite (target string)
   (cursorfree--target-delete target)
   (cursorfree--insert-at (car target) string))
 
-(cursorfree-defaction cursorfree--target-move (target)
+(defun cursorfree--target-move (target)
   (cursorfree--target-bring target)
   (cursorfree--target-chuck target))
 
-(cursorfree-defaction cursorfree--target-swap (target1 target2)
+(defun cursorfree--target-swap (target1 target2)
   (let ((string1 (cursorfree--target-string target1))
         (string2 (cursorfree--target-string target2)))
     (cursorfree--target-overwrite target1 string2)
     (cursorfree--target-overwrite target2 string1)))
 
-(cursorfree-defaction cursorfree--target-change (target)
+(defun cursorfree--target-change (target)
   (cursorfree--target-delete target)
   (goto-char (car target)))
 
-(cursorfree-defaction cursorfree--target-clone (target)
+(defun cursorfree--target-clone (target)
   (cursorfree--insert-at (cdr target) (cursorfree--target-string target)))
 
-(cursorfree-defaction cursorfree--target-copy (target)
+(defun cursorfree--target-copy (target)
   (copy-region-as-kill (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-comment (target)
+(defun cursorfree--target-comment (target)
   (comment-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-uncomment (target)
+(defun cursorfree--target-uncomment (target)
   (uncomment-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-narrow (target)
+(defun cursorfree--target-narrow (target)
   (narrow-to-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-fill (target)
+(defun cursorfree--target-fill (target)
   (fill-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-capitalize (target)
+(defun cursorfree--target-capitalize (target)
   (capitalize-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-upcase (target)
+(defun cursorfree--target-upcase (target)
   (upcase-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-downcase (target)
+(defun cursorfree--target-downcase (target)
   (downcase-region (car target) (cdr target)))
 
-(cursorfree-defaction cursorfree--target-crown (target)
+(defun cursorfree--target-crown (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
     (recenter 0)))
 
-(cursorfree-defaction cursorfree--target-center (target)
+(defun cursorfree--target-center (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
     (recenter nil)))
 
-(cursorfree-defaction cursorfree--target-bottom (target)
+(defun cursorfree--target-bottom (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
     (recenter -1)))
 
-(cursorfree-defaction cursorfree--target-wrap-parentheses (target parenthesis)
+(defun cursorfree--target-wrap-parentheses (target parenthesis)
   (save-excursion
     (goto-char (car target))
     (insert parenthesis)
@@ -361,36 +294,36 @@
   (if-let ((follow-action (alist-get major-mode cursorfree-dwim-follow-alist)))
       (funcall follow-action)))
 
-(cursorfree-defaction cursorfree--target-pick (target)
+(defun cursorfree--target-pick (target)
   (save-excursion
     (goto-char (car target))
     (cursorfree--dwim-follow)))
 
 (defvar cursorfree-actions
-  `(("select" . ,(cursorfree--get-instruction 'cursorfree--target-select))
-    ("copy" . ,(cursorfree--get-instruction 'cursorfree--target-copy))
-    ("chuck" . ,(cursorfree--get-instruction 'cursorfree--target-chuck))
-    ("bring" . ,(cursorfree--get-instruction 'cursorfree--target-bring))
-    ("move" . ,(cursorfree--get-instruction 'cursorfree--target-move))
-    ("swap" . ,(cursorfree--get-instruction 'cursorfree--target-swap))
-    ("clone" . ,(cursorfree--get-instruction 'cursorfree--target-clone))
-    ("jump" . ,(cursorfree--get-instruction 'cursorfree--target-jump-beginning))
-    ("pre" . ,(cursorfree--get-instruction 'cursorfree--target-jump-beginning))
-    ("post" . ,(cursorfree--get-instruction 'cursorfree--target-jump-end))
-    ("change" . ,(cursorfree--get-instruction 'cursorfree--target-change))
-    ("comment" . ,(cursorfree--get-instruction 'cursorfree--target-comment))
-    ("uncomment" . ,(cursorfree--get-instruction 'cursorfree--target-uncomment))
-    ("indent" . ,(cursorfree--get-instruction 'cursorfree--target-indent))
-    ("narrow" . ,(cursorfree--get-instruction 'cursorfree--target-narrow))
-    ("wrap" . ,(cursorfree--get-instruction 'cursorfree--target-wrap-parentheses))
-    ("filler" . ,(cursorfree--get-instruction 'cursorfree--target-fill))
-    ("title" . ,(cursorfree--get-instruction 'cursorfree--target-capitalize))
-    ("upcase" . ,(cursorfree--get-instruction 'cursorfree--target-upcase))
-    ("downcase" . ,(cursorfree--get-instruction 'cursorfree--target-downcase))
-    ("crown" . ,(cursorfree--get-instruction 'cursorfree--target-crown))
-    ("center" . ,(cursorfree--get-instruction 'cursorfree--target-center))
-    ("bottom" . ,(cursorfree--get-instruction 'cursorfree--target-bottom))
-    ("pick" . ,(cursorfree--get-instruction 'cursorfree--target-pick))))
+  `(("select" . ,(cursorfree--to-action #'cursorfree--target-select))
+    ("copy" . ,(cursorfree--to-action #'cursorfree--target-copy))
+    ("chuck" . ,(cursorfree--to-action #'cursorfree--target-chuck))
+    ("bring" . ,(cursorfree--to-action #'cursorfree--target-bring))
+    ("move" . ,(cursorfree--to-action #'cursorfree--target-move))
+    ("swap" . ,(cursorfree--to-action #'cursorfree--target-swap))
+    ("clone" . ,(cursorfree--to-action #'cursorfree--target-clone))
+    ("jump" . ,(cursorfree--to-action #'cursorfree--target-jump-beginning))
+    ("pre" . ,(cursorfree--to-action #'cursorfree--target-jump-beginning))
+    ("post" . ,(cursorfree--to-action #'cursorfree--target-jump-end))
+    ("change" . ,(cursorfree--to-action #'cursorfree--target-change))
+    ("comment" . ,(cursorfree--to-action #'cursorfree--target-comment))
+    ("uncomment" . ,(cursorfree--to-action #'cursorfree--target-uncomment))
+    ("indent" . ,(cursorfree--to-action #'cursorfree--target-indent))
+    ("narrow" . ,(cursorfree--to-action #'cursorfree--target-narrow))
+    ("wrap" . ,(cursorfree--to-action #'cursorfree--target-wrap-parentheses))
+    ("filler" . ,(cursorfree--to-action #'cursorfree--target-fill))
+    ("title" . ,(cursorfree--to-action #'cursorfree--target-capitalize))
+    ("upcase" . ,(cursorfree--to-action #'cursorfree--target-upcase))
+    ("downcase" . ,(cursorfree--to-action #'cursorfree--target-downcase))
+    ("crown" . ,(cursorfree--to-action #'cursorfree--target-crown))
+    ("center" . ,(cursorfree--to-action #'cursorfree--target-center))
+    ("bottom" . ,(cursorfree--to-action #'cursorfree--target-bottom))
+    ("pick" . ,(cursorfree--to-action #'cursorfree--target-pick))))
 
 (defun cursorfree--skip-forward-from (position string)
   (save-excursion
@@ -404,33 +337,22 @@
     (skip-chars-backward string)
     (point-marker)))
 
-(cursorfree-defmodifier-multi cursorfree--find-occurrences (string)
-  (save-excursion
-    (let ((length (length string))
-          matches)
-      (goto-char (point-min))
-      (while (search-forward string nil t)
-        (push (cursorfree--markify-region
-               (cons (- (point) length) (point)))
-              matches))
-      matches)))
-
-(cursorfree-defmodifier cursorfree--paint-left (target)
+(defun cursorfree--paint-left (target)
   (cons (cursorfree--skip-backward-from (car target) "^[:space:]\n")
         (cdr target)))
 
-(cursorfree-defmodifier cursorfree--paint-right (target)
+(defun cursorfree--paint-right (target)
   (cons (car target)
         (cursorfree--skip-forward-from (cdr target) "^[:space:]\n")))
 
-(cursorfree-defmodifier cursorfree--paint (target)
+(defun cursorfree--paint (target)
   (cursorfree--paint-right (cursorfree--paint-left target)))
 
-(cursorfree-defmodifier cursorfree--trim (target)
+(defun cursorfree--trim (target)
   (cons (cursorfree--skip-forward-from (car target) "[:space:]\n")
         (cursorfree--skip-backward-from (cdr target) "[:space:]\n")))
 
-(cursorfree-defmodifier cursorfree--inner-parenthesis (region delimiter)
+(defun cursorfree--inner-parenthesis (region delimiter)
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
@@ -446,7 +368,7 @@
               (?\' #'evil-inner-single-quote)))))
       (cons (car expanded) (cadr expanded)))))
 
-(cursorfree-defmodifier cursorfree--inner-parenthesis-any (region)
+(defun cursorfree--inner-parenthesis-any (region)
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
            ;; region
@@ -456,19 +378,19 @@
                                (error nil))
                              '(?< ?{ ?\( ?\[ ?\" ?\')))))
 
-(cursorfree-define-instruction 'cursorfree--inner-parenthesis-dwim
-  (lambda (environment)
-    (let ((head (cursorfree--peek-value environment)))
-      (if (characterp head)
-          (cursorfree--on-environment #'cursorfree--inner-parenthesis environment)
-        (cursorfree--on-environment #'cursorfree--inner-parenthesis-any environment)))))
+(defun cursorfree--inner-parenthesis-dwim (environment)
+  (let* ((head (cursorfree--peek-value environment)))
+    (funcall (if (characterp head)
+                 (cursorfree--to-modifier #'cursorfree--inner-parenthesis)
+               (cursorfree--to-modifier #'cursorfree--inner-parenthesis-any))
+             environment)))
 
 (defun cursorfree--targets-join (targets)
   (cursorfree--markify-region
    (cons (apply #'min (mapcar #'car targets))
          (apply #'max (mapcar #'cdr targets)))))
 
-(cursorfree-defmodifier cursorfree--past (target1 target2)
+(defun cursorfree--past (target1 target2)
   (cursorfree--targets-join (list target1 target2)))
 
 (defun cursorfree--make-infix (instruction)
@@ -477,22 +399,24 @@
 Upon evaluation, this inserts the original INSTRUCTION under the
 top instruction of the instruction stack."
   (lambda (environment)
-    (let ((next-instruction (cursorfree--pop-instruction environment)))
-      (cursorfree--push-instruction environment instruction)
-      (cursorfree--push-instruction environment next-instruction))))
 
-(cursorfree-defmodifier cursorfree--current-selection ()
+    (let* ((e (cursorfree--clone-environment environment))
+           (next-instruction (cursorfree--pop-instruction e)))
+      (cursorfree--push-instruction e instruction)
+      (cursorfree--push-instruction e next-instruction)
+      e)))
+
+(defun cursorfree--current-selection ()
   (region-bounds))
 
 (defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree--get-instruction 'cursorfree--paint))
-    ("leftpaint" . ,(cursorfree--get-instruction 'cursorfree--paint-left))
-    ("rightpaint" . ,(cursorfree--get-instruction 'cursorfree--paint-right))
-    ("trim" . ,(cursorfree--get-instruction 'cursorfree--trim))
-    ("past" . ,(cursorfree--make-infix (cursorfree--get-instruction 'cursorfree--past)))
-    ("selection" . ,(cursorfree--get-instruction 'cursorfree--current-selection))
-    ("every instance" . ,(cursorfree--get-instruction 'cursorfree--find-occurrences))
-    ("inside" . ,(cursorfree--get-instruction 'cursorfree--inner-parenthesis-dwim))))
+  `(("paint" . ,(cursorfree--to-modifier #'cursorfree--paint))
+    ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree--paint-left))
+    ("rightpaint" . ,(cursorfree--to-modifier #'cursorfree--paint-right))
+    ("trim" . ,(cursorfree--to-modifier #'cursorfree--trim))
+    ("past" . ,(cursorfree--make-infix (cursorfree--to-modifier #'cursorfree--past)))
+    ("selection" . ,(cursorfree--to-modifier #'cursorfree--current-selection))
+    ("inside" . cursorfree--inner-parenthesis-dwim)))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
