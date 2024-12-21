@@ -5,7 +5,7 @@
 ;; Author: Erik Präntare
 ;; Keywords: convenience
 ;; Version: 0.0.0
-;; Package-Requires: ((emacs "25.1") (hatty "0.2.0"))
+;; Package-Requires: ((emacs "29.1") (hatty "0.2.0"))
 ;; Created: 06 Sep 2024
 
 ;; cursorfree.el is free software; you can redistribute it and/or
@@ -37,44 +37,76 @@
 ;;;; Instruction interpreter:
 
 (cl-defstruct cursorfree--environment
+  "Environment for executing cursorfree programs.
+
+The environment is made up of a value stack and an instruction
+stack.  The value stack may be regarded as the the \"memory\" of
+the environment: This is for example where information about the
+targets to be acted upon is stored.
+
+The instruction stack is a sequence of functions, taking as input
+the environment and outputting a transformed environment.
+
+When evaluating an environment (see
+`cursorfree--evaluate-environment'), the top instruction in the
+instruction stack will be evaluated with the current environment
+to yield the next environment (see `cursorfree--step').  This
+will be repeated until there are no instructions left."
   (instruction-stack nil) (value-stack nil))
 
 (defun cursorfree--make-environment (instructions &optional value-stack)
+  "Create an environment with INSTRUCTIONS and VALUE-STACK.
+
+See `cursorfree--environment' for information about environments."
   (make-cursorfree--environment
    :instruction-stack instructions
    :value-stack value-stack))
 
 (defun cursorfree--clone-environment (environment)
+  "Create a shallow copy of ENVIRONMENT."
   (make-cursorfree--environment
    :value-stack (cursorfree--environment-value-stack environment)
    :instruction-stack (cursorfree--environment-instruction-stack environment)))
 
 (defun cursorfree--push-instruction (environment instruction)
+  "Add INSTRUCTION to the instruction stack ENVIRONMENT."
   (push instruction (cursorfree--environment-instruction-stack environment)))
 
 (defun cursorfree--push-instructions (environment instructions)
+  "Add INSTRUCTIONS to the instruction stack ENVIRONMENT.
+
+The first instruction in INSTRUCTIONS will end up at the top of
+the instruction stack."
   (dolist (instruction (reverse instructions))
     (cursorfree--push-instruction environment instruction)))
 
 (defun cursorfree--pop-instruction (environment)
+  "Remove and return the top instruction in ENVIRONMENT."
   (pop (cursorfree--environment-instruction-stack environment)))
 
 (defun cursorfree--push-value (environment value)
+  "Add VALUE to the value stack of ENVIRONMENT."
   (declare (indent defun))
   (push value (cursorfree--environment-value-stack environment)))
 
 (defun cursorfree--push-value-pure (environment value)
+  "Return environment with VALUE added to ENVIRONMENT."
   (declare (indent defun))
   (let ((new-environment (cursorfree--clone-environment environment)))
     (cursorfree--push-value new-environment value)
     new-environment))
 
 (defun cursorfree--push-values (environment values)
+  "Add VALUES to the value stack of ENVIRONMENT.
+
+The first value in VALUES will end up at the top of the value
+stack."
   (declare (indent defun))
   (dolist (value (reverse values))
     (cursorfree--push-value environment value)))
 
 (defun cursorfree--pop-value (environment)
+  "Remove and return the top value in ENVIRONMENT."
   (declare (indent defun))
   (cl-destructuring-bind (head . tail)
       (cursorfree--environment-value-stack environment)
@@ -82,34 +114,58 @@
     head))
 
 (defun cursorfree--pop-values (environment n)
+  "Remove and return the top N values in ENVIRONMENT.
+
+The top value of the value stack will end up at the beginning of
+the returned list."
   (declare (indent defun))
   (let ((acc nil))
     (dotimes (i n (reverse acc))
       (push (cursorfree--pop-value environment) acc))))
 
 (defun cursorfree--peek-value (environment)
+  "Return the top value in ENVIRONMENT."
   (declare (indent defun))
   (car (cursorfree--environment-value-stack environment)))
 
 (defun cursorfree--step (environment)
+  "Evaluate the next instruction of ENVIRONMENT.
+
+This will return the top instruction of ENVIRONMENT applied to
+ENVIRONMENT with that instruction removed."
   (let* ((new-environment (cursorfree--clone-environment environment))
          (instruction (cursorfree--pop-instruction new-environment)))
     (funcall instruction new-environment)))
 
 (defun cursorfree--evaluate-environment (environment)
-  "Evaluate ENVIRONMENT and return the final value stack."
+  "Evaluate ENVIRONMENT and return the final value stack.
+
+This will step through ENVIRONMENT with `cursorfree--step' until
+there are no instructions left, at wich point it returns the
+final stack of values."
   (declare (indent defun))
   (while (cursorfree--environment-instruction-stack environment)
     (setq environment (cursorfree--step environment)))
   (cursorfree--environment-value-stack environment))
 
 (defun cursorfree--evaluate (instructions)
+  "Evaluate INSTRUCTIONS and return the final value stack.
+
+This creates an initial environment with empty value stack, upon which
+`cursorfree--evaluate-environment' is invoked."
   (cursorfree--evaluate-environment
     (cursorfree--make-environment instructions)))
 
 (defun cursorfree--apply-on-stack (function stack)
+  "Apply FUNCTION to the top elements of STACK.
+
+The arity of FUNCTION will be assumed to be the car of
+`func-arity'.  The function is evaluated with the top values of
+STACK, with the top elements applied as the first arguments.
+Returns the unapplied elements of STACK with the return value of
+FUNCTION on top."
   (let* ((arity (car (func-arity function)))
-         (args (reverse (take arity stack)))
+         (args (take arity stack))
          (tail (nthcdr arity stack)))
     (cons (apply function args) tail)))
 
@@ -264,7 +320,7 @@
     (cursorfree--target-jump-beginning target)
     (recenter -1)))
 
-(defun cursorfree--target-wrap-parentheses (target parenthesis)
+(defun cursorfree--target-wrap-parentheses (parenthesis target)
   (save-excursion
     (goto-char (car target))
     (insert parenthesis)
@@ -352,11 +408,11 @@
   (cons (cursorfree--skip-forward-from (car target) "[:space:]\n")
         (cursorfree--skip-backward-from (cdr target) "[:space:]\n")))
 
-(defun cursorfree--inner-parenthesis (region delimiter)
+(defun cursorfree--inner-parenthesis (delimiter target)
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
-    (goto-char (car region))
+    (goto-char (car target))
     (let ((expanded
            (funcall
             (cl-case delimiter
@@ -368,13 +424,13 @@
               (?\' #'evil-inner-single-quote)))))
       (cons (car expanded) (cadr expanded)))))
 
-(defun cursorfree--inner-parenthesis-any (region)
+(defun cursorfree--inner-parenthesis-any (target)
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
            ;; region
-           (--filter (<= (car it) (car region))
+           (--filter (<= (car it) (car target))
                      (--keep (condition-case nil
-                                 (cursorfree--inner-parenthesis region it)
+                                 (cursorfree--inner-parenthesis it target)
                                (error nil))
                              '(?< ?{ ?\( ?\[ ?\" ?\')))))
 

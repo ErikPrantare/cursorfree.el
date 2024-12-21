@@ -109,20 +109,20 @@
     (insert "([aaa] bbb ccc)")
     (cursorfree--target-chuck
      (cursorfree--inner-parenthesis
+      ?\(
       (cursorfree--markify-region
        (cons (+ 2 (point-min))
-             (+ 3 (point-min))))
-      ?\())
+             (+ 3 (point-min))))))
     (should (string= (buffer-string) "()")))
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
     (cursorfree--target-delete
      (cursorfree--inner-parenthesis
+      ?\[
       (cursorfree--markify-region
        (cons (+ 2 (point-min))
-             (+ 3 (point-min))))
-      ?\[))
+             (+ 3 (point-min))))))
     (should (string= (buffer-string) "([] bbb ccc)")))
 
   (with-temp-buffer
@@ -166,20 +166,20 @@
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
 (ert-deftest cursorfree--wrap-parentheses ()
-  "target-wrap-parentheses."
+  "`cursorfree--wrap-parentheses'."
   (with-temp-buffer
     (insert "aaa bbb ccc")
     (cursorfree--target-wrap-parentheses
-     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
-     ?{)
+     ?{
+     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
     (should (string= (buffer-string) "aaa {bbb} ccc")))
 
   ;; Non-parentheses use same character for both ends
   (with-temp-buffer
     (insert "aaa bbb ccc")
     (cursorfree--target-wrap-parentheses
-     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7)))
-     ?$)
+     ?$
+     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
     (should (string= (buffer-string) "aaa $bbb$ ccc"))))
 
 (ert-deftest cursorfree--targets-join ()
