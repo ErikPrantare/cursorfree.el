@@ -305,20 +305,40 @@ FUNCTION on top."
 (defun cursorfree--target-downcase (target)
   (downcase-region (car target) (cdr target)))
 
+(defun cursorfree--clamp-line ()
+  "Move point to within window if outside."
+  (let* ((current-column (current-column))
+         (current-position (point))
+         (top-position
+          (progn
+            (move-to-window-line 0)
+            (move-to-column current-column)
+            (point)))
+         (bottom-position
+          (progn
+            (move-to-window-line -1)
+            (move-to-column current-column)
+            (point))))
+    (goto-char
+     (max top-position (min bottom-position current-position)))))
+
 (defun cursorfree--target-crown (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
-    (recenter 0)))
+    (recenter 0))
+  (cursorfree--clamp-line))
 
 (defun cursorfree--target-center (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
-    (recenter nil)))
+    (recenter nil))
+  (cursorfree--clamp-line))
 
 (defun cursorfree--target-bottom (target)
   (save-excursion
     (cursorfree--target-jump-beginning target)
-    (recenter -1)))
+    (recenter -1))
+  (cursorfree--clamp-line))
 
 (defun cursorfree--target-wrap-parentheses (parenthesis target)
   (save-excursion
