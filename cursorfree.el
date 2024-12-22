@@ -170,6 +170,11 @@ FUNCTION on top."
     (cons (apply function args) tail)))
 
 (defun cursorfree--to-action (function)
+  "Translate FUNCTION an instruction not producing any value.
+
+The resulting instruction will read the top elements of the value
+stack to supply arguments for FUNCTION.  The read arguments will
+not remain on the value stack."
   (lambda (environment)
     (let* ((e (cursorfree--clone-environment environment))
            (values (cursorfree--environment-value-stack e)))
@@ -179,6 +184,12 @@ FUNCTION on top."
       e)))
 
 (defun cursorfree--to-modifier (function)
+  "Translate FUNCTION an instruction not producing a value.
+
+The resulting instruction will read the top elements of the value
+stack to supply arguments for FUNCTION.  The result of invoking
+FUNCTION will be put back on the value stack.  The read arguments
+will not remain on the stack."
   (lambda (environment)
     (let* ((e (cursorfree--clone-environment environment))
            (values (cursorfree--environment-value-stack e)))
@@ -187,6 +198,7 @@ FUNCTION on top."
       e)))
 
 (defun cursorfree--markify-region (region)
+  "Return REGION with the endpoints as markers."
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -195,15 +207,21 @@ FUNCTION on top."
           (move-marker (make-marker) (cdr region)))))
 
 (defun cursorfree--bounds-of-thing-at (thing position)
+  "Return bounds of THING at POSITION."
   (save-excursion
     (goto-char position)
     (cursorfree--markify-region
      (bounds-of-thing-at-point thing))))
 
 (defun cursorfree--make-target (content-region)
+  "Return a target spanning CONTENT-REGION."
   (cursorfree--markify-region content-region))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
+  "Return target spanning a token.
+
+The token is indexed by CHARACTER, COLOR and SHAPE, as specified
+by `hatty-locate-token-region'."
   (cursorfree--make-target
    (hatty-locate-token-region character color shape)))
 
@@ -213,6 +231,7 @@ FUNCTION on top."
     (cursorfree--push-value-pure environment value)))
 
 (defun cursorfree--deletion-region (target)
+  "Return region that should be removed if deleting TARGET."
   (cursorfree--markify-region
    (save-excursion
      (goto-char (cdr target))
@@ -223,12 +242,15 @@ FUNCTION on top."
        (cons (point) (cdr target))))))
 
 (defun cursorfree--target-string (target)
+  "Return the string referred to by TARGET."
   (buffer-substring (car target) (cdr target)))
 
-(defun cursorfree--target-delete (target)
-  (delete-region (car target) (cdr target)))
+(defun cursorfree--region-delete (region)
+  "Delete REGION."
+  (delete-region (car region) (cdr region)))
 
 (defun cursorfree--insert-at (position string)
+  "Insert STRING at POSITION."
   (save-excursion
     (goto-char position)
     (insert string)))
@@ -250,59 +272,74 @@ FUNCTION on top."
   "Indent TARGET."
   (indent-region (car target) (cdr target)))
 
-
 (defun cursorfree--target-chuck (target)
   "Delete TARGET and indent the resulting text."
-  (cursorfree--target-delete (cursorfree--deletion-region target))
+  (cursorfree--region-delete (cursorfree--deletion-region target))
   (cursorfree--target-indent
    (cursorfree--bounds-of-thing-at 'line (car target))))
 
 (defun cursorfree--target-bring (target)
+  "Insert TARGET at point."
   (insert (cursorfree--target-string target)))
 
 (defun cursorfree--target-overwrite (target string)
-  (cursorfree--target-delete target)
+  "Overwrite TARGET with STRING."
+  (cursorfree--region-delete target)
   (cursorfree--insert-at (car target) string))
 
 (defun cursorfree--target-move (target)
+  "Insert TARGET at point and delete TARGET."
   (cursorfree--target-bring target)
   (cursorfree--target-chuck target))
 
 (defun cursorfree--target-swap (target1 target2)
+  "Swap the contents of TARGET1 and TARGET2."
   (let ((string1 (cursorfree--target-string target1))
         (string2 (cursorfree--target-string target2)))
     (cursorfree--target-overwrite target1 string2)
     (cursorfree--target-overwrite target2 string1)))
 
 (defun cursorfree--target-change (target)
-  (cursorfree--target-delete target)
+  "Move point to TARGET and delete its contents."
+  (cursorfree--region-delete target)
   (goto-char (car target)))
 
 (defun cursorfree--target-clone (target)
-  (cursorfree--insert-at (cdr target) (cursorfree--target-string target)))
+  "Insert another copy of TARGET after itself."
+  (cursorfree--insert-at
+   (cdr target)
+   (cursorfree--target-string target)))
 
 (defun cursorfree--target-copy (target)
+  "Copy TARGET to kill ring."
   (copy-region-as-kill (car target) (cdr target)))
 
 (defun cursorfree--target-comment (target)
+  "Comment out TARGET."
   (comment-region (car target) (cdr target)))
 
 (defun cursorfree--target-uncomment (target)
+  "Uncomment TARGET."
   (uncomment-region (car target) (cdr target)))
 
 (defun cursorfree--target-narrow (target)
+  "Narrow region to TARGET."
   (narrow-to-region (car target) (cdr target)))
 
 (defun cursorfree--target-fill (target)
+  "Fill the paragraphs in TARGET."
   (fill-region (car target) (cdr target)))
 
 (defun cursorfree--target-capitalize (target)
+  "Capitalize the first character of each word in TARGET."
   (capitalize-region (car target) (cdr target)))
 
 (defun cursorfree--target-upcase (target)
+  "Convert TARGET to upper case."
   (upcase-region (car target) (cdr target)))
 
 (defun cursorfree--target-downcase (target)
+  "Convert TARGET to lower case."
   (downcase-region (car target) (cdr target)))
 
 (defun cursorfree--clamp-line ()
@@ -323,24 +360,32 @@ FUNCTION on top."
      (max top-position (min bottom-position current-position)))))
 
 (defun cursorfree--target-crown (target)
+  "Scroll window so TARGET is at the top."
   (save-excursion
     (cursorfree--target-jump-beginning target)
     (recenter 0))
   (cursorfree--clamp-line))
 
 (defun cursorfree--target-center (target)
+  "Scroll window so TARGET is in the center."
   (save-excursion
     (cursorfree--target-jump-beginning target)
     (recenter nil))
   (cursorfree--clamp-line))
 
 (defun cursorfree--target-bottom (target)
+  "Scroll window so TARGET is at the bottom."
   (save-excursion
-    (cursorfree--target-jump-beginning target)
+    (cursorfree--target-jump-end target)
     (recenter -1))
   (cursorfree--clamp-line))
 
 (defun cursorfree--target-wrap-parentheses (parenthesis target)
+  "Wrap TARGET with characters specified by PARENTHESIS.
+
+Insert PARENTHESIS before TARGET.  If PARENTHESIS is some type of
+parenthesis, insert the matching right version at the end of
+TARGET.  Otherwise, insert PARENTHESIS instead."
   (save-excursion
     (goto-char (car target))
     (insert parenthesis)
@@ -363,14 +408,26 @@ FUNCTION on top."
     (eww-mode . ,(lambda ()
                    (if (get-text-property (point) 'eww-form)
                        (eww-submit)
-                    (eww-follow-link))))))
+                    (eww-follow-link)))))
+  "Alist for mapping major mode to function for following at point.
+
+Used in `cursorfree--dwim-follow' for determining how to follow
+whatever thing point is located on.")
 
 (defun cursorfree--dwim-follow ()
-  "Try to follow the thing at point."
-  (if-let ((follow-action (alist-get major-mode cursorfree-dwim-follow-alist)))
+  "Try to follow the thing at point.
+
+This function may be customized by changing
+`cursorfree-dwim-follow-alist'."
+  (if-let ((follow-action
+            (alist-get major-mode cursorfree-dwim-follow-alist)))
       (funcall follow-action)))
 
 (defun cursorfree--target-pick (target)
+  "Try to follow the thing at TARGET.
+
+This function calls on `cursorfree--dwim-follow' to attempt to
+follow the thing at TARGET."
   (save-excursion
     (goto-char (car target))
     (cursorfree--dwim-follow)))
@@ -399,36 +456,50 @@ FUNCTION on top."
     ("crown" . ,(cursorfree--to-action #'cursorfree--target-crown))
     ("center" . ,(cursorfree--to-action #'cursorfree--target-center))
     ("bottom" . ,(cursorfree--to-action #'cursorfree--target-bottom))
-    ("pick" . ,(cursorfree--to-action #'cursorfree--target-pick))))
+    ("pick" . ,(cursorfree--to-action #'cursorfree--target-pick)))
+  "Alist mapping spoken utterance to action.
+
+An action is an instruction that is only evaluated for its
+effects, and do not add values to the value stack.")
 
 (defun cursorfree--skip-forward-from (position string)
+  "Move point forward from POSITION until reaching char in STRING."
   (save-excursion
     (goto-char position)
     (skip-chars-forward string)
     (point-marker)))
 
 (defun cursorfree--skip-backward-from (position string)
+  "Move point backward from POSITION until reaching char in STRING."
   (save-excursion
     (goto-char position)
     (skip-chars-backward string)
     (point-marker)))
 
 (defun cursorfree--paint-left (target)
+  "Expand TARGET leftwards until the next whitespace."
   (cons (cursorfree--skip-backward-from (car target) "^[:space:]\n")
         (cdr target)))
 
 (defun cursorfree--paint-right (target)
+  "Expand TARGET rightwards until the next whitespace."
   (cons (car target)
         (cursorfree--skip-forward-from (cdr target) "^[:space:]\n")))
 
 (defun cursorfree--paint (target)
+  "Expand TARGET leftwards and rightwards until the next whitespace."
   (cursorfree--paint-right (cursorfree--paint-left target)))
 
 (defun cursorfree--trim (target)
+  "Shrink TARGET until there is no whitespace to the left or right."
   (cons (cursorfree--skip-forward-from (car target) "[:space:]\n")
         (cursorfree--skip-backward-from (cdr target) "[:space:]\n")))
 
 (defun cursorfree--inner-parenthesis (delimiter target)
+  "Expand TARGET to fill the insides of DELIMITER.
+
+This function will match parentheses and quotation marks to the
+left and right."
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
@@ -445,6 +516,9 @@ FUNCTION on top."
       (cons (car expanded) (cadr expanded)))))
 
 (defun cursorfree--inner-parenthesis-any (target)
+  "Expand TARGET to fill the insides of the closest delimiters.
+Try different parentheses and quotations to figure out whichever
+is closest."
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
            ;; region
@@ -455,6 +529,13 @@ FUNCTION on top."
                              '(?< ?{ ?\( ?\[ ?\" ?\')))))
 
 (defun cursorfree--inner-parenthesis-dwim (environment)
+  "Expand a target to fill the insides of some delimiter.
+
+This will read the top value of ENVIRONMENT.  If this is a
+character, next element is assumed to be a target to be expanded
+until the delimiter given by the character.  Otherwise, assumes
+that the top element was a target and expands it the nearest
+matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
                  (cursorfree--to-modifier #'cursorfree--inner-parenthesis)
@@ -462,11 +543,13 @@ FUNCTION on top."
              environment)))
 
 (defun cursorfree--targets-join (targets)
+  "Return the smallest target that can fit all TARGETS."
   (cursorfree--markify-region
    (cons (apply #'min (mapcar #'car targets))
          (apply #'max (mapcar #'cdr targets)))))
 
 (defun cursorfree--past (target1 target2)
+  "Return the smallest target that can fit TARGET1 and TARGET2."
   (cursorfree--targets-join (list target1 target2)))
 
 (defun cursorfree--make-infix (instruction)
@@ -483,7 +566,9 @@ top instruction of the instruction stack."
       e)))
 
 (defun cursorfree--current-selection ()
-  (region-bounds))
+  "Return the active region as a target."
+  (cursorfree--markify-region
+   (region-bounds)))
 
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree--to-modifier #'cursorfree--paint))
