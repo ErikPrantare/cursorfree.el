@@ -63,7 +63,7 @@
   "target-change."
   (with-temp-buffer
     (insert "aaa bbb")
-    (cursorfree--target-change
+    (cursorfree-target-change
      (cursorfree--markify-region
       (cons (+ 2 (point-min))
             (+ 5 (point-min)))))
@@ -75,7 +75,7 @@
   (with-temp-buffer
     (insert "aaa ")
     (goto-char (point-max))
-    (cursorfree--target-bring
+    (cursorfree-target-bring
      (cursorfree--markify-region
       (cons (point-min)
             (+ 3 (point-min)))))
@@ -86,7 +86,7 @@
   (with-temp-buffer
     (insert "aaa bbb ")
     (goto-char (point-max))
-    (cursorfree--target-move
+    (cursorfree-target-move
      (cursorfree--markify-region
       (cons (point-min)
             (+ 3 (point-min)))))
@@ -97,7 +97,7 @@
   (with-temp-buffer
     (insert "aaa bbb ccc")
     (goto-char (point-max))
-    (cursorfree--target-chuck
+    (cursorfree-target-chuck
      (cursorfree--markify-region
       (cons (+ 4 (point-min))
             (+ 7 (point-min)))))
@@ -107,8 +107,8 @@
   "inner-parenthesis, inner-parenthesis-any, inner-parenthesis-dwim."
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (cursorfree--target-chuck
-     (cursorfree--inner-parenthesis
+    (cursorfree-target-chuck
+     (cursorfree-inner-parenthesis
       ?\(
       (cursorfree--markify-region
        (cons (+ 2 (point-min))
@@ -117,8 +117,8 @@
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (cursorfree--target-delete
-     (cursorfree--inner-parenthesis
+    (cursorfree-target-chuck
+     (cursorfree-inner-parenthesis
       ?\[
       (cursorfree--markify-region
        (cons (+ 2 (point-min))
@@ -127,8 +127,8 @@
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (cursorfree--target-delete
-     (cursorfree--inner-parenthesis-any
+    (cursorfree-target-chuck
+     (cursorfree-inner-parenthesis-any
       (cursorfree--markify-region
        (cons (+ 2 (point-min))
              (+ 3 (point-min))))))
@@ -140,8 +140,8 @@
      (list
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree--inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree--target-chuck)))
+      #'cursorfree-inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
     (should (string= (buffer-string) "([] bbb ccc)")))
 
   (with-temp-buffer
@@ -151,8 +151,8 @@
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))
       (cursorfree--pusher ?\()
-      #'cursorfree--inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree--target-chuck)))
+      #'cursorfree-inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
     (should (string= (buffer-string) "()")))
 
   (with-temp-buffer
@@ -161,15 +161,15 @@
      (list
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree--inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree--target-chuck)))
+      #'cursorfree-inner-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
 (ert-deftest cursorfree--wrap-parentheses ()
-  "`cursorfree--wrap-parentheses'."
+  "`cursorfree-wrap-parentheses'."
   (with-temp-buffer
     (insert "aaa bbb ccc")
-    (cursorfree--target-wrap-parentheses
+    (cursorfree-target-wrap-parentheses
      ?{
      (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
     (should (string= (buffer-string) "aaa {bbb} ccc")))
@@ -177,7 +177,7 @@
   ;; Non-parentheses use same character for both ends
   (with-temp-buffer
     (insert "aaa bbb ccc")
-    (cursorfree--target-wrap-parentheses
+    (cursorfree-target-wrap-parentheses
      ?$
      (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
     (should (string= (buffer-string) "aaa $bbb$ ccc"))))
@@ -190,5 +190,12 @@
                     (5 . 20)
                     (65 . 100)
                     (23 . 25))))))
+
+(ert-deftest cursorfree--target-fuse ()
+  "cursorfree--target-fuse."
+  (insert "aaa bbb ccc\nddd")
+  (cursorfree--target-fuse (cons (+ (point-min) 5) (point-max)))
+  (should (string= (buffer-string) "aaa bbbcccddd")))
+
 
 ;;; test.el ends here

@@ -1,8 +1,10 @@
 * Initial release
 ** TODO Commentary.
 ** TODO Decide the public API for initial release.
-** TODO README.org.
+** TODO COPYING.
+** TODO Document dependencies.
 
 
 * TODO Commands:
 - unwrap: Remove containing parentheses.
+- outside: Like inside but include the delimiting characters.

@@ -1,0 +1,146 @@
+* cursorfree.el
+A GNU Emacs package for editing text from any position in the buffer.
+
+This package builds upon [[https://github.com/ErikPrantare/hatty.el][hatty.el]] to provide a simple command language
+well suited for voice control of Emacs.  This allows you to modify
+text, jump around in the buffer and follow links by referring to the
+target of your action immediately.
+
+This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cursorless]], a package providing similar
+faculties for VSCode.
+
+** Setup
+First, install [[https://github.com/ErikPrantare/hatty.el][hatty.el]].
+
+Then, clone this repository and add the following to your init file:
+
+#+begin_src elisp
+  (add-to-list 'load-path "path/to/cursorfree/directory")
+  (require 'cursorfree)
+#+end_src
+
+*** Talon integration
+Set up [[https://github.com/ErikPrantare/talon-list.el][talon-list.el]] and add the following to your init file:
+
+#+begin_src elisp
+  (define-talon-list my/colors color
+    '(("yellow" . yellow)
+      ("red" . red)
+      ("blue" .  blue)
+      ("pink" . pink)
+      ("green" . green)))
+
+  (define-talon-list my/shapes hat_shape
+    '(("bolt" . bolt)
+      ("curve" . curve)
+      ("fox" . fox)
+      ("frame" . frame)
+      ("play" . play)
+      ("wing" . wing)
+      ("hole" . hole)
+      ("ex" . ex)
+      ("cross" . cross)
+      ("eye" . eye)))
+
+  (define-talon-list my/actions cursorfree_action
+    cursorfree-actions)
+
+  (define-talon-list my/modifiers cursorfree_modifier
+    cursorfree-modifiers)
+#+end_src
+
+Then, copy [[file:talon/cursorfree.py][talon/cursorfree.py]] to your talon
+configuration.  It is assumed you have a rule
+~<user.any_alphanumeric_key>~, as provided by the community
+configuration.
+
+After this, add the following as a spoken rule to your talon
+configuration:
+
+#+begin_src talon
+  <user.cursorfree_command>:
+      user.emacs_lisp("(with-selected-window {window} (cursorfree--evaluate {cursorfree_command}))")
+#+end_src
+
+** Usage
+A cursorfree command corresponds to a sequence of /instructions/.
+Only the last instruction may, and must, be an /action/.  Each
+instruction is evaluated in turn until there are no instructions left.
+
+An instruction acts on the /environment/, a structure made up of a
+/value stack/ and /instruction stack/.  The value stack is generally
+made up of /targets/, the structures which actions act upon, but may
+contain other types of objects as well.  The instruction stack
+contains the sequence of instructions yet to be evaluated.
+
+For example, the utterance ~blue bolt gust chuck~, interpreted as
+~(blue bolt gust) (chuck)~, corresponds to two instructions: The first
+one adds the target indicated by the /token/ with a blue bolt over a
+"g" to the value stack.  The second instruction deletes the text of
+the target that was put on the value stack.
+
+*** Parametrized instructions
+- ~[color] [shape] <character>~: Add the target indicated by the token
+  with a hat having ~color~ and ~shape~ over ~character~ to the value
+  stack.  If the color or shape are the ~default~ color or shape, they
+  may be elided from the utterance.
+- ~car <character>~: Add the character ~character~ to the value stack.
+
+*** Actions
+An action is an instruction that is evaluated solely for its side
+effects.  It does not produce any vales for the value stack.
+
+For documentation on actions, see the docstring of the corresponding
+function in the following table.  Functions that do not act directly
+on the environment will pop the top element of the value stack for its
+first argument, the next one for the second argument, and so on.
+
+|-------------+------------------------------------|
+| Spoken form | Function                           |
+|-------------+------------------------------------|
+| select      | cursorfree-target-select           |
+| copy        | cursorfree-target-copy             |
+| chuck       | cursorfree-target-chuck            |
+| bring       | cursorfree-target-bring            |
+| move        | cursorfree-target-move             |
+| swap        | cursorfree-target-swap             |
+| clone       | cursorfree-target-clone            |
+| jump        | cursorfree-target-jump-beginning   |
+| pre         | cursorfree-target-jump-beginning   |
+| post        | cursorfree-target-jump-end         |
+| change      | cursorfree-target-change           |
+| comment     | cursorfree-target-comment          |
+| uncomment   | cursorfree-target-uncomment        |
+| indent      | cursorfree-target-indent           |
+| narrow      | cursorfree-target-narrow           |
+| wrap        | cursorfree-target-wrap-parentheses |
+| filler      | cursorfree-target-fill             |
+| title       | cursorfree-target-capitalize       |
+| upcase      | cursorfree-target-upcase           |
+| downcase    | cursorfree-target-downcase         |
+| crown       | cursorfree-target-crown            |
+| center      | cursorfree-target-center           |
+| bottom      | cursorfree-target-bottom           |
+| pick        | cursorfree-target-pick             |
+| fuse        | cursorfree-target-fuse             |
+|-------------+------------------------------------|
+
+*** Modifiers
+A modifier is an instruction producing values for the value stack,
+often but not always by modifying previous targets.
+
+Note: The modifier ~past~ is applied as an infix.  That is, rather
+than saying ~X Y past~ to apply it to two targets, you instead say ~X
+past Y~.
+
+|-------------+-----------------------------------|
+| Spoken form | Function                          |
+|-------------+-----------------------------------|
+| paint       | cursorfree-paint                  |
+| leftpaint   | cursorfree-paint-left             |
+| rightpaint  | cursorfree-paint-right            |
+| trim        | cursorfree-trim                   |
+| past        | cursorfree-past                   |
+| selection   | cursorfree-current-selection      |
+| inside      | cursorfree-inner-parenthesis-dwim |
+|-------------+-----------------------------------|
