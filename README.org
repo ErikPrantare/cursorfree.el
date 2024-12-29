@@ -10,7 +10,7 @@ This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cu
 faculties for VSCode.
 
 ** Setup
-First, install [[https://github.com/ErikPrantare/hatty.el][hatty.el]].
+First, install the dependencies [[https://github.com/ErikPrantare/hatty.el][hatty.el]], [[https://github.com/emacs-evil/evil][evil]] and [[https://github.com/magnars/dash.el][dash.el]].
 
 Then, clone this repository and add the following to your init file:
 

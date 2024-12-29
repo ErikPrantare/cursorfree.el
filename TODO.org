@@ -1,9 +1,9 @@
 * Initial release
 ** TODO Commentary.
 ** TODO Decide the public API for initial release.
-** TODO Document dependencies.
 ** TODO Versioning.
 
+* TODO Integrate with multiple-cursors.
 
 * TODO Commands:
 - unwrap: Remove containing parentheses.
