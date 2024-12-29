@@ -144,3 +144,7 @@ past Y~.
 | selection   | cursorfree-current-selection      |
 | inside      | cursorfree-inner-parenthesis-dwim |
 |-------------+-----------------------------------|
+
+** Versioning system
+This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an
+increment of y signals breaking changes.

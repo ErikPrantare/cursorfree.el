@@ -1,6 +1,5 @@
 * Initial release
 ** TODO Commentary.
-** TODO Versioning.
 
 * TODO Integrate with multiple-cursors.
 
