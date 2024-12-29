@@ -24,7 +24,16 @@
 
 ;;; Commentary:
 
-;;
+;; This package provides a command structure for editing and
+;; navigating text using hatty.el.  A command is created as a sequence
+;; of instructions, functions taking a `cursorfree-environment' as
+;; input and output.  These functions may add or modify the value
+;; stack in the environment, or perform side effects informed by the
+;; contents of the value stack.
+
+;; To evaluate a sequence of instructions, use `cursorfree-evaluate'.
+;; See `cursorfree-actions' and `cursorfree-modifiers' for a list of
+;; predefined instructions.
 
 ;;; Code:
 
@@ -34,7 +43,7 @@
 
 ;;;; Instruction interpreter:
 
-(cl-defstruct cursorfree--environment
+(cl-defstruct cursorfree-environment
   "Environment for executing cursorfree programs.
 
 The environment is made up of a value stack and an instruction
@@ -46,7 +55,7 @@ The instruction stack is a sequence of functions, taking as input
 the environment and outputting a transformed environment.
 
 When evaluating an environment (see
-`cursorfree--evaluate-environment'), the top instruction in the
+`cursorfree-evaluate-environment'), the top instruction in the
 instruction stack will be evaluated with the current environment
 to yield the next environment (see `cursorfree--step').  This
 will be repeated until there are no instructions left."
@@ -55,20 +64,20 @@ will be repeated until there are no instructions left."
 (defun cursorfree--make-environment (instructions &optional value-stack)
   "Create an environment with INSTRUCTIONS and VALUE-STACK.
 
-See `cursorfree--environment' for information about environments."
-  (make-cursorfree--environment
+See `cursorfree-environment' for information about environments."
+  (make-cursorfree-environment
    :instruction-stack instructions
    :value-stack value-stack))
 
 (defun cursorfree--clone-environment (environment)
   "Create a shallow copy of ENVIRONMENT."
-  (make-cursorfree--environment
-   :value-stack (cursorfree--environment-value-stack environment)
-   :instruction-stack (cursorfree--environment-instruction-stack environment)))
+  (make-cursorfree-environment
+   :value-stack (cursorfree-environment-value-stack environment)
+   :instruction-stack (cursorfree-environment-instruction-stack environment)))
 
 (defun cursorfree--push-instruction (environment instruction)
   "Add INSTRUCTION to the instruction stack ENVIRONMENT."
-  (push instruction (cursorfree--environment-instruction-stack environment)))
+  (push instruction (cursorfree-environment-instruction-stack environment)))
 
 (defun cursorfree--push-instructions (environment instructions)
   "Add INSTRUCTIONS to the instruction stack ENVIRONMENT.
@@ -80,12 +89,12 @@ the instruction stack."
 
 (defun cursorfree--pop-instruction (environment)
   "Remove and return the top instruction in ENVIRONMENT."
-  (pop (cursorfree--environment-instruction-stack environment)))
+  (pop (cursorfree-environment-instruction-stack environment)))
 
 (defun cursorfree--push-value (environment value)
   "Add VALUE to the value stack of ENVIRONMENT."
   (declare (indent defun))
-  (push value (cursorfree--environment-value-stack environment)))
+  (push value (cursorfree-environment-value-stack environment)))
 
 (defun cursorfree--push-value-pure (environment value)
   "Return environment with VALUE added to ENVIRONMENT."
@@ -107,8 +116,8 @@ stack."
   "Remove and return the top value in ENVIRONMENT."
   (declare (indent defun))
   (cl-destructuring-bind (head . tail)
-      (cursorfree--environment-value-stack environment)
-    (setf (cursorfree--environment-value-stack environment) tail)
+      (cursorfree-environment-value-stack environment)
+    (setf (cursorfree-environment-value-stack environment) tail)
     head))
 
 (defun cursorfree--pop-values (environment n)
@@ -124,7 +133,7 @@ the returned list."
 (defun cursorfree--peek-value (environment)
   "Return the top value in ENVIRONMENT."
   (declare (indent defun))
-  (car (cursorfree--environment-value-stack environment)))
+  (car (cursorfree-environment-value-stack environment)))
 
 (defun cursorfree--step (environment)
   "Evaluate the next instruction of ENVIRONMENT.
@@ -135,23 +144,23 @@ ENVIRONMENT with that instruction removed."
          (instruction (cursorfree--pop-instruction new-environment)))
     (funcall instruction new-environment)))
 
-(defun cursorfree--evaluate-environment (environment)
+(defun cursorfree-evaluate-environment (environment)
   "Evaluate ENVIRONMENT and return the final value stack.
 
 This will step through ENVIRONMENT with `cursorfree--step' until
 there are no instructions left, at wich point it returns the
 final stack of values."
   (declare (indent defun))
-  (while (cursorfree--environment-instruction-stack environment)
+  (while (cursorfree-environment-instruction-st:ack environment)
     (setq environment (cursorfree--step environment)))
-  (cursorfree--environment-value-stack environment))
+  (cursorfree-environment-value-stack environment))
 
-(defun cursorfree--evaluate (instructions)
+(defun cursorfree-evaluate (instructions)
   "Evaluate INSTRUCTIONS and return the final value stack.
 
 This creates an initial environment with empty value stack, upon which
-`cursorfree--evaluate-environment' is invoked."
-  (cursorfree--evaluate-environment
+`cursorfree-evaluate-environment' is invoked."
+  (cursorfree-evaluate-environment
     (cursorfree--make-environment instructions)))
 
 (defun cursorfree--apply-on-stack (function stack)
@@ -175,8 +184,8 @@ stack to supply arguments for FUNCTION.  The read arguments will
 not remain on the value stack."
   (lambda (environment)
     (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree--environment-value-stack e)))
-      (setf (cursorfree--environment-value-stack e)
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e)
             (cursorfree--apply-on-stack function values))
       (cursorfree--pop-value e) ; Ignore return value
       e)))
@@ -190,8 +199,8 @@ FUNCTION will be put back on the value stack.  The read arguments
 will not remain on the stack."
   (lambda (environment)
     (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree--environment-value-stack e)))
-      (setf (cursorfree--environment-value-stack e)
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e)
             (cursorfree--apply-on-stack function values))
       e)))
 

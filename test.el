@@ -40,7 +40,7 @@
   "target-overwrite."
   (with-temp-buffer
     (insert "aaa bbb")
-    (cursorfree--evaluate
+    (cursorfree-evaluate
      `(,(cursorfree--markify-region
          (cons (+ 4 (point-min))
                (point-max)))
@@ -136,7 +136,7 @@
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (cursorfree--evaluate
+    (cursorfree-evaluate
      (list
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))
@@ -146,7 +146,7 @@
 
   (with-temp-buffer
     (insert "([aaa] bbb ccc)")
-    (cursorfree--evaluate
+    (cursorfree-evaluate
      (list
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))
@@ -157,7 +157,7 @@
 
   (with-temp-buffer
     (insert "(\"aaa\" bbb ccc)")
-    (cursorfree--evaluate
+    (cursorfree-evaluate
      (list
       (cursorfree--pusher
         (cons (+ (point-min) 2) (+ (point-min) 3)))

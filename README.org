@@ -59,7 +59,7 @@ configuration:
 
 #+begin_src talon
   <user.cursorfree_command>:
-      user.emacs_lisp("(with-selected-window {window} (cursorfree--evaluate {cursorfree_command}))")
+      user.emacs_lisp("(with-selected-window {window} (cursorfree-evaluate {cursorfree_command}))")
 #+end_src
 
 ** Usage
