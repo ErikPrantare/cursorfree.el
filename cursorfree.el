@@ -418,7 +418,7 @@ TARGET.  Otherwise, insert PARENTHESIS instead."
                     (eww-follow-link)))))
   "Alist for mapping major mode to function for following at point.
 
-Used in `cursorfree--dwim-follow' for determining how to follow
+Used in `cursorfree-dwim-follow' for determining how to follow
 whatever thing point is located on.")
 
 (defun cursorfree-dwim-follow ()
@@ -433,11 +433,11 @@ This function may be customized by changing
 (defun cursorfree-target-pick (target)
   "Try to follow the thing at TARGET.
 
-This function calls on `cursorfree--dwim-follow' to attempt to
+This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
   (save-excursion
     (goto-char (car target))
-    (cursorfree--dwim-follow)))
+    (cursorfree-dwim-follow)))
 
 (defun cursorfree--target-fuse (target)
   "Remove all whitespace within TARGET."
