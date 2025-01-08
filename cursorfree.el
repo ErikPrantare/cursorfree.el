@@ -1,6 +1,6 @@
 ;;; cursorfree.el --- Edit and navigate through hats -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Erik Präntare
+;; Copyright (C) 2024, 2025  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -151,7 +151,7 @@ This will step through ENVIRONMENT with `cursorfree--step' until
 there are no instructions left, at wich point it returns the
 final stack of values."
   (declare (indent defun))
-  (while (cursorfree-environment-instruction-st:ack environment)
+  (while (cursorfree-environment-instruction-stack environment)
     (setq environment (cursorfree--step environment)))
   (cursorfree-environment-value-stack environment))
 
