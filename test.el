@@ -1,6 +1,6 @@
 ;;; test.el --- Tests for cursorfree.el              -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Erik Präntare
+;; Copyright (C) 2024, 2025  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -192,9 +192,9 @@
                     (23 . 25))))))
 
 (ert-deftest cursorfree--target-fuse ()
-  "cursorfree--target-fuse."
+  "cursorfree-target-fuse."
   (insert "aaa bbb ccc\nddd")
-  (cursorfree--target-fuse (cons (+ (point-min) 5) (point-max)))
+  (cursorfree-target-fuse (cons (+ (point-min) 5) (point-max)))
   (should (string= (buffer-string) "aaa bbbcccddd")))
 
 

@@ -501,7 +501,7 @@ effects, and do not add values to the value stack.")
 
 (defun cursorfree-paint (target)
   "Expand TARGET leftwards and rightwards until the next whitespace."
-  (cursorfree--paint-right (cursorfree--paint-left target)))
+  (cursorfree-paint-right (cursorfree-paint-left target)))
 
 (defun cursorfree-trim (target)
   "Shrink TARGET until there is no whitespace to the left or right."
