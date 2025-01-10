@@ -439,7 +439,7 @@ follow the thing at TARGET."
     (goto-char (car target))
     (cursorfree-dwim-follow)))
 
-(defun cursorfree--target-fuse (target)
+(defun cursorfree-target-fuse (target)
   "Remove all whitespace within TARGET."
   (save-excursion
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
