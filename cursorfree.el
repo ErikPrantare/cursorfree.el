@@ -191,7 +191,7 @@ not remain on the value stack."
       e)))
 
 (defun cursorfree--to-modifier (function)
-  "Translate FUNCTION an instruction not producing a value.
+  "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The result of invoking
@@ -583,6 +583,14 @@ top instruction of the instruction stack."
   (cursorfree--markify-region
    (region-bounds)))
 
+(defun cursorfree-thing-to-modifier (thing)
+  "Translate THING to an instruction extending a target to THING.
+
+The extension is done using the start of the target."
+  (cursorfree--to-modifier
+   (lambda (target)
+     (cursorfree--bounds-of-thing-at thing (car target)))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree--to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-left))
@@ -591,6 +599,7 @@ top instruction of the instruction stack."
     ("past" . ,(cursorfree--make-infix (cursorfree--to-modifier #'cursorfree-past)))
     ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
+    ("line" . ,(cursorfree-thing-to-modifier 'line))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
