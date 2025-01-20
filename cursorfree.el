@@ -590,7 +590,7 @@ top instruction of the instruction stack."
     ("trim" . ,(cursorfree--to-modifier #'cursorfree-trim))
     ("past" . ,(cursorfree--make-infix (cursorfree--to-modifier #'cursorfree-past)))
     ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
-    ("inside" . cursorfree--inner-parenthesis-dwim)))
+    ("inside" . cursorfree-inner-parenthesis-dwim)
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
