@@ -596,9 +596,10 @@ The extension is done using the start of the target."
     ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-left))
     ("rightpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-right))
     ("trim" . ,(cursorfree--to-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree--make-infix (cursorfree--to-modifier #'cursorfree-past)))
+    ("past" . ,(cursorfree--to-modifier #'cursorfree-past))
     ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
+    ("outside" . cursorfree-outer-parenthesis-dwim)
     ("line" . ,(cursorfree-thing-to-modifier 'line))))
 
 ;;; cursorfree.el ends soon
