@@ -545,7 +545,7 @@ left and right."
             (cl-case delimiter
               (?\( #'evil-a-paren)
               (?\[ #'evil-a-bracket)
-              (?< #'evil-a-angle)
+              (?< #'evil-an-angle)
               (?{ #'evil-a-curly)
               (?\" #'evil-a-double-quote)
               (?\' #'evil-a-single-quote)
