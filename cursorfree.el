@@ -640,7 +640,9 @@ instruction of the instruction stack."
 (defun cursorfree-thing-to-modifier (thing)
   "Translate THING to an instruction extending a target to THING.
 
-The extension is done using the start of the target."
+The extension is done from the beginning of the target.  See
+`bounds-of-thing-at-point' for more information about the builtin
+thing-at-point functionalities."
   (cursorfree--to-modifier
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
