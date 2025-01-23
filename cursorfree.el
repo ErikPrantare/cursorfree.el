@@ -369,21 +369,21 @@ by `hatty-locate-token-region'."
 (defun cursorfree-target-crown (target)
   "Scroll window so TARGET is at the top."
   (save-excursion
-    (cursorfree--target-jump-beginning target)
+    (cursorfree-target-jump-beginning target)
     (recenter 0))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-center (target)
   "Scroll window so TARGET is in the center."
   (save-excursion
-    (cursorfree--target-jump-beginning target)
+    (cursorfree-target-jump-beginning target)
     (recenter nil))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-bottom (target)
   "Scroll window so TARGET is at the bottom."
   (save-excursion
-    (cursorfree--target-jump-end target)
+    (cursorfree-target-jump-end target)
     (recenter -1))
   (cursorfree--clamp-line))
 
