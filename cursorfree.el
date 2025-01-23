@@ -206,6 +206,8 @@ will not remain on the stack."
 
 (defun cursorfree--markify-region (region)
   "Return REGION with the endpoints as markers."
+  (unless (consp region)
+      (error "Invalid argument %s in cursorfree--markify-region" region))
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -217,8 +219,8 @@ will not remain on the stack."
   "Return bounds of THING at POSITION."
   (save-excursion
     (goto-char position)
-    (cursorfree--markify-region
-     (bounds-of-thing-at-point thing))))
+    (if-let ((bounds (bounds-of-thing-at-point thing)))
+        (cursorfree--markify-region bounds))))
 
 (defun cursorfree--make-target (content-region)
   "Return a target spanning CONTENT-REGION."
@@ -282,8 +284,8 @@ by `hatty-locate-token-region'."
 (defun cursorfree-target-chuck (target)
   "Delete TARGET and indent the resulting text."
   (cursorfree--region-delete (cursorfree--deletion-region target))
-  (cursorfree-target-indent
-   (cursorfree--bounds-of-thing-at 'line (car target))))
+  (if-let ((indentation-region (cursorfree--bounds-of-thing-at 'line (car target))))
+    (cursorfree-target-indent indentation-region)))
 
 (defun cursorfree-target-bring (target)
   "Insert TARGET at point."
