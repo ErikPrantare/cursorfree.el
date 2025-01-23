@@ -1,8 +1,6 @@
-* Initial release
-** TODO Commentary.
+* TODO Create a terminology header in README.
 
 * TODO Integrate with multiple-cursors.
 
 * TODO Commands:
 - unwrap: Remove containing parentheses.
-- outside: Like inside but include the delimiting characters.

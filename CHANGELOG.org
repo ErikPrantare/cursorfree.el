@@ -1,6 +1,7 @@
 * NEXT
-- Fix some instructions that didn't run.
+- Fix some instructions that function.
 - Add "line" modifier.
+- Add "outside" modifier.
 
 * 0.0.0 [2024-12-29 Sun]
 Initial release
