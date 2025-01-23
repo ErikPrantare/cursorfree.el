@@ -525,34 +525,87 @@ left and right."
               (?< #'evil-inner-angle)
               (?{ #'evil-inner-curly)
               (?\" #'evil-inner-double-quote)
-              (?\' #'evil-inner-single-quote)))))
+              (?\' #'evil-inner-single-quote)
+              (?\` #'evil-inner-back-quote)))))
+      (cons (car expanded) (cadr expanded)))))
+
+(defun cursorfree-outer-parenthesis (delimiter target)
+  "Expand TARGET to contain the closest DELIMITER.
+
+This function will match parentheses and quotation marks to the
+left and right."
+  (save-excursion
+    ;; evil-outer-double-quote uses the location of point for the
+    ;; expansion.  Put point at the beginning of the region.
+    (goto-char (car target))
+    (let ((expanded
+           (funcall
+            (cl-case delimiter
+              (?\( #'evil-a-paren)
+              (?\[ #'evil-a-bracket)
+              (?< #'evil-a-angle)
+              (?{ #'evil-a-curly)
+              (?\" #'evil-a-double-quote)
+              (?\' #'evil-a-single-quote)
+              (?\` #'evil-a-back-quote)))))
       (cons (car expanded) (cadr expanded)))))
 
 (defun cursorfree-inner-parenthesis-any (target)
   "Expand TARGET to fill the insides of the closest delimiters.
-Try different parentheses and quotations to figure out whichever
-is closest."
+
+This function tries different parentheses and quotations to
+figure out whichever is closest."
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
-           ;; region
+           ;; region (it selects the next region if not currently in a
+           ;; quote)
            (--filter (<= (car it) (car target))
                      (--keep (condition-case nil
                                  (cursorfree-inner-parenthesis it target)
                                (error nil))
-                             '(?< ?{ ?\( ?\[ ?\" ?\')))))
+                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
+
+(defun cursorfree-outer-parenthesis-any (target)
+  "Expand TARGET to contain the closest delimiters.
+
+This function tries different parentheses and quotations to
+figure out whichever is closest."
+  (-max-by (-on #'> #'car)
+           ;; Filter out whenever the evil-inner-*-quote messes up the
+           ;; region (it selects the next region if not currently in a
+           ;; quote)
+           (--filter (<= (car it) (car target))
+                     (--keep (condition-case nil
+                                 (cursorfree-outer-parenthesis it target)
+                               (error nil))
+                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
 
 (defun cursorfree-inner-parenthesis-dwim (environment)
   "Expand a target to fill the insides of some delimiter.
 
 This will read the top value of ENVIRONMENT.  If this is a
-character, next element is assumed to be a target to be expanded
-until the delimiter given by the character.  Otherwise, assumes
-that the top element was a target and expands it to the nearest
-matching pairs of delimiters."
+character, the next element is assumed to be a target to be
+expanded until the delimiter given by the character.  Otherwise,
+assumes that the top element was a target and expands it to the
+nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
                  (cursorfree--to-modifier #'cursorfree-inner-parenthesis)
                (cursorfree--to-modifier #'cursorfree-inner-parenthesis-any))
+             environment)))
+
+(defun cursorfree-outer-parenthesis-dwim (environment)
+  "Expand a target to contain of some delimiter.
+
+This will read the top value of ENVIRONMENT.  If this is a
+character, the next element is assumed to be a target to be
+expanded until the delimiter given by the character.  Otherwise,
+assumes that the top element was a target and expands it to the
+nearest matching pairs of delimiters."
+  (let* ((head (cursorfree--peek-value environment)))
+    (funcall (if (characterp head)
+                 (cursorfree--to-modifier #'cursorfree-outer-parenthesis)
+               (cursorfree--to-modifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -568,10 +621,9 @@ matching pairs of delimiters."
 (defun cursorfree--make-infix (instruction)
   "Return INSTRUCTION as an infix function.
 
-Upon evaluation, this inserts the original INSTRUCTION under the
-top instruction of the instruction stack."
+Upon evaluation, this inserts INSTRUCTION under the top
+instruction of the instruction stack."
   (lambda (environment)
-
     (let* ((e (cursorfree--clone-environment environment))
            (next-instruction (cursorfree--pop-instruction e)))
       (cursorfree--push-instruction e instruction)
