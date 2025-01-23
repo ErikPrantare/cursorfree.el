@@ -165,6 +165,74 @@
       (cursorfree--to-action #'cursorfree-target-chuck)))
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
+(ert-deftest cursorfree--outer-parenthesis ()
+  "outer-parenthesis, outer-parenthesis-any, outer-parenthesis-dwim."
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis
+      ?\(
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis
+      ?\[
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis-any
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      (cursorfree--pusher ?\()
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "")))
+
+  (with-temp-buffer
+    (insert "(\"aaa\" bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+       (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "(bbb ccc)"))))
+
+(ert-deftest cursorfree--target-indent ()
+  "`cursorfree-target-indent'"
+  ;; Handle empty buffers
+  (with-temp-buffer
+    (cursorfree-target-indent (cons (point-min) (point-min)))))
+
 (ert-deftest cursorfree--wrap-parentheses ()
   "`cursorfree-wrap-parentheses'."
   (with-temp-buffer
