@@ -1,6 +1,6 @@
 ;;; cursorfree.el --- Edit and navigate through hats -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Erik Präntare
+;; Copyright (C) 2024, 2025  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -151,7 +151,7 @@ This will step through ENVIRONMENT with `cursorfree--step' until
 there are no instructions left, at wich point it returns the
 final stack of values."
   (declare (indent defun))
-  (while (cursorfree-environment-instruction-st:ack environment)
+  (while (cursorfree-environment-instruction-stack environment)
     (setq environment (cursorfree--step environment)))
   (cursorfree-environment-value-stack environment))
 
@@ -191,7 +191,7 @@ not remain on the value stack."
       e)))
 
 (defun cursorfree--to-modifier (function)
-  "Translate FUNCTION an instruction not producing a value.
+  "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The result of invoking
@@ -206,6 +206,8 @@ will not remain on the stack."
 
 (defun cursorfree--markify-region (region)
   "Return REGION with the endpoints as markers."
+  (unless (consp region)
+      (error "Invalid argument %s in cursorfree--markify-region" region))
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -217,8 +219,8 @@ will not remain on the stack."
   "Return bounds of THING at POSITION."
   (save-excursion
     (goto-char position)
-    (cursorfree--markify-region
-     (bounds-of-thing-at-point thing))))
+    (if-let ((bounds (bounds-of-thing-at-point thing)))
+        (cursorfree--markify-region bounds))))
 
 (defun cursorfree--make-target (content-region)
   "Return a target spanning CONTENT-REGION."
@@ -282,8 +284,8 @@ by `hatty-locate-token-region'."
 (defun cursorfree-target-chuck (target)
   "Delete TARGET and indent the resulting text."
   (cursorfree--region-delete (cursorfree--deletion-region target))
-  (cursorfree-target-indent
-   (cursorfree--bounds-of-thing-at 'line (car target))))
+  (if-let ((indentation-region (cursorfree--bounds-of-thing-at 'line (car target))))
+    (cursorfree-target-indent indentation-region)))
 
 (defun cursorfree-target-bring (target)
   "Insert TARGET at point."
@@ -369,21 +371,21 @@ by `hatty-locate-token-region'."
 (defun cursorfree-target-crown (target)
   "Scroll window so TARGET is at the top."
   (save-excursion
-    (cursorfree--target-jump-beginning target)
+    (cursorfree-target-jump-beginning target)
     (recenter 0))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-center (target)
   "Scroll window so TARGET is in the center."
   (save-excursion
-    (cursorfree--target-jump-beginning target)
+    (cursorfree-target-jump-beginning target)
     (recenter nil))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-bottom (target)
   "Scroll window so TARGET is at the bottom."
   (save-excursion
-    (cursorfree--target-jump-end target)
+    (cursorfree-target-jump-end target)
     (recenter -1))
   (cursorfree--clamp-line))
 
@@ -418,7 +420,7 @@ TARGET.  Otherwise, insert PARENTHESIS instead."
                     (eww-follow-link)))))
   "Alist for mapping major mode to function for following at point.
 
-Used in `cursorfree--dwim-follow' for determining how to follow
+Used in `cursorfree-dwim-follow' for determining how to follow
 whatever thing point is located on.")
 
 (defun cursorfree-dwim-follow ()
@@ -433,13 +435,13 @@ This function may be customized by changing
 (defun cursorfree-target-pick (target)
   "Try to follow the thing at TARGET.
 
-This function calls on `cursorfree--dwim-follow' to attempt to
+This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
   (save-excursion
     (goto-char (car target))
-    (cursorfree--dwim-follow)))
+    (cursorfree-dwim-follow)))
 
-(defun cursorfree--target-fuse (target)
+(defun cursorfree-target-fuse (target)
   "Remove all whitespace within TARGET."
   (save-excursion
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
@@ -501,7 +503,7 @@ effects, and do not add values to the value stack.")
 
 (defun cursorfree-paint (target)
   "Expand TARGET leftwards and rightwards until the next whitespace."
-  (cursorfree--paint-right (cursorfree--paint-left target)))
+  (cursorfree-paint-right (cursorfree-paint-left target)))
 
 (defun cursorfree-trim (target)
   "Shrink TARGET until there is no whitespace to the left or right."
@@ -525,34 +527,87 @@ left and right."
               (?< #'evil-inner-angle)
               (?{ #'evil-inner-curly)
               (?\" #'evil-inner-double-quote)
-              (?\' #'evil-inner-single-quote)))))
+              (?\' #'evil-inner-single-quote)
+              (?\` #'evil-inner-back-quote)))))
+      (cons (car expanded) (cadr expanded)))))
+
+(defun cursorfree-outer-parenthesis (delimiter target)
+  "Expand TARGET to contain the closest DELIMITER.
+
+This function will match parentheses and quotation marks to the
+left and right."
+  (save-excursion
+    ;; evil-outer-double-quote uses the location of point for the
+    ;; expansion.  Put point at the beginning of the region.
+    (goto-char (car target))
+    (let ((expanded
+           (funcall
+            (cl-case delimiter
+              (?\( #'evil-a-paren)
+              (?\[ #'evil-a-bracket)
+              (?< #'evil-an-angle)
+              (?{ #'evil-a-curly)
+              (?\" #'evil-a-double-quote)
+              (?\' #'evil-a-single-quote)
+              (?\` #'evil-a-back-quote)))))
       (cons (car expanded) (cadr expanded)))))
 
 (defun cursorfree-inner-parenthesis-any (target)
   "Expand TARGET to fill the insides of the closest delimiters.
-Try different parentheses and quotations to figure out whichever
-is closest."
+
+This function tries different parentheses and quotations to
+figure out whichever is closest."
   (-max-by (-on #'> #'car)
            ;; Filter out whenever the evil-inner-*-quote messes up the
-           ;; region
+           ;; region (it selects the next region if not currently in a
+           ;; quote)
            (--filter (<= (car it) (car target))
                      (--keep (condition-case nil
                                  (cursorfree-inner-parenthesis it target)
                                (error nil))
-                             '(?< ?{ ?\( ?\[ ?\" ?\')))))
+                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
+
+(defun cursorfree-outer-parenthesis-any (target)
+  "Expand TARGET to contain the closest delimiters.
+
+This function tries different parentheses and quotations to
+figure out whichever is closest."
+  (-max-by (-on #'> #'car)
+           ;; Filter out whenever the evil-inner-*-quote messes up the
+           ;; region (it selects the next region if not currently in a
+           ;; quote)
+           (--filter (<= (car it) (car target))
+                     (--keep (condition-case nil
+                                 (cursorfree-outer-parenthesis it target)
+                               (error nil))
+                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
 
 (defun cursorfree-inner-parenthesis-dwim (environment)
   "Expand a target to fill the insides of some delimiter.
 
 This will read the top value of ENVIRONMENT.  If this is a
-character, next element is assumed to be a target to be expanded
-until the delimiter given by the character.  Otherwise, assumes
-that the top element was a target and expands it to the nearest
-matching pairs of delimiters."
+character, the next element is assumed to be a target to be
+expanded until the delimiter given by the character.  Otherwise,
+assumes that the top element was a target and expands it to the
+nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
                  (cursorfree--to-modifier #'cursorfree-inner-parenthesis)
                (cursorfree--to-modifier #'cursorfree-inner-parenthesis-any))
+             environment)))
+
+(defun cursorfree-outer-parenthesis-dwim (environment)
+  "Expand a target to contain of some delimiter.
+
+This will read the top value of ENVIRONMENT.  If this is a
+character, the next element is assumed to be a target to be
+expanded until the delimiter given by the character.  Otherwise,
+assumes that the top element was a target and expands it to the
+nearest matching pairs of delimiters."
+  (let* ((head (cursorfree--peek-value environment)))
+    (funcall (if (characterp head)
+                 (cursorfree--to-modifier #'cursorfree-outer-parenthesis)
+               (cursorfree--to-modifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -568,10 +623,9 @@ matching pairs of delimiters."
 (defun cursorfree--make-infix (instruction)
   "Return INSTRUCTION as an infix function.
 
-Upon evaluation, this inserts the original INSTRUCTION under the
-top instruction of the instruction stack."
+Upon evaluation, this inserts INSTRUCTION under the top
+instruction of the instruction stack."
   (lambda (environment)
-
     (let* ((e (cursorfree--clone-environment environment))
            (next-instruction (cursorfree--pop-instruction e)))
       (cursorfree--push-instruction e instruction)
@@ -583,14 +637,26 @@ top instruction of the instruction stack."
   (cursorfree--markify-region
    (region-bounds)))
 
+(defun cursorfree-thing-to-modifier (thing)
+  "Translate THING to an instruction extending a target to THING.
+
+The extension is done from the beginning of the target.  See
+`bounds-of-thing-at-point' for more information about the builtin
+thing-at-point functionalities."
+  (cursorfree--to-modifier
+   (lambda (target)
+     (cursorfree--bounds-of-thing-at thing (car target)))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree--to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-left))
     ("rightpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-right))
     ("trim" . ,(cursorfree--to-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree--make-infix (cursorfree--to-modifier #'cursorfree-past)))
+    ("past" . ,(cursorfree--to-modifier #'cursorfree-past))
     ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
-    ("inside" . cursorfree--inner-parenthesis-dwim)))
+    ("inside" . cursorfree-inner-parenthesis-dwim)
+    ("outside" . cursorfree-outer-parenthesis-dwim)
+    ("line" . ,(cursorfree-thing-to-modifier 'line))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

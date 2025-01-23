@@ -1,6 +1,6 @@
 ;;; test.el --- Tests for cursorfree.el              -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Erik Präntare
+;; Copyright (C) 2024, 2025  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -165,6 +165,74 @@
       (cursorfree--to-action #'cursorfree-target-chuck)))
     (should (string= (buffer-string) "(\"\" bbb ccc)"))))
 
+(ert-deftest cursorfree--outer-parenthesis ()
+  "outer-parenthesis, outer-parenthesis-any, outer-parenthesis-dwim."
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis
+      ?\(
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis
+      ?\[
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-target-chuck
+     (cursorfree-outer-parenthesis-any
+      (cursorfree--markify-region
+       (cons (+ 2 (point-min))
+             (+ 3 (point-min))))))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "(bbb ccc)")))
+
+  (with-temp-buffer
+    (insert "([aaa] bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+        (cons (+ (point-min) 2) (+ (point-min) 3)))
+      (cursorfree--pusher ?\()
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "")))
+
+  (with-temp-buffer
+    (insert "(\"aaa\" bbb ccc)")
+    (cursorfree-evaluate
+     (list
+      (cursorfree--pusher
+       (cons (+ (point-min) 2) (+ (point-min) 3)))
+      #'cursorfree-outer-parenthesis-dwim
+      (cursorfree--to-action #'cursorfree-target-chuck)))
+    (should (string= (buffer-string) "(bbb ccc)"))))
+
+(ert-deftest cursorfree--target-indent ()
+  "`cursorfree-target-indent'"
+  ;; Handle empty buffers
+  (with-temp-buffer
+    (cursorfree-target-indent (cons (point-min) (point-min)))))
+
 (ert-deftest cursorfree--wrap-parentheses ()
   "`cursorfree-wrap-parentheses'."
   (with-temp-buffer
@@ -192,9 +260,9 @@
                     (23 . 25))))))
 
 (ert-deftest cursorfree--target-fuse ()
-  "cursorfree--target-fuse."
+  "cursorfree-target-fuse."
   (insert "aaa bbb ccc\nddd")
-  (cursorfree--target-fuse (cons (+ (point-min) 5) (point-max)))
+  (cursorfree-target-fuse (cons (+ (point-min) 5) (point-max)))
   (should (string= (buffer-string) "aaa bbbcccddd")))
 
 

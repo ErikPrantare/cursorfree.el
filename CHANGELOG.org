@@ -1,2 +1,8 @@
+* 0.1.0 [2025-01-23 Thu]
+- Fix issues causing the package not to function.
+- Add "line" modifier.
+- Add "outside" modifier.
+- Make "past" postfix.
+
 * 0.0.0 [2024-12-29 Sun]
 Initial release

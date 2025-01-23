@@ -129,21 +129,22 @@ first argument, the next one for the second argument, and so on.
 A modifier is an instruction producing values for the value stack,
 often but not always by modifying previous targets.
 
-Note: The modifier ~past~ is applied as an infix.  That is, rather
-than saying ~X Y past~ to apply it to two targets, you instead say ~X
-past Y~.
+|-------------+-------------------------------------|
+| Spoken form | Function                            |
+|-------------+-------------------------------------|
+| paint       | cursorfree-paint                    |
+| leftpaint   | cursorfree-paint-left               |
+| rightpaint  | cursorfree-paint-right              |
+| trim        | cursorfree-trim                     |
+| past        | cursorfree-past                     |
+| selection   | cursorfree-current-selection        |
+| line        | cursorfree-thing-to-modifier [fn:1] |
+| inside      | cursorfree-inner-parenthesis-dwim   |
+| outer       | cursorfree-outer-parenthesis-dwim   |
+|-------------+-------------------------------------|
 
-|-------------+-----------------------------------|
-| Spoken form | Function                          |
-|-------------+-----------------------------------|
-| paint       | cursorfree-paint                  |
-| leftpaint   | cursorfree-paint-left             |
-| rightpaint  | cursorfree-paint-right            |
-| trim        | cursorfree-trim                   |
-| past        | cursorfree-past                   |
-| selection   | cursorfree-current-selection      |
-| inside      | cursorfree-inner-parenthesis-dwim |
-|-------------+-----------------------------------|
+[fn:1] Uses the builtin ~thingatpt~ Emacs package to select the new
+bounds.
 
 ** Versioning system
 This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an
