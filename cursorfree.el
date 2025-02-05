@@ -258,11 +258,16 @@ by `hatty-locate-token-region'."
   "Delete REGION."
   (delete-region (car region) (cdr region)))
 
+(defun cursorfree-target-pulse (target)
+  "Temporarily highlight TARGET."
+  (pulse-momentary-highlight-region (car target) (cdr target)))
+
 (defun cursorfree--insert-at (position string)
   "Insert STRING at POSITION."
   (save-excursion
     (goto-char position)
-    (insert string)))
+    (insert string)
+    (cursorfree-target-pulse (cons position (+ position (length string))))))
 
 (defun cursorfree-target-select (target)
   "Set active region to TARGET."
@@ -289,7 +294,8 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-bring (target)
   "Insert TARGET at point."
-  (insert (cursorfree--target-string target)))
+  (insert (cursorfree--target-string target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree--target-overwrite (target string)
   "Overwrite TARGET with STRING."
@@ -321,15 +327,18 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-copy (target)
   "Copy TARGET to kill ring."
-  (copy-region-as-kill (car target) (cdr target)))
+  (copy-region-as-kill (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-comment (target)
   "Comment out TARGET."
-  (comment-region (car target) (cdr target)))
+  (comment-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-uncomment (target)
   "Uncomment TARGET."
-  (uncomment-region (car target) (cdr target)))
+  (uncomment-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-narrow (target)
   "Narrow region to TARGET."
@@ -471,7 +480,8 @@ follow the thing at TARGET."
     ("center" . ,(cursorfree-to-action #'cursorfree-target-center))
     ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
     ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
-    ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse)))
+    ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
+    ("pulse" . ,(cursorfree-to-action #'cursorfree-target-pulse)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
