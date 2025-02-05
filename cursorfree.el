@@ -176,7 +176,7 @@ FUNCTION on top."
          (tail (nthcdr arity stack)))
     (cons (apply function args) tail)))
 
-(defun cursorfree--to-action (function)
+(defun cursorfree-to-action (function)
   "Translate FUNCTION an instruction not producing any value.
 
 The resulting instruction will read the top elements of the value
@@ -190,7 +190,7 @@ not remain on the value stack."
       (cursorfree--pop-value e) ; Ignore return value
       e)))
 
-(defun cursorfree--to-modifier (function)
+(defun cursorfree-to-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
@@ -447,31 +447,31 @@ follow the thing at TARGET."
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
 
 (defvar cursorfree-actions
-  `(("select" . ,(cursorfree--to-action #'cursorfree-target-select))
-    ("copy" . ,(cursorfree--to-action #'cursorfree-target-copy))
-    ("chuck" . ,(cursorfree--to-action #'cursorfree-target-chuck))
-    ("bring" . ,(cursorfree--to-action #'cursorfree-target-bring))
-    ("move" . ,(cursorfree--to-action #'cursorfree-target-move))
-    ("swap" . ,(cursorfree--to-action #'cursorfree-target-swap))
-    ("clone" . ,(cursorfree--to-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree--to-action #'cursorfree-target-jump-beginning))
-    ("pre" . ,(cursorfree--to-action #'cursorfree-target-jump-beginning))
-    ("post" . ,(cursorfree--to-action #'cursorfree-target-jump-end))
-    ("change" . ,(cursorfree--to-action #'cursorfree-target-change))
-    ("comment" . ,(cursorfree--to-action #'cursorfree-target-comment))
-    ("uncomment" . ,(cursorfree--to-action #'cursorfree-target-uncomment))
-    ("indent" . ,(cursorfree--to-action #'cursorfree-target-indent))
-    ("narrow" . ,(cursorfree--to-action #'cursorfree-target-narrow))
-    ("wrap" . ,(cursorfree--to-action #'cursorfree-target-wrap-parentheses))
-    ("filler" . ,(cursorfree--to-action #'cursorfree-target-fill))
-    ("title" . ,(cursorfree--to-action #'cursorfree-target-capitalize))
-    ("upcase" . ,(cursorfree--to-action #'cursorfree-target-upcase))
-    ("downcase" . ,(cursorfree--to-action #'cursorfree-target-downcase))
-    ("crown" . ,(cursorfree--to-action #'cursorfree-target-crown))
-    ("center" . ,(cursorfree--to-action #'cursorfree-target-center))
-    ("bottom" . ,(cursorfree--to-action #'cursorfree-target-bottom))
-    ("pick" . ,(cursorfree--to-action #'cursorfree-target-pick))
-    ("fuse" . ,(cursorfree--to-action #'cursorfree-target-fuse)))
+  `(("select" . ,(cursorfree-to-action #'cursorfree-target-select))
+    ("copy" . ,(cursorfree-to-action #'cursorfree-target-copy))
+    ("chuck" . ,(cursorfree-to-action #'cursorfree-target-chuck))
+    ("bring" . ,(cursorfree-to-action #'cursorfree-target-bring))
+    ("move" . ,(cursorfree-to-action #'cursorfree-target-move))
+    ("swap" . ,(cursorfree-to-action #'cursorfree-target-swap))
+    ("clone" . ,(cursorfree-to-action #'cursorfree-target-clone))
+    ("jump" . ,(cursorfree-to-action #'cursorfree-target-jump-beginning))
+    ("pre" . ,(cursorfree-to-action #'cursorfree-target-jump-beginning))
+    ("post" . ,(cursorfree-to-action #'cursorfree-target-jump-end))
+    ("change" . ,(cursorfree-to-action #'cursorfree-target-change))
+    ("comment" . ,(cursorfree-to-action #'cursorfree-target-comment))
+    ("uncomment" . ,(cursorfree-to-action #'cursorfree-target-uncomment))
+    ("indent" . ,(cursorfree-to-action #'cursorfree-target-indent))
+    ("narrow" . ,(cursorfree-to-action #'cursorfree-target-narrow))
+    ("wrap" . ,(cursorfree-to-action #'cursorfree-target-wrap-parentheses))
+    ("filler" . ,(cursorfree-to-action #'cursorfree-target-fill))
+    ("title" . ,(cursorfree-to-action #'cursorfree-target-capitalize))
+    ("upcase" . ,(cursorfree-to-action #'cursorfree-target-upcase))
+    ("downcase" . ,(cursorfree-to-action #'cursorfree-target-downcase))
+    ("crown" . ,(cursorfree-to-action #'cursorfree-target-crown))
+    ("center" . ,(cursorfree-to-action #'cursorfree-target-center))
+    ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
+    ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
+    ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
@@ -592,8 +592,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree--to-modifier #'cursorfree-inner-parenthesis)
-               (cursorfree--to-modifier #'cursorfree-inner-parenthesis-any))
+                 (cursorfree-to-modifier #'cursorfree-inner-parenthesis)
+               (cursorfree-to-modifier #'cursorfree-inner-parenthesis-any))
              environment)))
 
 (defun cursorfree-outer-parenthesis-dwim (environment)
@@ -606,8 +606,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree--to-modifier #'cursorfree-outer-parenthesis)
-               (cursorfree--to-modifier #'cursorfree-outer-parenthesis-any))
+                 (cursorfree-to-modifier #'cursorfree-outer-parenthesis)
+               (cursorfree-to-modifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -643,17 +643,17 @@ instruction of the instruction stack."
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
 thing-at-point functionalities."
-  (cursorfree--to-modifier
+  (cursorfree-to-modifier
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
 
 (defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree--to-modifier #'cursorfree-paint))
-    ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-left))
-    ("rightpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-right))
-    ("trim" . ,(cursorfree--to-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree--to-modifier #'cursorfree-past))
-    ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
+  `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
+    ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
+    ("rightpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-right))
+    ("trim" . ,(cursorfree-to-modifier #'cursorfree-trim))
+    ("past" . ,(cursorfree-to-modifier #'cursorfree-past))
+    ("selection" . ,(cursorfree-to-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
     ("line" . ,(cursorfree-thing-to-modifier 'line))))
