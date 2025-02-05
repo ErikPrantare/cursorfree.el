@@ -529,7 +529,7 @@ left and right."
               (?\" #'evil-inner-double-quote)
               (?\' #'evil-inner-single-quote)
               (?\` #'evil-inner-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+      (cursorfree--markify-region (cons (car expanded) (cadr expanded))))))
 
 (defun cursorfree-outer-parenthesis (delimiter target)
   "Expand TARGET to contain the closest DELIMITER.
@@ -550,7 +550,7 @@ left and right."
               (?\" #'evil-a-double-quote)
               (?\' #'evil-a-single-quote)
               (?\` #'evil-a-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+      (cursorfree--markify-region (cons (car expanded) (cadr expanded))))))
 
 (defun cursorfree-inner-parenthesis-any (target)
   "Expand TARGET to fill the insides of the closest delimiters.
