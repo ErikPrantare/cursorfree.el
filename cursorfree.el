@@ -647,6 +647,13 @@ thing-at-point functionalities."
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
 
+(defun cursorfree-everything ()
+  "Return a target referring to the full content of the buffer.
+
+This function respects narrowing."
+  (cursorfree--markify-region
+   (cons (point-min) (point-max))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
@@ -656,7 +663,11 @@ thing-at-point functionalities."
     ("selection" . ,(cursorfree-to-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
-    ("line" . ,(cursorfree-thing-to-modifier 'line))))
+    ("line" . ,(cursorfree-thing-to-modifier 'line))
+    ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
+    ("link" . ,(cursorfree-thing-to-modifier 'url))
+    ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
+    ("everything" . ,(cursorfree-to-modifier #'cursorfree-everything))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
