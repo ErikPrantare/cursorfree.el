@@ -1,3 +1,10 @@
+* NEXT
+- Add temporary highlighting of acted upon target.
+- Expose ~cursorfree-to-action~ and ~cursorfree-to-modifier~.
+- Fix bugs in "inside" and "outside" commands.
+- Add modifiers "block", "link", "sentence" and "everything".
+- Add action "pulse" to temporarily highlight a given target.  Useful for testing.
+
 * 0.1.0 [2025-01-23 Thu]
 - Fix issues causing the package not to function.
 - Add "line" modifier.
