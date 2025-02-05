@@ -252,7 +252,7 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree--target-string (target)
   "Return the string referred to by TARGET."
-  (buffer-substring (car target) (cdr target)))
+  (buffer-substring-no-properties (car target) (cdr target)))
 
 (defun cursorfree--region-delete (region)
   "Delete REGION."

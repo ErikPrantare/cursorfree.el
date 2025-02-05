@@ -3,7 +3,10 @@
 - Expose ~cursorfree-to-action~ and ~cursorfree-to-modifier~.
 - Fix bugs in "inside" and "outside" commands.
 - Add modifiers "block", "link", "sentence" and "everything".
-- Add action "pulse" to temporarily highlight a given target.  Useful for testing.
+- Add action "pulse" to temporarily highlight a given target.  Useful
+  for testing.
+- Copying strings now does not copy properties.  Previously, this
+  caused issues when copying readonly parts of the buffer.
 
 * 0.1.0 [2025-01-23 Thu]
 - Fix issues causing the package not to function.
