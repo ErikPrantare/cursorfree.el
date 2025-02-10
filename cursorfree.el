@@ -481,7 +481,7 @@ follow the thing at TARGET."
     ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
     ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
     ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
-    ("pulse" . ,(cursorfree-to-action #'cursorfree-target-pulse)))
+    ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
