@@ -664,6 +664,27 @@ This function respects narrowing."
   (cursorfree--markify-region
    (cons (point-min) (point-max))))
 
+(defun cursorfree-line-right (target)
+  "Extend TARGET to include the next newline."
+  (save-excursion
+    (goto-char (cdr target))
+    (unless (search-forward "\n" nil t)
+      (goto-char (point-max)))
+    (cursorfree--markify-region (cons (car target) (point)))))
+
+(defun cursorfree-line-left (target)
+  "Extend TARGET to start after the previous newline."
+  (save-excursion
+    (goto-char (car target))
+    (if (search-backward "\n" nil t)
+        (forward-char) ; Jump over the searched for newline
+      (goto-char (point-min)))
+    (cursorfree--markify-region (cons (point) (cdr target)))))
+
+(defun cursorfree-line (target)
+  "Extend TARGET to fill the full line."
+  (cursorfree-line-left (cursorfree-line-right target)))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
@@ -673,7 +694,9 @@ This function respects narrowing."
     ("selection" . ,(cursorfree-to-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
-    ("line" . ,(cursorfree-thing-to-modifier 'line))
+    ("line" . ,(cursorfree-to-modifier #'cursorfree-line))
+    ("rightline" . ,(cursorfree-to-modifier #'cursorfree-line-right))
+    ("leftline" . ,(cursorfree-to-modifier #'cursorfree-line-left))
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
