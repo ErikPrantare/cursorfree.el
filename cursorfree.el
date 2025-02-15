@@ -346,7 +346,8 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-fill (target)
   "Fill the paragraphs in TARGET."
-  (fill-region (car target) (cdr target)))
+  (fill-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-capitalize (target)
   "Capitalize the first character of each word in TARGET."

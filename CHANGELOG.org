@@ -11,8 +11,10 @@
   - "block": Select the paragraph containing the target.
   - "link": Select the URI containing the target.
   - "everything": Add a target spanning the full buffer.
-- Add action "flash" to temporarily highlight a given target.  Useful
-  for testing.
+- Add actions:
+  - "flash": Temporarily highlight a given target.  Useful for testing
+    new modifiers.
+  - "help": Display local help, e.g. as provided by flymake.
 - Copying strings now does not copy properties.  Previously, this
   caused issues when copying readonly parts of the buffer.
 
