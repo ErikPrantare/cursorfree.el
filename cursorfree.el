@@ -455,6 +455,15 @@ follow the thing at TARGET."
   (save-excursion
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
 
+(defun cursorfree-target-help (target)
+  "Run `display-local-help' at the start of TARGET.
+
+This may, for example, be used for displaying warning from eglot."
+  (save-excursion
+    (goto-char (car target))
+    (display-local-help)
+    (cursorfree-target-pulse target)))
+
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-to-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-to-action #'cursorfree-target-copy))
@@ -481,7 +490,8 @@ follow the thing at TARGET."
     ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
     ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
     ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
-    ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse)))
+    ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse))
+    ("help" . ,(cursorfree-to-action #'cursorfree-target-help)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
