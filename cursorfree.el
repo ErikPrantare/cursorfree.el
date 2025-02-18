@@ -711,6 +711,23 @@ This function respects narrowing."
   "Extend TARGET to fill the full line."
   (cursorfree-line-left (cursorfree-line-right target)))
 
+(defun cursorfree-row (index)
+  "Return the line with number INDEX as a target."
+  (save-excursion
+    (goto-char (point-min))
+    (forward-line (1- index))
+    (cursorfree-line (cons (point) (point)))))
+
+(defun cursorfree-this ()
+  "Return an empty region located at point."
+  (cursorfree--markify-region (cons (point) (point))))
+
+(defun cursorfree-extend-right (target1 target2)
+  "Return target extending TARGET2 to the end of TARGET1."
+  (cursorfree--markify-region
+   (cons (car target2)
+         (max (cdr target2) (cdr target1)))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
@@ -726,7 +743,10 @@ This function respects narrowing."
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
-    ("everything" . ,(cursorfree-to-modifier #'cursorfree-everything))))
+    ("everything" . ,(cursorfree-to-modifier #'cursorfree-everything))
+    ("row" . ,(cursorfree-to-modifier #'cursorfree-row))
+    ("this" . ,(cursorfree-to-modifier #'cursorfree-this))
+    ("extend" . ,(cursorfree-to-modifier #'cursorfree-extend-right))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

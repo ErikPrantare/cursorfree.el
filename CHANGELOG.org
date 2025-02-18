@@ -11,6 +11,15 @@
   - "block": Select the paragraph containing the target.
   - "link": Select the URI containing the target.
   - "everything": Add a target spanning the full buffer.
+  - "row": Consumes a number, and adds the line with that number as a
+    target.
+  - "this": Add a target starting and ending at point.  Useful in
+    conjunction with other modifiers, for example "this line chuck" to
+    remove the line at point.
+  - "extend": Extend the first target uttered to the right until it is
+    at least as far as the end of the second target.  For example,
+    "this this block extend" will create a target from point until the
+    end of the paragraph at point.
 - Add actions:
   - "flash": Temporarily highlight a given target.  Useful for testing
     new modifiers.

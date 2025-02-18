@@ -20,10 +20,16 @@ def cursorfree_hat(m) -> list[str]:
 def cursorfree_quoted_char(m) -> list[str]:
     return f"(cursorfree--pusher ?{m.any_alphanumeric_key})"
 
+@module.capture(rule="numb <number>")
+def cursorfree_quoted_number(m) -> list[str]:
+    return f"(cursorfree--pusher {m.number})"
+
+
 @module.capture(rule=
                 "{user.cursorfree_modifier}"
                 "| <user.cursorfree_hat>"
                 "| <user.cursorfree_quoted_char>"
+                "| <user.cursorfree_quoted_number>"
                 )
 def cursorfree_nonterminator(m) -> list[str]:
     return m[0]
