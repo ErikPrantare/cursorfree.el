@@ -15,6 +15,7 @@
   - "flash": Temporarily highlight a given target.  Useful for testing
     new modifiers.
   - "help": Display local help, e.g. as provided by flymake.
+  - "drink" and "pour": Begin a new line before or after the target.
 - Copying strings now does not copy properties.  Previously, this
   caused issues when copying readonly parts of the buffer.
 

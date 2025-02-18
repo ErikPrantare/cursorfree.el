@@ -399,6 +399,19 @@ by `hatty-locate-token-region'."
     (recenter -1))
   (cursorfree--clamp-line))
 
+(defun cursorfree-target-drink (target)
+  "Insert an empty line before TARGET and put point on it."
+  (goto-char (car target))
+  (beginning-of-line)
+  (insert ?\n)
+  (backward-char))
+
+(defun cursorfree-target-pour (target)
+  "Insert an empty line after TARGET and put point on it."
+  (goto-char (cdr target))
+  (end-of-line)
+  (insert ?\n))
+
 (defun cursorfree-target-wrap-parentheses (parenthesis target)
   "Wrap TARGET with characters specified by PARENTHESIS.
 
@@ -492,7 +505,9 @@ This may, for example, be used for displaying warning from eglot."
     ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
     ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
     ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse))
-    ("help" . ,(cursorfree-to-action #'cursorfree-target-help)))
+    ("help" . ,(cursorfree-to-action #'cursorfree-target-help))
+    ("drink" . ,(cursorfree-to-action #'cursorfree-target-drink))
+    ("pour" . ,(cursorfree-to-action #'cursorfree-target-pour)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
