@@ -25,6 +25,8 @@
     new modifiers.
   - "help": Display local help, e.g. as provided by flymake.
   - "drink" and "pour": Begin a new line before or after the target.
+  - "join": Join a target of multiple lines into one.
+  - "pull": Replace the first target with the second.
 - Copying strings now does not copy properties.  Previously, this
   caused issues when copying readonly parts of the buffer.
 

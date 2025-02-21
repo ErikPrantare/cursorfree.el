@@ -314,6 +314,12 @@ by `hatty-locate-token-region'."
     (cursorfree--target-overwrite target1 string2)
     (cursorfree--target-overwrite target2 string1)))
 
+(defun cursorfree-target-pull (target-from target-to)
+  "Overwrite TARGET-TO with the contents of TARGET-FROM."
+  (cursorfree--target-overwrite
+   target-to
+   (cursorfree--target-string target-from)))
+
 (defun cursorfree-target-change (target)
   "Move point to TARGET and delete its contents."
   (cursorfree--region-delete target)
@@ -469,6 +475,11 @@ follow the thing at TARGET."
   (save-excursion
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
 
+(defun cursorfree-target-join (target)
+  "Remove all newlines within TARGET."
+  (save-excursion
+    (replace-regexp (rx "\n" (zero-or-more " ")) " " nil (car target) (cdr target))))
+
 (defun cursorfree-target-help (target)
   "Run `display-local-help' at the start of TARGET.
 
@@ -484,6 +495,7 @@ This may, for example, be used for displaying warning from eglot."
     ("chuck" . ,(cursorfree-to-action #'cursorfree-target-chuck))
     ("bring" . ,(cursorfree-to-action #'cursorfree-target-bring))
     ("move" . ,(cursorfree-to-action #'cursorfree-target-move))
+    ("pull" . ,(cursorfree-to-action #'cursorfree-target-pull))
     ("swap" . ,(cursorfree-to-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-to-action #'cursorfree-target-clone))
     ("jump" . ,(cursorfree-to-action #'cursorfree-target-jump-beginning))
@@ -504,6 +516,7 @@ This may, for example, be used for displaying warning from eglot."
     ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
     ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
     ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
+    ("join" . ,(cursorfree-to-action #'cursorfree-target-join))
     ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse))
     ("help" . ,(cursorfree-to-action #'cursorfree-target-help))
     ("drink" . ,(cursorfree-to-action #'cursorfree-target-drink))
