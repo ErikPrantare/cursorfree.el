@@ -215,7 +215,7 @@ target, a new cursor will be created."
         (when values (funcall function (car values)))
         e)))
 
-(defun cursorfree-make-mondifier (function)
+(defun cursorfree-make-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
@@ -232,7 +232,7 @@ will not remain on the stack."
 (defun cursorfree-make-flattening-modifier (function)
   "Translate FUNCTION to an instruction producing multiple values.
 
-The resulting instruction will act as if `cursorfree-make-mondifier'
+The resulting instruction will act as if `cursorfree-make-modifier'
 was used, but assumes that the function returns a list.  Each element
 of the list will be pushed onto the value stack, with the first
 element of the list pushed first."
@@ -688,8 +688,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree-make-mondifier #'cursorfree-inner-parenthesis)
-               (cursorfree-make-mondifier #'cursorfree-inner-parenthesis-any))
+                 (cursorfree-make-modifier #'cursorfree-inner-parenthesis)
+               (cursorfree-make-modifier #'cursorfree-inner-parenthesis-any))
              environment)))
 
 (defun cursorfree-outer-parenthesis-dwim (environment)
@@ -702,8 +702,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree-make-mondifier #'cursorfree-outer-parenthesis)
-               (cursorfree-make-mondifier #'cursorfree-outer-parenthesis-any))
+                 (cursorfree-make-modifier #'cursorfree-outer-parenthesis)
+               (cursorfree-make-modifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -739,7 +739,7 @@ instruction of the instruction stack."
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
 thing-at-point functionalities."
-  (cursorfree-make-mondifier
+  (cursorfree-make-modifier
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
 
@@ -801,26 +801,26 @@ This function respects narrowing."
         (reverse matches))))
 
 (defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree-make-mondifier #'cursorfree-paint))
-    ("leftpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-left))
-    ("rightpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-right))
-    ("trim" . ,(cursorfree-make-mondifier #'cursorfree-trim))
-    ("past" . ,(cursorfree-make-mondifier #'cursorfree-past))
-    ("selection" . ,(cursorfree-make-mondifier #'cursorfree-current-selection))
+  `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
+    ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
+    ("rightpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-right))
+    ("trim" . ,(cursorfree-make-modifier #'cursorfree-trim))
+    ("past" . ,(cursorfree-make-modifier #'cursorfree-past))
+    ("selection" . ,(cursorfree-make-modifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
-    ("line" . ,(cursorfree-make-mondifier #'cursorfree-line))
-    ("rightline" . ,(cursorfree-make-mondifier #'cursorfree-line-right))
-    ("leftline" . ,(cursorfree-make-mondifier #'cursorfree-line-left))
+    ("line" . ,(cursorfree-make-modifier #'cursorfree-line))
+    ("rightline" . ,(cursorfree-make-modifier #'cursorfree-line-right))
+    ("leftline" . ,(cursorfree-make-modifier #'cursorfree-line-left))
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
-    ("everything" . ,(cursorfree-make-mondifier #'cursorfree-everything))
-    ("row" . ,(cursorfree-make-mondifier #'cursorfree-row))
-    ("this" . ,(cursorfree-make-mondifier #'cursorfree-this))
-    ("extend" . ,(cursorfree-make-mondifier #'cursorfree-extend-right))
-    ("every instance" . ,(cursorfree-make-flattening-modifieri #'cursorfree--every-instance))))
+    ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
+    ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
+    ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
+    ("extend" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
+    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree--every-instance))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
