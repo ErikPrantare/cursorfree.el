@@ -177,7 +177,7 @@ FUNCTION on top."
          (tail (nthcdr arity stack)))
     (cons (apply function args) tail)))
 
-(defun cursorfree-to-action (function)
+(defun cursorfree-make-action (function)
   "Translate FUNCTION into an instruction not producing any value.
 
 The resulting instruction will read the top elements of the value
@@ -207,15 +207,15 @@ target, a new cursor will be created."
         ;; Only create new cursors for non-final elements.
         (while (cdr values)
           ;; Error?  No issue, just try again with the next element.
-          (unwind-protect
-              (progn
-                (funcall function (car values))
-                (mc/create-fake-cursor-at-point))
-            (pop values)))
+          (condition-case e
+              (funcall function (car values))
+            (:success (mc/create-fake-cursor-at-point))
+            (error nil))
+          (pop values))
         (when values (funcall function (car values)))
         e)))
 
-(defun cursorfree-to-modifier (function)
+(defun cursorfree-make-mondifier (function)
   "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
@@ -232,10 +232,10 @@ will not remain on the stack."
 (defun cursorfree-make-flattening-modifier (function)
   "Translate FUNCTION to an instruction producing multiple values.
 
-The resulting instruction will act as if `cursorfree-to-modifier' was
-used, but assumes that the function returns a list.  Each element of
-the list will be pushed onto the value stack, with the first element
-of the list pushed first."
+The resulting instruction will act as if `cursorfree-make-mondifier'
+was used, but assumes that the function returns a list.  Each element
+of the list will be pushed onto the value stack, with the first
+element of the list pushed first."
   (lambda (environment)
     (let* ((e (cursorfree--clone-environment environment))
            (values (cursorfree-environment-value-stack e)))
@@ -537,37 +537,37 @@ This may, for example, be used for displaying warning from eglot."
 
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
-    ("copy" . ,(cursorfree-to-action #'cursorfree-target-copy))
-    ("chuck" . ,(cursorfree-to-action #'cursorfree-target-chuck))
-    ("bring" . ,(cursorfree-to-action #'cursorfree-target-bring))
-    ("move" . ,(cursorfree-to-action #'cursorfree-target-move))
-    ("pull" . ,(cursorfree-to-action #'cursorfree-target-pull))
-    ("swap" . ,(cursorfree-to-action #'cursorfree-target-swap))
-    ("clone" . ,(cursorfree-to-action #'cursorfree-target-clone))
+    ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
+    ("chuck" . ,(cursorfree-make-action #'cursorfree-target-chuck))
+    ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
+    ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
+    ("pull" . ,(cursorfree-make-action #'cursorfree-target-pull))
+    ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
+    ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
     ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
     ("change" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-change))
-    ("comment" . ,(cursorfree-to-action #'cursorfree-target-comment))
-    ("uncomment" . ,(cursorfree-to-action #'cursorfree-target-uncomment))
-    ("indent" . ,(cursorfree-to-action #'cursorfree-target-indent))
-    ("narrow" . ,(cursorfree-to-action #'cursorfree-target-narrow))
-    ("wrap" . ,(cursorfree-to-action #'cursorfree-target-wrap-parentheses))
-    ("filler" . ,(cursorfree-to-action #'cursorfree-target-fill))
-    ("title" . ,(cursorfree-to-action #'cursorfree-target-capitalize))
-    ("upcase" . ,(cursorfree-to-action #'cursorfree-target-upcase))
-    ("downcase" . ,(cursorfree-to-action #'cursorfree-target-downcase))
-    ("crown" . ,(cursorfree-to-action #'cursorfree-target-crown))
-    ("center" . ,(cursorfree-to-action #'cursorfree-target-center))
-    ("bottom" . ,(cursorfree-to-action #'cursorfree-target-bottom))
-    ("pick" . ,(cursorfree-to-action #'cursorfree-target-pick))
-    ("fuse" . ,(cursorfree-to-action #'cursorfree-target-fuse))
-    ("join" . ,(cursorfree-to-action #'cursorfree-target-join))
-    ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse))
-    ("help" . ,(cursorfree-to-action #'cursorfree-target-help))
-    ("drink" . ,(cursorfree-to-action #'cursorfree-target-drink))
-    ("pour" . ,(cursorfree-to-action #'cursorfree-target-pour))
-    ("occur" . ,(cursorfree-to-action #'cursorfree-target-occur)))
+    ("comment" . ,(cursorfree-make-action #'cursorfree-target-comment))
+    ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
+    ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
+    ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
+    ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap-parentheses))
+    ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
+    ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
+    ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))
+    ("downcase" . ,(cursorfree-make-action #'cursorfree-target-downcase))
+    ("crown" . ,(cursorfree-make-action #'cursorfree-target-crown))
+    ("center" . ,(cursorfree-make-action #'cursorfree-target-center))
+    ("bottom" . ,(cursorfree-make-action #'cursorfree-target-bottom))
+    ("pick" . ,(cursorfree-make-action #'cursorfree-target-pick))
+    ("fuse" . ,(cursorfree-make-action #'cursorfree-target-fuse))
+    ("join" . ,(cursorfree-make-action #'cursorfree-target-join))
+    ("flash" . ,(cursorfree-make-action #'cursorfree-target-pulse))
+    ("help" . ,(cursorfree-make-action #'cursorfree-target-help))
+    ("drink" . ,(cursorfree-make-action #'cursorfree-target-drink))
+    ("pour" . ,(cursorfree-make-action #'cursorfree-target-pour))
+    ("occur" . ,(cursorfree-make-action #'cursorfree-target-occur)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
@@ -688,8 +688,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree-to-modifier #'cursorfree-inner-parenthesis)
-               (cursorfree-to-modifier #'cursorfree-inner-parenthesis-any))
+                 (cursorfree-make-mondifier #'cursorfree-inner-parenthesis)
+               (cursorfree-make-mondifier #'cursorfree-inner-parenthesis-any))
              environment)))
 
 (defun cursorfree-outer-parenthesis-dwim (environment)
@@ -702,8 +702,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree-to-modifier #'cursorfree-outer-parenthesis)
-               (cursorfree-to-modifier #'cursorfree-outer-parenthesis-any))
+                 (cursorfree-make-mondifier #'cursorfree-outer-parenthesis)
+               (cursorfree-make-mondifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -739,7 +739,7 @@ instruction of the instruction stack."
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
 thing-at-point functionalities."
-  (cursorfree-to-modifier
+  (cursorfree-make-mondifier
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
 
@@ -801,25 +801,26 @@ This function respects narrowing."
         (reverse matches))))
 
 (defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
-    ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
-    ("rightpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-right))
-    ("trim" . ,(cursorfree-to-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree-to-modifier #'cursorfree-past))
-    ("selection" . ,(cursorfree-to-modifier #'cursorfree-current-selection))
+  `(("paint" . ,(cursorfree-make-mondifier #'cursorfree-paint))
+    ("leftpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-left))
+    ("rightpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-right))
+    ("trim" . ,(cursorfree-make-mondifier #'cursorfree-trim))
+    ("past" . ,(cursorfree-make-mondifier #'cursorfree-past))
+    ("selection" . ,(cursorfree-make-mondifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
-    ("line" . ,(cursorfree-to-modifier #'cursorfree-line))
-    ("rightline" . ,(cursorfree-to-modifier #'cursorfree-line-right))
-    ("leftline" . ,(cursorfree-to-modifier #'cursorfree-line-left))
+    ("line" . ,(cursorfree-make-mondifier #'cursorfree-line))
+    ("rightline" . ,(cursorfree-make-mondifier #'cursorfree-line-right))
+    ("leftline" . ,(cursorfree-make-mondifier #'cursorfree-line-left))
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
+    ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
-    ("everything" . ,(cursorfree-to-modifier #'cursorfree-everything))
-    ("row" . ,(cursorfree-to-modifier #'cursorfree-row))
-    ("this" . ,(cursorfree-to-modifier #'cursorfree-this))
-    ("extend" . ,(cursorfree-to-modifier #'cursorfree-extend-right))
-    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree--every-instance))))
+    ("everything" . ,(cursorfree-make-mondifier #'cursorfree-everything))
+    ("row" . ,(cursorfree-make-mondifier #'cursorfree-row))
+    ("this" . ,(cursorfree-make-mondifier #'cursorfree-this))
+    ("extend" . ,(cursorfree-make-mondifier #'cursorfree-extend-right))
+    ("every instance" . ,(cursorfree-make-flattening-modifieri #'cursorfree--every-instance))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
