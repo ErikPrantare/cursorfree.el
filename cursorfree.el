@@ -40,6 +40,7 @@
 (require 'hatty)
 (require 'evil)
 (require 'dash)
+(require 'multiple-cursors)
 
 ;;;; Instruction interpreter:
 
@@ -189,6 +190,30 @@ not remain on the value stack."
             (cursorfree--apply-on-stack function values))
       (cursorfree--pop-value e) ; Ignore return value
       e)))
+
+(defun cursorfree-make-multi-cursor-action (function)
+    "Translate FUNCTION into an instruction using multiple cursors.
+
+FUNCTION will be applied on each element of the stack.  For each
+target, a new cursor will be created."
+    (lambda (environment)
+      (let* ((e (cursorfree--clone-environment environment))
+             (values (cursorfree-environment-value-stack e)))
+        (setf (cursorfree-environment-value-stack e) nil)
+
+        (multiple-cursors-mode 0)
+        (multiple-cursors-mode 1)
+
+        ;; Only create new cursors for non-final elements.
+        (while (cdr values)
+          ;; Error?  No issue, just try again with the next element.
+          (unwind-protect
+              (progn
+                (funcall function (car values))
+                (mc/create-fake-cursor-at-point))
+            (pop values)))
+        (when values (funcall function (car values)))
+        e)))
 
 (defun cursorfree-to-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
@@ -490,7 +515,7 @@ This may, for example, be used for displaying warning from eglot."
     (cursorfree-target-pulse target)))
 
 (defvar cursorfree-actions
-  `(("select" . ,(cursorfree-to-action #'cursorfree-target-select))
+  `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-to-action #'cursorfree-target-copy))
     ("chuck" . ,(cursorfree-to-action #'cursorfree-target-chuck))
     ("bring" . ,(cursorfree-to-action #'cursorfree-target-bring))
@@ -498,10 +523,10 @@ This may, for example, be used for displaying warning from eglot."
     ("pull" . ,(cursorfree-to-action #'cursorfree-target-pull))
     ("swap" . ,(cursorfree-to-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-to-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree-to-action #'cursorfree-target-jump-beginning))
-    ("pre" . ,(cursorfree-to-action #'cursorfree-target-jump-beginning))
-    ("post" . ,(cursorfree-to-action #'cursorfree-target-jump-end))
-    ("change" . ,(cursorfree-to-action #'cursorfree-target-change))
+    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
+    ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
+    ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
+    ("change" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-change))
     ("comment" . ,(cursorfree-to-action #'cursorfree-target-comment))
     ("uncomment" . ,(cursorfree-to-action #'cursorfree-target-uncomment))
     ("indent" . ,(cursorfree-to-action #'cursorfree-target-indent))

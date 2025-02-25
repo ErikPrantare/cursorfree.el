@@ -3,6 +3,7 @@
 - Expose ~cursorfree-to-action~ and ~cursorfree-to-modifier~ for
   creating custom actions and modifiers.
 - Fix bugs in "inside" and "outside" commands.
+- Integrate multiple-cursors for actions where it makes sense.
 - Add modifiers:
   - "leftline": Select everything to the left of the target on the
     same line.
