@@ -178,7 +178,7 @@ FUNCTION on top."
     (cons (apply function args) tail)))
 
 (defun cursorfree-to-action (function)
-  "Translate FUNCTION an instruction not producing any value.
+  "Translate FUNCTION into an instruction not producing any value.
 
 The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The read arguments will
@@ -229,10 +229,25 @@ will not remain on the stack."
             (cursorfree--apply-on-stack function values))
       e)))
 
+(defun cursorfree-make-flattening-modifier (function)
+  "Translate FUNCTION to an instruction producing multiple values.
+
+The resulting instruction will act as if `cursorfree-to-modifier' was
+used, but assumes that the function returns a list.  Each element of
+the list will be pushed onto the value stack, with the first element
+of the list pushed first."
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e)
+            (cursorfree--apply-on-stack function values))
+      (cursorfree--push-values e (cursorfree--pop-value e))
+      e)))
+
 (defun cursorfree--markify-region (region)
   "Return REGION with the endpoints as markers."
   (unless (consp region)
-      (error "Invalid argument %s in cursorfree--markify-region" region))
+    (error "Invalid argument %s in cursorfree--markify-region" region))
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -766,6 +781,18 @@ This function respects narrowing."
    (cons (car target2)
          (max (cdr target2) (cdr target1)))))
 
+(defun cursorfree--every-instance (target)
+    "Return a list of every occurrence of TARGET."
+    (when (/= (- (car target) (cdr target)) 0)
+      (let ((string (cursorfree--target-string target))
+            (matches '()))
+        (save-excursion
+          (goto-char (point-min))
+          (while (search-forward string nil t)
+            (push (cursorfree--markify-region (cons (match-beginning 0) (match-end 0)))
+                  matches)))
+        (reverse matches))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-to-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-to-modifier #'cursorfree-paint-left))
@@ -784,7 +811,8 @@ This function respects narrowing."
     ("everything" . ,(cursorfree-to-modifier #'cursorfree-everything))
     ("row" . ,(cursorfree-to-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-to-modifier #'cursorfree-this))
-    ("extend" . ,(cursorfree-to-modifier #'cursorfree-extend-right))))
+    ("extend" . ,(cursorfree-to-modifier #'cursorfree-extend-right))
+    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree--every-instance))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

@@ -21,6 +21,8 @@
     at least as far as the end of the second target.  For example,
     "this this block extend" will create a target from point until the
     end of the paragraph at point.
+  - "every instance": Puts every occurrence of a target string on the
+    value stack.
 - Add actions:
   - "flash": Temporarily highlight a given target.  Useful for testing
     new modifiers.
