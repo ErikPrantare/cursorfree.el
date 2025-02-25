@@ -478,15 +478,17 @@ TARGET.  Otherwise, insert PARENTHESIS instead."
 
 (defvar cursorfree-dwim-follow-alist
   `((org-mode . org-open-at-point)
+    (org-agenda-mode . org-agenda-switch-to)
     (Info-mode . Info-try-follow-nearest-node)
     (help-mode . push-button)
     (dired-mode . dired-find-file)
     (compilation-mode . compile-goto-error)
     (grep-mode . compile-goto-error)
+    (occur-mode . occur-mode-goto-occurrence)
     (eww-mode . ,(lambda ()
                    (if (get-text-property (point) 'eww-form)
                        (eww-submit)
-                    (eww-follow-link)))))
+                     (eww-follow-link)))))
   "Alist for mapping major mode to function for following at point.
 
 Used in `cursorfree-dwim-follow' for determining how to follow
@@ -529,6 +531,10 @@ This may, for example, be used for displaying warning from eglot."
     (display-local-help)
     (cursorfree-target-pulse target)))
 
+(defun cursorfree-target-occur (target)
+    "List occurrences of TARGET in the current buffer."
+    (occur (rx (literal (cursorfree--target-string target)))))
+
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-to-action #'cursorfree-target-copy))
@@ -560,7 +566,8 @@ This may, for example, be used for displaying warning from eglot."
     ("flash" . ,(cursorfree-to-action #'cursorfree-target-pulse))
     ("help" . ,(cursorfree-to-action #'cursorfree-target-help))
     ("drink" . ,(cursorfree-to-action #'cursorfree-target-drink))
-    ("pour" . ,(cursorfree-to-action #'cursorfree-target-pour)))
+    ("pour" . ,(cursorfree-to-action #'cursorfree-target-pour))
+    ("occur" . ,(cursorfree-to-action #'cursorfree-target-occur)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its

@@ -30,6 +30,7 @@
   - "drink" and "pour": Begin a new line before or after the target.
   - "join": Join a target of multiple lines into one.
   - "pull": Replace the first target with the second.
+  - "occur": Run ~occur~ to find all instances of target.
 - Copying strings now does not copy properties.  Previously, this
   caused issues when copying readonly parts of the buffer.
 
