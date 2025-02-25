@@ -1,3 +1,42 @@
+* 0.1.1 [2025-02-25 Tue]
+- Add temporary highlighting of acted upon target.
+- Expose ~cursorfree-make-action~ and ~cursorfree-make-modifier~ for
+  creating custom actions and modifiers.
+- Fix bugs in "inside" and "outside" commands.
+- Integrate multiple-cursors for actions where it makes sense.
+  For example, "<a> <b> change" will invoke "change" on targets <a>
+  and <b>.
+- Add modifiers:
+  - "leftline": Select everything to the left of the target on the
+    same line.
+  - "rightline": Select everything to the right of the target on the
+    same line.
+  - "word": Select the word at the beginning of target.
+  - "block": Select the paragraph at the beginning of target.
+  - "link": Select the URI at the beginning of target.
+  - "everything": Add a target spanning the full buffer.
+  - "row": Consumes a number, and adds the line with that number as a
+    target.
+  - "this": Add a target starting and ending at point.  Useful in
+    conjunction with other modifiers, for example "this line chuck" to
+    remove the line at point.
+  - "extend": Extend the first target uttered to the right until it is
+    at least as far as the end of the second target.  For example,
+    "this this block extend" will create a target from point until the
+    end of the paragraph at point.
+  - "every instance": Puts every occurrence of a target string on the
+    value stack.
+- Add actions:
+  - "flash": Temporarily highlight a given target.  Useful for testing
+    new modifiers.
+  - "help": Display local help, e.g. as provided by flymake.
+  - "drink" and "pour": Begin a new line before or after the target.
+  - "join": Join a target of multiple lines into one.
+  - "pull": Replace the first target with the second.
+  - "occur": Run ~occur~ to find all instances of target.
+- Copying strings now does not copy properties.  Previously, this
+  caused issues when copying readonly parts of the buffer.
+
 * 0.1.0 [2025-01-23 Thu]
 - Fix issues causing the package not to function.
 - Add "line" modifier.

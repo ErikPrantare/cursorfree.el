@@ -4,3 +4,9 @@
 
 * TODO Commands:
 - unwrap: Remove containing parentheses.
+- block: Properly select paragraph in all modes.  Currently does not
+  always work in org-mode.
+- filler: Implicitly act upon "block".
+
+* TODO Make target a cl-struct
+This is to force the usage of marks for all target bounds.

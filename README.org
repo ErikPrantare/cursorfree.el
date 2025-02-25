@@ -10,7 +10,8 @@ This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cu
 faculties for VSCode.
 
 ** Setup
-First, install the dependencies [[https://github.com/ErikPrantare/hatty.el][hatty.el]], [[https://github.com/emacs-evil/evil][evil]] and [[https://github.com/magnars/dash.el][dash.el]].
+First, install the dependencies [[https://github.com/ErikPrantare/hatty.el][hatty.el]], [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]], [[https://github.com/emacs-evil/evil][evil]]
+and [[https://github.com/magnars/dash.el][dash.el]].
 
 Then, clone this repository and add the following to your init file:
 
@@ -145,6 +146,11 @@ often but not always by modifying previous targets.
 
 [fn:1] Uses the builtin ~thingatpt~ Emacs package to select the new
 bounds.
+
+*** NOTE
+The above tables are probably outdated.  For the complete and
+up-to-date lists, see the definitions of ~cursorfree-actions~ and
+~cursorfree-modifiers~.
 
 ** Versioning system
 This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an

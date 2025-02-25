@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 0.0.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "29.1") (hatty "0.2.0"))
 ;; Created: 06 Sep 2024
 
@@ -40,6 +40,7 @@
 (require 'hatty)
 (require 'evil)
 (require 'dash)
+(require 'multiple-cursors)
 
 ;;;; Instruction interpreter:
 
@@ -176,8 +177,8 @@ FUNCTION on top."
          (tail (nthcdr arity stack)))
     (cons (apply function args) tail)))
 
-(defun cursorfree--to-action (function)
-  "Translate FUNCTION an instruction not producing any value.
+(defun cursorfree-make-action (function)
+  "Translate FUNCTION into an instruction not producing any value.
 
 The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The read arguments will
@@ -190,7 +191,31 @@ not remain on the value stack."
       (cursorfree--pop-value e) ; Ignore return value
       e)))
 
-(defun cursorfree--to-modifier (function)
+(defun cursorfree-make-multi-cursor-action (function)
+    "Translate FUNCTION into an instruction using multiple cursors.
+
+FUNCTION will be applied on each element of the stack.  For each
+target, a new cursor will be created."
+    (lambda (environment)
+      (let* ((e (cursorfree--clone-environment environment))
+             (values (cursorfree-environment-value-stack e)))
+        (setf (cursorfree-environment-value-stack e) nil)
+
+        (multiple-cursors-mode 0)
+        (multiple-cursors-mode 1)
+
+        ;; Only create new cursors for non-final elements.
+        (while (cdr values)
+          ;; Error?  No issue, just try again with the next element.
+          (condition-case e
+              (funcall function (car values))
+            (:success (mc/create-fake-cursor-at-point))
+            (error nil))
+          (pop values))
+        (when values (funcall function (car values)))
+        e)))
+
+(defun cursorfree-make-mondifier (function)
   "Translate FUNCTION to an instruction producing a value.
 
 The resulting instruction will read the top elements of the value
@@ -204,10 +229,25 @@ will not remain on the stack."
             (cursorfree--apply-on-stack function values))
       e)))
 
+(defun cursorfree-make-flattening-modifier (function)
+  "Translate FUNCTION to an instruction producing multiple values.
+
+The resulting instruction will act as if `cursorfree-make-mondifier'
+was used, but assumes that the function returns a list.  Each element
+of the list will be pushed onto the value stack, with the first
+element of the list pushed first."
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e)
+            (cursorfree--apply-on-stack function values))
+      (cursorfree--push-values e (cursorfree--pop-value e))
+      e)))
+
 (defun cursorfree--markify-region (region)
   "Return REGION with the endpoints as markers."
   (unless (consp region)
-      (error "Invalid argument %s in cursorfree--markify-region" region))
+    (error "Invalid argument %s in cursorfree--markify-region" region))
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -252,17 +292,22 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree--target-string (target)
   "Return the string referred to by TARGET."
-  (buffer-substring (car target) (cdr target)))
+  (buffer-substring-no-properties (car target) (cdr target)))
 
 (defun cursorfree--region-delete (region)
   "Delete REGION."
   (delete-region (car region) (cdr region)))
 
+(defun cursorfree-target-pulse (target)
+  "Temporarily highlight TARGET."
+  (pulse-momentary-highlight-region (car target) (cdr target)))
+
 (defun cursorfree--insert-at (position string)
   "Insert STRING at POSITION."
   (save-excursion
     (goto-char position)
-    (insert string)))
+    (insert string)
+    (cursorfree-target-pulse (cons position (+ position (length string))))))
 
 (defun cursorfree-target-select (target)
   "Set active region to TARGET."
@@ -289,7 +334,8 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-bring (target)
   "Insert TARGET at point."
-  (insert (cursorfree--target-string target)))
+  (insert (cursorfree--target-string target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree--target-overwrite (target string)
   "Overwrite TARGET with STRING."
@@ -308,6 +354,12 @@ by `hatty-locate-token-region'."
     (cursorfree--target-overwrite target1 string2)
     (cursorfree--target-overwrite target2 string1)))
 
+(defun cursorfree-target-pull (target-from target-to)
+  "Overwrite TARGET-TO with the contents of TARGET-FROM."
+  (cursorfree--target-overwrite
+   target-to
+   (cursorfree--target-string target-from)))
+
 (defun cursorfree-target-change (target)
   "Move point to TARGET and delete its contents."
   (cursorfree--region-delete target)
@@ -321,15 +373,18 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-copy (target)
   "Copy TARGET to kill ring."
-  (copy-region-as-kill (car target) (cdr target)))
+  (copy-region-as-kill (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-comment (target)
   "Comment out TARGET."
-  (comment-region (car target) (cdr target)))
+  (comment-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-uncomment (target)
   "Uncomment TARGET."
-  (uncomment-region (car target) (cdr target)))
+  (uncomment-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-narrow (target)
   "Narrow region to TARGET."
@@ -337,7 +392,8 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-fill (target)
   "Fill the paragraphs in TARGET."
-  (fill-region (car target) (cdr target)))
+  (fill-region (car target) (cdr target))
+  (cursorfree-target-pulse target))
 
 (defun cursorfree-target-capitalize (target)
   "Capitalize the first character of each word in TARGET."
@@ -389,6 +445,19 @@ by `hatty-locate-token-region'."
     (recenter -1))
   (cursorfree--clamp-line))
 
+(defun cursorfree-target-drink (target)
+  "Insert an empty line before TARGET and put point on it."
+  (goto-char (car target))
+  (beginning-of-line)
+  (insert ?\n)
+  (backward-char))
+
+(defun cursorfree-target-pour (target)
+  "Insert an empty line after TARGET and put point on it."
+  (goto-char (cdr target))
+  (end-of-line)
+  (insert ?\n))
+
 (defun cursorfree-target-wrap-parentheses (parenthesis target)
   "Wrap TARGET with characters specified by PARENTHESIS.
 
@@ -409,15 +478,17 @@ TARGET.  Otherwise, insert PARENTHESIS instead."
 
 (defvar cursorfree-dwim-follow-alist
   `((org-mode . org-open-at-point)
+    (org-agenda-mode . org-agenda-switch-to)
     (Info-mode . Info-try-follow-nearest-node)
     (help-mode . push-button)
     (dired-mode . dired-find-file)
     (compilation-mode . compile-goto-error)
     (grep-mode . compile-goto-error)
+    (occur-mode . occur-mode-goto-occurrence)
     (eww-mode . ,(lambda ()
                    (if (get-text-property (point) 'eww-form)
                        (eww-submit)
-                    (eww-follow-link)))))
+                     (eww-follow-link)))))
   "Alist for mapping major mode to function for following at point.
 
 Used in `cursorfree-dwim-follow' for determining how to follow
@@ -446,32 +517,57 @@ follow the thing at TARGET."
   (save-excursion
     (replace-regexp (rx (or whitespace "\n")) "" nil (car target) (cdr target))))
 
+(defun cursorfree-target-join (target)
+  "Remove all newlines within TARGET."
+  (save-excursion
+    (replace-regexp (rx "\n" (zero-or-more " ")) " " nil (car target) (cdr target))))
+
+(defun cursorfree-target-help (target)
+  "Run `display-local-help' at the start of TARGET.
+
+This may, for example, be used for displaying warning from eglot."
+  (save-excursion
+    (goto-char (car target))
+    (display-local-help)
+    (cursorfree-target-pulse target)))
+
+(defun cursorfree-target-occur (target)
+    "List occurrences of TARGET in the current buffer."
+    (occur (rx (literal (cursorfree--target-string target)))))
+
 (defvar cursorfree-actions
-  `(("select" . ,(cursorfree--to-action #'cursorfree-target-select))
-    ("copy" . ,(cursorfree--to-action #'cursorfree-target-copy))
-    ("chuck" . ,(cursorfree--to-action #'cursorfree-target-chuck))
-    ("bring" . ,(cursorfree--to-action #'cursorfree-target-bring))
-    ("move" . ,(cursorfree--to-action #'cursorfree-target-move))
-    ("swap" . ,(cursorfree--to-action #'cursorfree-target-swap))
-    ("clone" . ,(cursorfree--to-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree--to-action #'cursorfree-target-jump-beginning))
-    ("pre" . ,(cursorfree--to-action #'cursorfree-target-jump-beginning))
-    ("post" . ,(cursorfree--to-action #'cursorfree-target-jump-end))
-    ("change" . ,(cursorfree--to-action #'cursorfree-target-change))
-    ("comment" . ,(cursorfree--to-action #'cursorfree-target-comment))
-    ("uncomment" . ,(cursorfree--to-action #'cursorfree-target-uncomment))
-    ("indent" . ,(cursorfree--to-action #'cursorfree-target-indent))
-    ("narrow" . ,(cursorfree--to-action #'cursorfree-target-narrow))
-    ("wrap" . ,(cursorfree--to-action #'cursorfree-target-wrap-parentheses))
-    ("filler" . ,(cursorfree--to-action #'cursorfree-target-fill))
-    ("title" . ,(cursorfree--to-action #'cursorfree-target-capitalize))
-    ("upcase" . ,(cursorfree--to-action #'cursorfree-target-upcase))
-    ("downcase" . ,(cursorfree--to-action #'cursorfree-target-downcase))
-    ("crown" . ,(cursorfree--to-action #'cursorfree-target-crown))
-    ("center" . ,(cursorfree--to-action #'cursorfree-target-center))
-    ("bottom" . ,(cursorfree--to-action #'cursorfree-target-bottom))
-    ("pick" . ,(cursorfree--to-action #'cursorfree-target-pick))
-    ("fuse" . ,(cursorfree--to-action #'cursorfree-target-fuse)))
+  `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
+    ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
+    ("chuck" . ,(cursorfree-make-action #'cursorfree-target-chuck))
+    ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
+    ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
+    ("pull" . ,(cursorfree-make-action #'cursorfree-target-pull))
+    ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
+    ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
+    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
+    ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
+    ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
+    ("change" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-change))
+    ("comment" . ,(cursorfree-make-action #'cursorfree-target-comment))
+    ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
+    ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
+    ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
+    ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap-parentheses))
+    ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
+    ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
+    ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))
+    ("downcase" . ,(cursorfree-make-action #'cursorfree-target-downcase))
+    ("crown" . ,(cursorfree-make-action #'cursorfree-target-crown))
+    ("center" . ,(cursorfree-make-action #'cursorfree-target-center))
+    ("bottom" . ,(cursorfree-make-action #'cursorfree-target-bottom))
+    ("pick" . ,(cursorfree-make-action #'cursorfree-target-pick))
+    ("fuse" . ,(cursorfree-make-action #'cursorfree-target-fuse))
+    ("join" . ,(cursorfree-make-action #'cursorfree-target-join))
+    ("flash" . ,(cursorfree-make-action #'cursorfree-target-pulse))
+    ("help" . ,(cursorfree-make-action #'cursorfree-target-help))
+    ("drink" . ,(cursorfree-make-action #'cursorfree-target-drink))
+    ("pour" . ,(cursorfree-make-action #'cursorfree-target-pour))
+    ("occur" . ,(cursorfree-make-action #'cursorfree-target-occur)))
   "Alist mapping spoken utterance to action.
 
 An action is an instruction that is only evaluated for its
@@ -529,7 +625,7 @@ left and right."
               (?\" #'evil-inner-double-quote)
               (?\' #'evil-inner-single-quote)
               (?\` #'evil-inner-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+      (cursorfree--markify-region (cons (car expanded) (cadr expanded))))))
 
 (defun cursorfree-outer-parenthesis (delimiter target)
   "Expand TARGET to contain the closest DELIMITER.
@@ -550,7 +646,7 @@ left and right."
               (?\" #'evil-a-double-quote)
               (?\' #'evil-a-single-quote)
               (?\` #'evil-a-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+      (cursorfree--markify-region (cons (car expanded) (cadr expanded))))))
 
 (defun cursorfree-inner-parenthesis-any (target)
   "Expand TARGET to fill the insides of the closest delimiters.
@@ -592,8 +688,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree--to-modifier #'cursorfree-inner-parenthesis)
-               (cursorfree--to-modifier #'cursorfree-inner-parenthesis-any))
+                 (cursorfree-make-mondifier #'cursorfree-inner-parenthesis)
+               (cursorfree-make-mondifier #'cursorfree-inner-parenthesis-any))
              environment)))
 
 (defun cursorfree-outer-parenthesis-dwim (environment)
@@ -606,8 +702,8 @@ assumes that the top element was a target and expands it to the
 nearest matching pairs of delimiters."
   (let* ((head (cursorfree--peek-value environment)))
     (funcall (if (characterp head)
-                 (cursorfree--to-modifier #'cursorfree-outer-parenthesis)
-               (cursorfree--to-modifier #'cursorfree-outer-parenthesis-any))
+                 (cursorfree-make-mondifier #'cursorfree-outer-parenthesis)
+               (cursorfree-make-mondifier #'cursorfree-outer-parenthesis-any))
              environment)))
 
 (defun cursorfree--targets-join (targets)
@@ -643,20 +739,88 @@ instruction of the instruction stack."
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
 thing-at-point functionalities."
-  (cursorfree--to-modifier
+  (cursorfree-make-mondifier
    (lambda (target)
      (cursorfree--bounds-of-thing-at thing (car target)))))
 
+(defun cursorfree-everything ()
+  "Return a target referring to the full content of the buffer.
+
+This function respects narrowing."
+  (cursorfree--markify-region
+   (cons (point-min) (point-max))))
+
+(defun cursorfree-line-right (target)
+  "Extend TARGET to include the next newline."
+  (save-excursion
+    (goto-char (cdr target))
+    (unless (search-forward "\n" nil t)
+      (goto-char (point-max)))
+    (cursorfree--markify-region (cons (car target) (point)))))
+
+(defun cursorfree-line-left (target)
+  "Extend TARGET to start after the previous newline."
+  (save-excursion
+    (goto-char (car target))
+    (if (search-backward "\n" nil t)
+        (forward-char) ; Jump over the searched for newline
+      (goto-char (point-min)))
+    (cursorfree--markify-region (cons (point) (cdr target)))))
+
+(defun cursorfree-line (target)
+  "Extend TARGET to fill the full line."
+  (cursorfree-line-left (cursorfree-line-right target)))
+
+(defun cursorfree-row (index)
+  "Return the line with number INDEX as a target."
+  (save-excursion
+    (goto-char (point-min))
+    (forward-line (1- index))
+    (cursorfree-line (cons (point) (point)))))
+
+(defun cursorfree-this ()
+  "Return an empty region located at point."
+  (cursorfree--markify-region (cons (point) (point))))
+
+(defun cursorfree-extend-right (target1 target2)
+  "Return target extending TARGET2 to the end of TARGET1."
+  (cursorfree--markify-region
+   (cons (car target2)
+         (max (cdr target2) (cdr target1)))))
+
+(defun cursorfree--every-instance (target)
+    "Return a list of every occurrence of TARGET."
+    (when (/= (- (car target) (cdr target)) 0)
+      (let ((string (cursorfree--target-string target))
+            (matches '()))
+        (save-excursion
+          (goto-char (point-min))
+          (while (search-forward string nil t)
+            (push (cursorfree--markify-region (cons (match-beginning 0) (match-end 0)))
+                  matches)))
+        (reverse matches))))
+
 (defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree--to-modifier #'cursorfree-paint))
-    ("leftpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-left))
-    ("rightpaint" . ,(cursorfree--to-modifier #'cursorfree-paint-right))
-    ("trim" . ,(cursorfree--to-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree--to-modifier #'cursorfree-past))
-    ("selection" . ,(cursorfree--to-modifier #'cursorfree-current-selection))
+  `(("paint" . ,(cursorfree-make-mondifier #'cursorfree-paint))
+    ("leftpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-left))
+    ("rightpaint" . ,(cursorfree-make-mondifier #'cursorfree-paint-right))
+    ("trim" . ,(cursorfree-make-mondifier #'cursorfree-trim))
+    ("past" . ,(cursorfree-make-mondifier #'cursorfree-past))
+    ("selection" . ,(cursorfree-make-mondifier #'cursorfree-current-selection))
     ("inside" . cursorfree-inner-parenthesis-dwim)
     ("outside" . cursorfree-outer-parenthesis-dwim)
-    ("line" . ,(cursorfree-thing-to-modifier 'line))))
+    ("line" . ,(cursorfree-make-mondifier #'cursorfree-line))
+    ("rightline" . ,(cursorfree-make-mondifier #'cursorfree-line-right))
+    ("leftline" . ,(cursorfree-make-mondifier #'cursorfree-line-left))
+    ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
+    ("link" . ,(cursorfree-thing-to-modifier 'url))
+    ("word" . ,(cursorfree-thing-to-modifier 'word))
+    ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
+    ("everything" . ,(cursorfree-make-mondifier #'cursorfree-everything))
+    ("row" . ,(cursorfree-make-mondifier #'cursorfree-row))
+    ("this" . ,(cursorfree-make-mondifier #'cursorfree-this))
+    ("extend" . ,(cursorfree-make-mondifier #'cursorfree-extend-right))
+    ("every instance" . ,(cursorfree-make-flattening-modifieri #'cursorfree--every-instance))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
