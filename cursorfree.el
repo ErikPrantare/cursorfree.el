@@ -730,8 +730,9 @@ instruction of the instruction stack."
 
 (defun cursorfree-current-selection ()
   "Return the active region as a target."
+  ;; TODO: Handle noncontiguous selections?
   (cursorfree--markify-region
-   (region-bounds)))
+   (car (region-bounds))))
 
 (defun cursorfree-thing-to-modifier (thing)
   "Translate THING to an instruction extending a target to THING.
