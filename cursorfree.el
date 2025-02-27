@@ -202,14 +202,14 @@ target, a new cursor will be created."
         (setf (cursorfree-environment-value-stack e) nil)
 
         (multiple-cursors-mode 0)
-        (multiple-cursors-mode 1)
 
         ;; Only create new cursors for non-final elements.
         (while (cdr values)
           ;; Error?  No issue, just try again with the next element.
           (condition-case e
               (funcall function (car values))
-            (:success (mc/create-fake-cursor-at-point))
+            (:success (multiple-cursors-mode 1)
+                      (mc/create-fake-cursor-at-point))
             (error nil))
           (pop values))
         (when values (funcall function (car values)))
@@ -332,9 +332,17 @@ by `hatty-locate-token-region'."
   (if-let ((indentation-region (cursorfree--bounds-of-thing-at 'line (car target))))
     (cursorfree-target-indent indentation-region)))
 
+(defmacro cursorfree--for-each-cursor (&rest body)
+  "Evaluate BODY for each cursor."
+  `(mc/for-each-cursor-ordered
+    (mc/restore-state-from-overlay cursor)
+    ,@body
+    (mc/store-current-state-in-overlay cursor)))
+
 (defun cursorfree-target-bring (target)
   "Insert TARGET at point."
-  (insert (cursorfree--target-string target))
+  (cursorfree--for-each-cursor
+   (insert (cursorfree--target-string target)))
   (cursorfree-target-pulse target))
 
 (defun cursorfree--target-overwrite (target string)
