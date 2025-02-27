@@ -836,7 +836,7 @@ This function respects narrowing."
     ("leftline" . ,(cursorfree-make-modifier #'cursorfree-line-left))
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
-    ("word" . ,(cursorfree-thing-to-modifier 'word))
+    ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
