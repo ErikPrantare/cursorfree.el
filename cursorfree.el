@@ -759,6 +759,19 @@ This function respects narrowing."
   (cursorfree--markify-region
    (cons (point-min) (point-max))))
 
+(defun cursorfree-visible ()
+  "Return a target referring to the visible portion of the buffer."
+  (save-excursion
+    (let (beginning end)
+      (move-to-window-line 0)
+      (beginning-of-visual-line)
+      (setq beginning (point))
+      (move-to-window-line -1)
+      (end-of-visual-line)
+      (setq end (point))
+      (cursorfree--markify-region
+       (cons beginning end)))))
+
 (defun cursorfree-line-right (target)
   "Extend TARGET to include the next newline."
   (save-excursion
@@ -826,6 +839,7 @@ This function respects narrowing."
     ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
+    ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
     ("extend" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
