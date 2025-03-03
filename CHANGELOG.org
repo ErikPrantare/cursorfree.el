@@ -1,6 +1,7 @@
 * NEXT
 - Actions:
   - "chuck": Now removes each target in the value stack.
+  - "unwrap": Remove surrounding parentheses and quotes.
 - Modifiers:
 - Fix "selection" command.
 

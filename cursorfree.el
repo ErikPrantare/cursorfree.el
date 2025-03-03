@@ -553,6 +553,12 @@ This may, for example, be used for displaying warning from eglot."
     "List occurrences of TARGET in the current buffer."
     (occur (rx (literal (cursorfree--target-string target)))))
 
+(defun cursorfree-target-unwrap-parentheses (target)
+    "Remove parentheses or quotation around TARGET."
+    (cursorfree-target-pull
+     (cursorfree-inner-parenthesis-any target)
+     (cursorfree-outer-parenthesis-any target)))
+
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
@@ -571,6 +577,7 @@ This may, for example, be used for displaying warning from eglot."
     ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
     ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
     ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap-parentheses))
+    ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap-parentheses))
     ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
     ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
     ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))
