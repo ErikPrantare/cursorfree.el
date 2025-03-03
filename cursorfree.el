@@ -191,29 +191,39 @@ not remain on the value stack."
       (cursorfree--pop-value e) ; Ignore return value
       e)))
 
+(defun cursorfree-make-parallel-action (function)
+  "Make instruction applying FUNCTION to each element of the stack."
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e) nil)
+      (dolist (value values)
+        (funcall function value))
+      e)))
+
 (defun cursorfree-make-multi-cursor-action (function)
-    "Translate FUNCTION into an instruction using multiple cursors.
+  "Translate FUNCTION into an instruction using multiple cursors.
 
 FUNCTION will be applied on each element of the stack.  For each
 target, a new cursor will be created."
-    (lambda (environment)
-      (let* ((e (cursorfree--clone-environment environment))
-             (values (cursorfree-environment-value-stack e)))
-        (setf (cursorfree-environment-value-stack e) nil)
+  (lambda (environment)
+    (let* ((e (cursorfree--clone-environment environment))
+           (values (cursorfree-environment-value-stack e)))
+      (setf (cursorfree-environment-value-stack e) nil)
 
-        (multiple-cursors-mode 0)
+      (multiple-cursors-mode 0)
 
-        ;; Only create new cursors for non-final elements.
-        (while (cdr values)
-          ;; Error?  No issue, just try again with the next element.
-          (condition-case e
-              (funcall function (car values))
-            (:success (multiple-cursors-mode 1)
-                      (mc/create-fake-cursor-at-point))
-            (error nil))
-          (pop values))
-        (when values (funcall function (car values)))
-        e)))
+      ;; Only create new cursors for non-final elements.
+      (while (cdr values)
+        ;; Error?  No issue, just try again with the next element.
+        (condition-case e
+            (funcall function (car values))
+          (:success (multiple-cursors-mode 1)
+                    (mc/create-fake-cursor-at-point))
+          (error nil))
+        (pop values))
+      (when values (funcall function (car values)))
+      e)))
 
 (defun cursorfree-make-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
@@ -546,7 +556,7 @@ This may, for example, be used for displaying warning from eglot."
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
-    ("chuck" . ,(cursorfree-make-action #'cursorfree-target-chuck))
+    ("chuck" . ,(cursorfree-make-parallel-action #'cursorfree-target-chuck))
     ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
     ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
     ("pull" . ,(cursorfree-make-action #'cursorfree-target-pull))

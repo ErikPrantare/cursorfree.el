@@ -1,4 +1,7 @@
 * NEXT
+- Actions:
+  - "chuck": Now removes each target in the value stack.
+- Modifiers:
 - Fix "selection" command.
 
 * 0.1.1 [2025-02-25 Tue]
