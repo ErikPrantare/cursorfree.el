@@ -859,8 +859,8 @@ This function respects narrowing."
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
-    ("extend" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree--every-instance))))
+    ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

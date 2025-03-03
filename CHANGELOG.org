@@ -3,6 +3,7 @@
   - "chuck": Now removes each target in the value stack.
   - "unwrap": Remove surrounding parentheses and quotes.
 - Modifiers:
+  - Rename "extend" to "right".
 - Fix "selection" command.
 
 * 0.1.1 [2025-02-25 Tue]
