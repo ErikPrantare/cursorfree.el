@@ -498,7 +498,6 @@ TARGET.  Otherwise, insert PARENTHESIS instead."
   `((org-mode . org-open-at-point)
     (org-agenda-mode . org-agenda-switch-to)
     (Info-mode . Info-try-follow-nearest-node)
-    (help-mode . push-button)
     (dired-mode . dired-find-file)
     (compilation-mode . compile-goto-error)
     (grep-mode . compile-goto-error)
@@ -514,12 +513,13 @@ whatever thing point is located on.")
 
 (defun cursorfree-dwim-follow ()
   "Try to follow the thing at point.
-
-This function may be customized by changing
-`cursorfree-dwim-follow-alist'."
-  (if-let ((follow-action
-            (alist-get major-mode cursorfree-dwim-follow-alist)))
-      (funcall follow-action)))
+If point is at a button, push it.  Otherwise, use the current major
+mode to look up the function in `cursorfree-dwim-follow-alist'."
+  (if (button-at (point))
+      (push-button)
+    (if-let ((follow-action
+              (alist-get major-mode cursorfree-dwim-follow-alist)))
+        (funcall follow-action))))
 
 (defun cursorfree-target-pick (target)
   "Try to follow the thing at TARGET.

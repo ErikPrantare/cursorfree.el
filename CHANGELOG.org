@@ -1,10 +1,12 @@
 * NEXT
 - Actions:
-  - "chuck": Now removes each target in the value stack.
-  - "unwrap": Remove surrounding parentheses and quotes.
+  - "chuck" now removes each target in the value stack.
+  - New instruction "unwrap": Remove surrounding parentheses and
+    quotes.
+  - "pick" now pushes buttons.
 - Modifiers:
   - Rename "extend" to "right".
-  - New command "dupe": Duplicates the top target on the stack.
+  - New instruction "dupe": Duplicates the top target on the stack.
 - Fix "selection" command.
 
 * 0.1.1 [2025-02-25 Tue]
