@@ -4,6 +4,7 @@
   - "unwrap": Remove surrounding parentheses and quotes.
 - Modifiers:
   - Rename "extend" to "right".
+  - New command "dupe": Duplicates the top target on the stack.
 - Fix "selection" command.
 
 * 0.1.1 [2025-02-25 Tue]

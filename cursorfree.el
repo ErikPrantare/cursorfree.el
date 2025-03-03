@@ -827,7 +827,7 @@ This function respects narrowing."
    (cons (car target2)
          (max (cdr target2) (cdr target1)))))
 
-(defun cursorfree--every-instance (target)
+(defun cursorfree-every-instance (target)
     "Return a list of every occurrence of TARGET."
     (when (/= (- (car target) (cdr target)) 0)
       (let ((string (cursorfree--target-string target))
@@ -838,6 +838,12 @@ This function respects narrowing."
             (push (cursorfree--markify-region (cons (match-beginning 0) (match-end 0)))
                   matches)))
         (reverse matches))))
+
+
+(defun cursorfree-dup (environment)
+    "Duplicate the top value in the value stack of ENVIRONMENT."
+    (cursorfree--push-value-pure environment
+      (cursorfree--peek-value environment)))
 
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
@@ -859,8 +865,9 @@ This function respects narrowing."
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
-    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree--every-instance))))
     ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
+    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
+    ("dupe" . cursorfree-dup)))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
