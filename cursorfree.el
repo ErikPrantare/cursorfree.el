@@ -116,10 +116,7 @@ stack."
 (defun cursorfree--pop-value (environment)
   "Remove and return the top value in ENVIRONMENT."
   (declare (indent defun))
-  (cl-destructuring-bind (head . tail)
-      (cursorfree-environment-value-stack environment)
-    (setf (cursorfree-environment-value-stack environment) tail)
-    head))
+  (pop (cursorfree-environment-value-stack environment)))
 
 (defun cursorfree--pop-values (environment n)
   "Remove and return the top N values in ENVIRONMENT.
