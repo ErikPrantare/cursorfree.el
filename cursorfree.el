@@ -526,9 +526,8 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
 
 This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
-  (save-excursion
-    (goto-char (car target))
-    (cursorfree-dwim-follow)))
+  (goto-char (car target))
+  (cursorfree-dwim-follow))
 
 (defun cursorfree-target-fuse (target)
   "Remove all whitespace within TARGET."
