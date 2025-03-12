@@ -50,10 +50,9 @@ Set up [[https://github.com/ErikPrantare/talon-list.el][talon-list.el]] and add 
     cursorfree-modifiers)
 #+end_src
 
-Then, copy [[file:talon/cursorfree.py][talon/cursorfree.py]] to your talon
-configuration.  It is assumed you have a rule
-~<user.any_alphanumeric_key>~, as provided by the community
-configuration.
+Then, copy [[file:talon/cursorfree.py][talon/cursorfree.py]] to your talon configuration.  It is
+assumed you have a rule ~<user.any_alphanumeric_key>~, as provided by
+the community configuration.
 
 After this, add the following as a spoken rule to your talon
 configuration:
