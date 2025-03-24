@@ -835,7 +835,6 @@ This function respects narrowing."
                   matches)))
         (reverse matches))))
 
-
 (defun cursorfree-dup (environment)
     "Duplicate the top value in the value stack of ENVIRONMENT."
     (cursorfree--push-value-pure environment
