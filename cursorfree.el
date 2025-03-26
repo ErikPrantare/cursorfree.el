@@ -5,7 +5,7 @@
 ;; Author: Erik Präntare
 ;; Keywords: convenience
 ;; Version: 0.1.1
-;; Package-Requires: ((emacs "29.1") (hatty "0.2.0"))
+;; Package-Requires: ((emacs "29.1") (hatty "1.3.0"))
 ;; Created: 06 Sep 2024
 
 ;; cursorfree.el is free software; you can redistribute it and/or
@@ -279,13 +279,14 @@ element of the list pushed first."
   (make-cursorfree-region-target
    :content-region (cursorfree--markify-region content-region)))
 
-;; TODO remove
 (defun cursorfree--on-content-region (region-target f)
   "Apply F to the content region of REGION-TARGET."
   (declare (indent defun))
   (unless (cursorfree-region-target-p region-target)
     (error (format "Type error: %s is not of type cursorfree-region-target." region-target)))
-  (funcall f (cursorfree-region-target-content-region region-target)))
+  (let ((region (cursorfree--content-region region-target)))
+    (with-current-buffer (marker-buffer (car region))
+      (funcall f region))))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a token.
@@ -309,8 +310,9 @@ by `hatty-locate-token-region'."
     ((pred characterp) target)
     ((pred stringp) target)
     ((pred cursorfree-region-target-p)
-     (let ((region (cursorfree--content-region target)))
-       (buffer-substring-no-properties (car region) (cdr region))))
+     (cursorfree--on-content-region target
+       (lambda (region)
+         (buffer-substring-no-properties (car region) (cdr region)))))
     (_ (error (format "No method for getting content of target %s" target)))))
 
 (defun cursorfree--target-put (target content)
@@ -336,11 +338,11 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree--deletion-region (target)
   "Return region that should be removed if deleting TARGET."
-  (cursorfree--markify-region
-   (cursorfree--on-content-region target
-     (lambda (region)
-       (save-excursion
-         (goto-char (cdr region))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (cdr region))
+        (cursorfree--markify-region
          (if (/= 0 (skip-chars-forward "[:space:]\n"))
              (cons (car region) (point))
            (goto-char (car region))
@@ -352,18 +354,21 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree--region-delete (region)
   "Delete REGION."
-  (delete-region (car region) (cdr region)))
+  (with-current-buffer (marker-buffer (car region))
+    (delete-region (car region) (cdr region))))
 
 (defun cursorfree-target-pulse (target)
   "Temporarily highlight TARGET."
   (when (cursorfree-region-target-p target)
-    (let ((region (cursorfree--content-region target)))
-      (pulse-momentary-highlight-region (car region) (cdr region)))))
+    (cursorfree--on-content-region target
+      (lambda (region)
+        (pulse-momentary-highlight-region (car region) (cdr region))))))
 
-(defun cursorfree--insert-at (position string)
-  "Insert STRING at POSITION."
+(defun cursorfree--insert-at (marker string)
+  "Insert STRING at MARKER."
   (save-excursion
-    (goto-char position)
+    (set-buffer (marker-buffer marker))
+    (goto-char marker)
     (insert string)
     (cursorfree-target-pulse (cons position (+ position (length string))))))
 
@@ -378,12 +383,14 @@ by `hatty-locate-token-region'."
   "Move point to beginning of TARGET."
   (cursorfree--on-content-region target
     (lambda (region)
+      (select-window (get-buffer-window (marker-buffer (car region)) 'visible))
       (goto-char (car region)))))
 
 (defun cursorfree-target-jump-end (target)
   "Move point to end of TARGET."
   (cursorfree--on-content-region target
     (lambda (region)
+      (select-window (get-buffer-window (marker-buffer (car region)) 'visible))
       (goto-char (cdr region)))))
 
 (defun cursorfree-target-indent (target)
@@ -540,47 +547,37 @@ target.  Afterwards, the region will be pulsed."
 
 (defun cursorfree-target-crown (target)
   "Scroll window so TARGET is at the top."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (save-excursion
-        (cursorfree-target-jump-beginning region)
-        (recenter 0))
-      (cursorfree--clamp-line))))
+  (save-excursion
+    (cursorfree-target-jump-beginning target)
+    (recenter 0))
+  (cursorfree--clamp-line))
 
 (defun cursorfree-target-center (target)
   "Scroll window so TARGET is in the center."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (save-excursion
-        (cursorfree-target-jump-beginning region)
-        (recenter nil))
-      (cursorfree--clamp-line))))
+  (save-excursion
+    (cursorfree-target-jump-beginning target)
+    (recenter nil))
+  (cursorfree--clamp-line))
 
 (defun cursorfree-target-bottom (target)
   "Scroll window so TARGET is at the bottom."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (save-excursion
-        (cursorfree-target-jump-beginning region)
-        (recenter -1))
-      (cursorfree--clamp-line))))
+  (save-excursion
+    (cursorfree-target-jump-beginning target)
+    (recenter -1))
+  (cursorfree--clamp-line))
 
 (defun cursorfree-target-drink (target)
   "Insert an empty line before TARGET and put point on it."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (goto-char (car region))
-      (beginning-of-line)
-      (insert ?\n)
-      (backward-char))))
+  (cursorfree-target-jump-beginning target)
+  (beginning-of-line)
+  (newline)
+  (backward-char))
 
 (defun cursorfree-target-pour (target)
   "Insert an empty line after TARGET and put point on it."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (goto-char (cdr region))
-      (end-of-line)
-      (insert ?\n))))
+  (cursorfree-target-jump-end target)
+  (end-of-line)
+  (newline))
 
 (defun cursorfree-target-wrap-parentheses (parenthesis target)
   "Wrap TARGET with characters specified by PARENTHESIS.
@@ -693,7 +690,7 @@ This may, for example, be used for displaying warning from eglot."
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
     ("chuck" . ,(cursorfree-make-parallel-action #'cursorfree-target-chuck))
-    ("bring" . cursorfree-target-pull-multiple) ; TODO rename
+    ("bring" . cursorfree-target-bring-multiple)
     ("move" . cursorfree-target-move-multiple)
     ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))

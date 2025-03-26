@@ -1,4 +1,5 @@
 * NEXT
+- Actions now respect which buffers targets belong to.
 - Actions:
   - "chuck" now removes each target in the value stack.
   - New instruction "unwrap": Remove surrounding parentheses and
