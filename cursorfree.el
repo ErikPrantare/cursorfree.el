@@ -717,6 +717,7 @@ This may, for example, be used for displaying warning from eglot."
     ("pick" . ,(cursorfree-make-action #'cursorfree-target-pick))
     ("fuse" . ,(cursorfree-make-action #'cursorfree-target-fuse))
     ("join" . ,(cursorfree-make-action #'cursorfree-target-join))
+    ("break" . ,(cursorfree-make-action #'cursorfree-target-break))
     ("flash" . ,(cursorfree-make-action #'cursorfree-target-pulse))
     ("help" . ,(cursorfree-make-action #'cursorfree-target-help))
     ("drink" . ,(cursorfree-make-action #'cursorfree-target-drink))
