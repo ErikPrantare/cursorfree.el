@@ -1005,7 +1005,8 @@ kill ring."
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
     ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
-    ("dupe" . cursorfree-dup)))
+    ("dupe" . cursorfree-dup)
+    ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
