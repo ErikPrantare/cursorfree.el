@@ -9,3 +9,11 @@
 
 * TODO Make target a cl-struct
 This is to force the usage of marks for all target bounds.
+
+* TODO Stratify the abstraction levels
+For example, I have now implemented the kill ring as a viable target.
+This only works if everything goes through the functions properly
+handling this.
+
+* TODO Set up a better test "framework"
+Take inspiration from the cursorless project.
