@@ -4,10 +4,17 @@
   - New instruction "unwrap": Remove surrounding parentheses and
     quotes.
   - "pick" now pushes buttons.
+  - "bring" can bring to multiple places, or to point if none are given.
+  - "move" can bring to multiple places, or to point if none are given.
+  - "pull" has been removed, as a "bring" can now be used in its place.
 - Modifiers:
   - Rename "extend" to "right".
   - New instruction "dupe": Duplicates the top target on the stack.
-- Fix "selection" command.
+  - New instruction "clip": Adds the clipboard as a target.  This can
+    be moved to or from as with other targets.  (UPDATE README)
+  - Fix "selection" command.
+- Talon bindings: Add "word" escape to add a single word to the value
+  stack.
 
 * 0.1.1 [2025-02-25 Tue]
 - Add temporary highlighting of acted upon target.
