@@ -438,6 +438,33 @@ by `hatty-locate-token-region'."
   (cursorfree--target-put target-to
                           (cursorfree--target-get target-from)))
 
+;; TODO: Implement these with &rest params (requires changes to
+;; cursorfree-make-action)
+(defun cursorfree-target-bring-multiple (environment)
+  "Overwrite all targets in ENVIRONMENT with the last target.
+
+If there are no targets to be overwritten, instead bring it to point."
+  (let* ((e (cursorfree--clone-environment environment))
+         (source (cursorfree--pop-value e)))
+    (unless (cursorfree--peek-value e)
+      (cursorfree-target-bring source))
+    (while (cursorfree--peek-value e)
+      (cursorfree-target-pull source (cursorfree--pop-value e)))
+    e))
+
+(defun cursorfree-target-move-multiple (environment)
+  "Replace all targets in ENVIRONMENT with last target, remove it.
+
+If there are no targets to be overwritten, instead move it to point."
+  (let* ((e (cursorfree--clone-environment environment))
+         (source (cursorfree--pop-value e)))
+    (unless (cursorfree--peek-value e)
+      (cursorfree-target-bring source))
+    (while (cursorfree--peek-value e)
+      (cursorfree-target-pull source (cursorfree--pop-value e)))
+    (cursorfree-target-chuck source)
+    e))
+
 (defun cursorfree-target-change (target)
   "Move point to TARGET and delete its contents."
   (cursorfree--on-content-region target
@@ -666,9 +693,8 @@ This may, for example, be used for displaying warning from eglot."
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
     ("chuck" . ,(cursorfree-make-parallel-action #'cursorfree-target-chuck))
-    ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
-    ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
-    ("pull" . ,(cursorfree-make-action #'cursorfree-target-pull))
+    ("bring" . cursorfree-target-pull-multiple) ; TODO rename
+    ("move" . cursorfree-target-move-multiple)
     ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
     ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
