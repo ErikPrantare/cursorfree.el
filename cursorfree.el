@@ -301,6 +301,10 @@ by `hatty-locate-token-region'."
   (lambda (environment)
     (cursorfree--push-value-pure environment value)))
 
+
+(cl-defstruct cursorfree--generic-target
+  put get)
+
 ;;;; Core functions
 
 (defun cursorfree--target-get (target)
@@ -313,6 +317,8 @@ by `hatty-locate-token-region'."
      (cursorfree--on-content-region target
        (lambda (region)
          (buffer-substring-no-properties (car region) (cdr region)))))
+    ((pred cursorfree--generic-target-p)
+     (funcall (cursorfree--generic-target-get target)))
     (_ (error (format "No method for getting content of target %s" target)))))
 
 (defun cursorfree--target-put (target content)
@@ -326,6 +332,8 @@ by `hatty-locate-token-region'."
          (cursorfree--insert-at (car region) (if (characterp content)
                                                  (string content)
                                                content)))))
+    ((pred cursorfree--generic-target-p)
+     (funcall (cursorfree--generic-target-put target) content))
     (_ (error (format "No method for writing content to target %s" target)))))
 
 ;;;; End of core functions
