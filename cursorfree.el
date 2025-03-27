@@ -903,7 +903,8 @@ thing-at-point functionalities."
   (cursorfree-make-modifier
    (lambda (target)
      (cursorfree--make-target
-      (cursorfree--bounds-of-thing-at thing (car (cursorfree--content-region target)))))))
+      (with-current-buffer (cursorfree--target-buffer target)
+        (cursorfree--bounds-of-thing-at thing (car (cursorfree--content-region target))))))))
 
 (defun cursorfree-everything ()
   "Return a target referring to the full content of the buffer.
@@ -925,9 +926,14 @@ This function respects narrowing."
       (cursorfree--make-target
        (cons beginning end)))))
 
+(defun cursorfree--target-buffer (target)
+  "Get the buffer associated with `cursorfree-region-target' TARGET."
+  (marker-buffer (car (cursorfree--content-region target))))
+
 (defun cursorfree-line-right (target)
   "Extend TARGET to include the next newline."
   (save-excursion
+    (set-buffer (cursorfree--target-buffer target))
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
@@ -936,6 +942,7 @@ This function respects narrowing."
 (defun cursorfree-line-left (target)
   "Extend TARGET to start after the previous newline."
   (save-excursion
+    (set-buffer (cursorfree--target-buffer target))
     (goto-char (car (cursorfree--content-region target)))
     (if (search-backward "\n" nil t)
         (forward-char) ; Jump over the searched for newline
