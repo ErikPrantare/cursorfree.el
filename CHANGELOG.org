@@ -13,6 +13,7 @@
   - New instruction "dupe": Duplicates the top target on the stack.
   - New instruction "clip": Adds the clipboard as a target.  This can
     be moved to or from as with other targets.  (UPDATE README)
+  - Rename "rightline" to "tail", "leftline" to "head".
   - Fix "selection" command.
 - Talon bindings: Add "word" escape to add a single word to the value
   stack.
