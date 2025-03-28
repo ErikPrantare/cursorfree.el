@@ -279,14 +279,23 @@ element of the list pushed first."
   (make-cursorfree-region-target
    :content-region (cursorfree--markify-region content-region)))
 
+(defun cursorfree--target-buffer (target)
+  "Get the buffer associated with `cursorfree-region-target' TARGET."
+  (marker-buffer (car (cursorfree--content-region target))))
+
+(defun cursorfree--target-window (target)
+  "Get the window associated with `cursorfree-region-target' TARGET."
+  (get-buffer-window (cursorfree--target-buffer target)))
+
 (defun cursorfree--on-content-region (region-target f)
   "Apply F to the content region of REGION-TARGET."
   (declare (indent defun))
   (unless (cursorfree-region-target-p region-target)
     (error (format "Type error: %s is not of type cursorfree-region-target." region-target)))
-  (let ((region (cursorfree--content-region region-target)))
-    (with-current-buffer (marker-buffer (car region))
-      (funcall f region))))
+  (with-selected-window (cursorfree--target-window region-target)
+    (with-current-buffer (cursorfree--target-buffer region-target)
+      (let ((region (cursorfree--content-region region-target)))
+        (funcall f region)))))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a token.
@@ -378,7 +387,7 @@ by `hatty-locate-token-region'."
     (set-buffer (marker-buffer marker))
     (goto-char marker)
     (insert string)
-    (cursorfree-target-pulse (cons position (+ position (length string))))))
+    (cursorfree-target-pulse (cons marker (+ marker (length string))))))
 
 (defun cursorfree-target-select (target)
   "Set active region to TARGET."
@@ -409,7 +418,8 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-copy (target)
   "Copy TARGET to kill ring."
-  (kill-new (cursorfree--target-get target))
+  (cursorfree--target-put (cursorfree-kill-ring)
+                          (cursorfree--target-get target))
   (cursorfree-target-pulse target))
 
 (defun cursorfree-target-chuck (target)
@@ -780,6 +790,7 @@ left and right."
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
+    (set-buffer (cursorfree--target-buffer target))
     (goto-char (car (cursorfree--content-region target)))
     (let ((expanded
            (funcall
@@ -801,6 +812,7 @@ left and right."
   (save-excursion
     ;; evil-outer-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
+    (set-buffer (cursorfree--target-buffer target))
     (goto-char (car (cursorfree--content-region target)))
     (let ((expanded
            (funcall
@@ -925,10 +937,6 @@ This function respects narrowing."
       (setq end (point))
       (cursorfree--make-target
        (cons beginning end)))))
-
-(defun cursorfree--target-buffer (target)
-  "Get the buffer associated with `cursorfree-region-target' TARGET."
-  (marker-buffer (car (cursorfree--content-region target))))
 
 (defun cursorfree-line-right (target)
   "Extend TARGET to include the next newline."
