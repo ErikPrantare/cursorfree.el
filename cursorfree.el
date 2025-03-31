@@ -262,17 +262,39 @@ element of the list pushed first."
     (if-let ((bounds (bounds-of-thing-at-point thing)))
         (cursorfree--markify-region bounds))))
 
-(cl-defstruct cursorfree-region-target
-  content-region)
+
+;; TODO: Use cl-defgeneric instead
+(cl-defstruct cursorfree--generic-target
+  put get)
+
+(cl-defstruct (cursorfree-region-target
+               (:include cursorfree--generic-target))
+  content-region buffer)
 
 (defun cursorfree--make-target (content-region)
   "Return a target spanning CONTENT-REGION."
-  (make-cursorfree-region-target
-   :content-region (cursorfree--markify-region content-region)))
+  (let* ((region (cursorfree--markify-region content-region))
+         (buffer (marker-buffer (car region))))
+    (make-cursorfree-region-target
+     :content-region region
+     :buffer buffer
+     :put (lambda (content)
+            (with-current-buffer buffer
+              (cursorfree--region-delete region)
+              (cursorfree--insert-at (car region) (if (characterp content)
+                                                      (string content)
+                                                    content))))
+     :get (lambda ()
+            (with-current-buffer buffer
+              (buffer-substring-no-properties (car region) (cdr region)))))))
+
+(defun cursorfree--content-region (target)
+  "Return region of the content referred to by TARGET."
+  (cursorfree-region-target-content-region target))
 
 (defun cursorfree--target-buffer (target)
   "Get the buffer associated with `cursorfree-region-target' TARGET."
-  (marker-buffer (car (cursorfree--content-region target))))
+  (cursorfree-region-target-buffer target))
 
 (defun cursorfree--target-window (target)
   "Get the window associated with `cursorfree-region-target' TARGET."
@@ -302,9 +324,6 @@ by `hatty-locate-token-region'."
     (cursorfree--push-value-pure environment value)))
 
 
-(cl-defstruct cursorfree--generic-target
-  put get)
-
 ;;;; Core functions
 
 (defun cursorfree--target-get (target)
@@ -313,10 +332,6 @@ by `hatty-locate-token-region'."
     ('kill-ring (current-kill 0 nil))
     ((pred characterp) target)
     ((pred stringp) target)
-    ((pred cursorfree-region-target-p)
-     (cursorfree--on-content-region target
-       (lambda (region)
-         (buffer-substring-no-properties (car region) (cdr region)))))
     ((pred cursorfree--generic-target-p)
      (funcall (cursorfree--generic-target-get target)))
     (_ (error (format "No method for getting content of target %s" target)))))
@@ -325,13 +340,6 @@ by `hatty-locate-token-region'."
   "Put CONTENT into TARGET."
   (pcase target
     ('kill-ring (kill-new content))
-    ((pred cursorfree-region-target-p)
-     (cursorfree--on-content-region target
-       (lambda (region)
-         (cursorfree--region-delete region)
-         (cursorfree--insert-at (car region) (if (characterp content)
-                                                 (string content)
-                                               content)))))
     ((pred cursorfree--generic-target-p)
      (funcall (cursorfree--generic-target-put target) content))
     (_ (error (format "No method for writing content to target %s" target)))))
@@ -339,10 +347,6 @@ by `hatty-locate-token-region'."
 ;;;; End of core functions
 
 ;; TODO: Introduce region-target abstraction layer?
-
-(defun cursorfree--content-region (target)
-  "Return region of the content referred to by TARGET."
-  (cursorfree-region-target-content-region target))
 
 (defun cursorfree--deletion-region (target)
   "Return region that should be removed if deleting TARGET."
@@ -943,7 +947,12 @@ This function respects narrowing."
 
 (defun cursorfree-this ()
   "Return an empty region located at point."
-  (cursorfree--make-target (cons (point) (point))))
+  (let ((target (cursorfree--make-target (cons (point) (point)))))
+    (setf (cursorfree-region-target-put target)
+          (lambda (content)
+            (with-current-buffer (cursorfree--target-buffer target)
+              (insert content))))
+    target))
 
 (defun cursorfree-extend-right (target1 target2)
   "Return target extending TARGET2 to the end of TARGET1."
