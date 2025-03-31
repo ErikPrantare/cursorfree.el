@@ -9,6 +9,8 @@
   - "move" can bring to multiple places, or to point if none are given.
   - "pull" has been removed, as a "bring" can now be used in its place.
 - Modifiers:
+  - All modifiers now default to using "this" as the target when none
+    are given.
   - Rename "extend" to "right".
   - New instruction "dupe": Duplicates the top target on the stack.
   - New instruction "clip": Adds the clipboard as a target.  This can

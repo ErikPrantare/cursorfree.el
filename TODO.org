@@ -17,3 +17,10 @@ handling this.
 
 * TODO Set up a better test "framework"
 Take inspiration from the cursorless project.
+
+* TODO Default value for "every instance"
+** TODO "token" modifier
+
+* TODO cursorfree-this: Potentially return multiple (e.g. for multiple cursors)
+This is probably simplest if we generalize targets, so they can be
+lists as well.
