@@ -602,7 +602,7 @@ whatever thing point is located on.")
   "Try to follow the thing at point.
 If point is at a button, push it.  Otherwise, use the current major
 mode to look up the function in `cursorfree-dwim-follow-alist'."
-  (if (button-at (point))
+  (if (and (button-at (point)) (button-get (button-at (point)) 'action))
       (push-button)
     (if-let ((follow-action
               (alist-get major-mode cursorfree-dwim-follow-alist)))
@@ -613,10 +613,12 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
 
 This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (goto-char (car region))
-      (cursorfree-dwim-follow))))
+  (with-selected-window (cursorfree--target-window target)
+    (let ((region (cursorfree--content-region target)))
+      (cursorfree--on-content-region target
+        (lambda (region)
+          (goto-char (car region))
+          (cursorfree-dwim-follow))))))
 
 ;; TODO: Errors on invocation?
 (defun cursorfree-target-fuse (target)
