@@ -999,6 +999,32 @@ This function respects narrowing."
   "Return the kill ring as a target."
   (make-cursorfree--kill-ring-target))
 
+(cl-defgeneric cursorfree-next (target)
+  "Get next occurrence of TARGET."
+  (save-excursion
+    (search-forward (cursorfree--target-get target))
+    (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
+
+(cl-defmethod cursorfree-next ((target cursorfree--region-target))
+  (with-current-buffer (cursorfree--target-buffer target)
+    (save-excursion
+      (goto-char (cdr (cursorfree--content-region target)))
+      (search-forward (cursorfree--target-get target))
+      (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
+
+(cl-defgeneric cursorfree-previous (target)
+  "Get previous occurrence of TARGET."
+  (save-excursion
+    (search-backward (cursorfree--target-get target))
+    (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
+
+(cl-defmethod cursorfree-previous ((target cursorfree--region-target))
+  (with-current-buffer (cursorfree--target-buffer target)
+    (save-excursion
+      (goto-char (car (cursorfree--content-region target)))
+      (search-backward (cursorfree--target-get target))
+      (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1022,7 +1048,9 @@ This function respects narrowing."
     ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
     ("dupe" . cursorfree-dup)
-    ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))))
+    ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
+    ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
+    ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
