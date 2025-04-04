@@ -262,49 +262,40 @@ element of the list pushed first."
     (if-let ((bounds (bounds-of-thing-at-point thing)))
         (cursorfree--markify-region bounds))))
 
-
-;; TODO: Use cl-defgeneric instead
-(cl-defstruct cursorfree--generic-target
+(cl-defstruct cursorfree--anonymous-target
   put get)
 
-(cl-defstruct (cursorfree-region-target
-               (:include cursorfree--generic-target))
+(cl-defstruct cursorfree--region-target
   content-region buffer)
 
-(defun cursorfree--make-target (content-region)
-  "Return a target spanning CONTENT-REGION."
+(cl-defun cursorfree--make-target (content-region &key (constructor #'make-cursorfree--region-target))
+  "Return a target spanning CONTENT-REGION.
+
+CONSTRUCTOR specifies the constructor to use.  It is assumed that it
+may be invoked equivalently to `make-cursorfree--region-target'."
   (let* ((region (cursorfree--markify-region content-region))
          (buffer (marker-buffer (car region))))
-    (make-cursorfree-region-target
+    (funcall constructor
      :content-region region
-     :buffer buffer
-     :put (lambda (content)
-            (with-current-buffer buffer
-              (cursorfree--region-delete region)
-              (cursorfree--insert-at (car region) (if (characterp content)
-                                                      (string content)
-                                                    content))))
-     :get (lambda ()
-            (with-current-buffer buffer
-              (buffer-substring-no-properties (car region) (cdr region)))))))
+     :buffer buffer)))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
-  (cursorfree-region-target-content-region target))
+  (cursorfree--region-target-content-region target))
 
 (defun cursorfree--target-buffer (target)
-  "Get the buffer associated with `cursorfree-region-target' TARGET."
-  (cursorfree-region-target-buffer target))
+  "Get the buffer associated with `cursorfree--region-target' TARGET."
+  (cursorfree--region-target-buffer target))
 
 (defun cursorfree--target-window (target)
-  "Get the window associated with `cursorfree-region-target' TARGET."
+  "Get the window associated with `cursorfree--region-target' TARGET."
   (get-buffer-window (cursorfree--target-buffer target)))
 
 (defun cursorfree--on-content-region (region-target f)
   "Apply F to the content region of REGION-TARGET."
   (declare (indent defun))
-  (unless (cursorfree-region-target-p region-target)
-    (error (format "Type error: %s is not of type cursorfree-region-target." region-target)))
+  (unless (cursorfree--region-target-p region-target)
+    (error (format "Type error: %s is not of type cursorfree--region-target." region-target)))
   (with-selected-window (cursorfree--target-window region-target)
     (with-current-buffer (cursorfree--target-buffer region-target)
       (let ((region (cursorfree--content-region region-target)))
@@ -326,23 +317,32 @@ by `hatty-locate-token-region'."
 
 ;;;; Core functions
 
-(defun cursorfree--target-get (target)
+(cl-defgeneric cursorfree--target-get (target)
   "Return the content referred to by TARGET."
-  (pcase target
-    ('kill-ring (current-kill 0 nil))
-    ((pred characterp) target)
-    ((pred stringp) target)
-    ((pred cursorfree--generic-target-p)
-     (funcall (cursorfree--generic-target-get target)))
-    (_ (error (format "No method for getting content of target %s" target)))))
+  (_ (error (format "No method for getting content of target %s" target))))
 
-(defun cursorfree--target-put (target content)
+(cl-defmethod cursorfree--target-get ((target string))
+  target)
+
+(cl-defmethod cursorfree--target-get ((target cursorfree--anonymous-target))
+  (funcall (cursorfree--anonymous-target-get target)))
+
+(cl-defmethod cursorfree--target-get ((target cursorfree--region-target))
+  (with-current-buffer (cursorfree--target-buffer target)
+    (buffer-substring-no-properties (car (cursorfree--content-region target))
+                                    (cdr (cursorfree--content-region target)))))
+
+(cl-defgeneric cursorfree--target-put (target content)
   "Put CONTENT into TARGET."
-  (pcase target
-    ('kill-ring (kill-new content))
-    ((pred cursorfree--generic-target-p)
-     (funcall (cursorfree--generic-target-put target) content))
-    (_ (error (format "No method for writing content to target %s" target)))))
+  (_ (error (format "No method for writing content to target %s" target))))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--anonymous-target) content)
+  (funcall (cursorfree--anonymous-target-put target) content))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--region-target) content)
+  (with-current-buffer (cursorfree--target-buffer target)
+    (cursorfree--region-delete (cursorfree--content-region target))
+    (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
 
 ;;;; End of core functions
 
@@ -368,7 +368,7 @@ by `hatty-locate-token-region'."
 
 (defun cursorfree-target-pulse (target)
   "Temporarily highlight TARGET."
-  (when (cursorfree-region-target-p target)
+  (when (cursorfree--region-target-p target)
     (cursorfree--on-content-region target
       (lambda (region)
         (pulse-momentary-highlight-region (car region) (cdr region))))))
@@ -890,9 +890,10 @@ thing-at-point functionalities."
   (cursorfree-make-modifier
    (lambda (&optional target)
      (setq target (or target (cursorfree-this)))
-     (cursorfree--make-target
-      (with-current-buffer (cursorfree--target-buffer target)
-        (cursorfree--bounds-of-thing-at thing (car (cursorfree--content-region target))))))))
+     (with-current-buffer (cursorfree--target-buffer target)
+       (cursorfree--make-target
+        (cursorfree--bounds-of-thing-at thing
+                                        (car (cursorfree--content-region target))))))))
 
 (defun cursorfree-everything ()
   "Return a target referring to the full content of the buffer.
@@ -947,14 +948,16 @@ This function respects narrowing."
     (forward-line (1- index))
     (cursorfree-line (cursorfree--make-target (cons (point) (point))))))
 
+(cl-defstruct (cursorfree--this-target (:include cursorfree--region-target)))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) content)
+  (with-current-buffer (cursorfree--target-buffer target)
+    (insert content)))
+
 (defun cursorfree-this ()
   "Return an empty region located at point."
-  (let ((target (cursorfree--make-target (cons (point) (point)))))
-    (setf (cursorfree-region-target-put target)
-          (lambda (content)
-            (with-current-buffer (cursorfree--target-buffer target)
-              (insert content))))
-    target))
+  (cursorfree--make-target (cons (point) (point))
+                           :constructor #'make-cursorfree--this-target))
 
 (defun cursorfree-extend-right (target1 target2)
   "Return target extending TARGET2 to the end of TARGET1."
@@ -982,12 +985,19 @@ This function respects narrowing."
   (cursorfree--push-value-pure environment
     (cursorfree--peek-value environment)))
 
-(defun cursorfree-kill-ring ()
-  "Return symbol indicating the kill ring.
+(cl-defstruct cursorfree--kill-ring-target)
 
-When read from as a target, this will return the top element of the
-kill ring."
-  'kill-ring)
+(cl-defmethod cursorfree--target-get ((target cursorfree--kill-ring-target))
+  "Return current kill."
+  (current-kill 0 nil))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--kill-ring-target) content)
+  "Add CONTENT to the kill ring."
+  (kill-new content))
+
+(defun cursorfree-kill-ring ()
+  "Return the kill ring as a target."
+  (make-cursorfree--kill-ring-target))
 
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
