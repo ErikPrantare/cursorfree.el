@@ -161,6 +161,18 @@ This creates an initial environment with empty value stack, upon which
   (cursorfree-evaluate-environment
     (cursorfree--make-environment instructions)))
 
+(defun cursorfree--reverse-argument-order (function args)
+  (put function 'cursorfree--reverse-argument-order t))
+
+(setf (alist-get 'cursorfree--reverse-argument-order defun-declarations-alist)
+      (list #'cursorfree--reverse-argument-order))
+
+(defun cursorfree--apply (function args)
+  (when (and (symbolp function)
+             (get function 'cursorfree--reverse-argument-order))
+    (setq args (reverse args)))
+  (apply function args))
+
 (defun cursorfree--apply-on-stack (function stack)
   "Apply FUNCTION to the top elements of STACK.
 Returns the unapplied elements of STACK with the return value of
@@ -173,7 +185,7 @@ supported."
   (let* ((arity (cdr (func-arity function)))
          (args (if (eq arity 'many) stack (take arity stack)))
          (tail (if (eq arity 'many) '() (nthcdr arity stack))))
-    (cons (apply function args) tail)))
+    (cons (cursorfree--apply function args) tail)))
 
 (defun cursorfree-make-action (function)
   "Translate FUNCTION into an instruction not producing any value.
@@ -268,7 +280,8 @@ element of the list pushed first."
 (cl-defstruct cursorfree--region-target
   content-region buffer)
 
-(cl-defun cursorfree--make-target (content-region &key (constructor #'make-cursorfree--region-target))
+(cl-defun cursorfree--make-target
+    (content-region &key (constructor #'make-cursorfree--region-target))
   "Return a target spanning CONTENT-REGION.
 
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
@@ -283,7 +296,13 @@ may be invoked equivalently to `make-cursorfree--region-target'."
   "Return region of the content referred to by TARGET."
   (cursorfree--region-target-content-region target))
 
-(defun cursorfree--target-buffer (target)
+(cl-defgeneric cursorfree--target-buffer (target)
+  "Get the buffer associated with TARGET.
+
+Defaults to the current buffer."
+  (current-buffer))
+
+(cl-defgeneric cursorfree--target-buffer ((target cursorfree--region-target))
   "Get the buffer associated with `cursorfree--region-target' TARGET."
   (cursorfree--region-target-buffer target))
 
@@ -966,19 +985,24 @@ This function respects narrowing."
          (max (cdr (cursorfree--make-target target2))
               (cdr (cursorfree--make-target target1))))))
 
-(defun cursorfree-every-instance (target)
-  "Return a list of every occurrence of TARGET."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (when (/= (- (car region) (cdr region)) 0)
-        (let ((string (cursorfree--target-get target))
-              (matches '()))
-          (save-excursion
-            (goto-char (point-min))
-            (while (search-forward string nil t)
-              (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
-                    matches)))
-          (reverse matches))))))
+(defun cursorfree-every-instance (target &optional view)
+  "Return a list of every occurrence of TARGET.
+
+If target VIEW is given, only instances inside of it will be matched.
+Otherwise, the full buffer is searched."
+  (declare (cursorfree--reverse-argument-order))
+  (with-current-buffer (cursorfree--target-buffer target)
+    (setq view (or view (cursorfree-everything))))
+  (with-current-buffer (cursorfree--target-buffer view)
+    (let ((search-string (cursorfree--target-get target))
+          (matches '()))
+      (unless (equal search-string "")
+        (save-excursion
+          (goto-char (car (cursorfree--content-region view)))
+          (while (search-forward search-string (cdr (cursorfree--content-region view)) t)
+            (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
+                  matches))))
+      (nreverse matches))))
 
 (defun cursorfree-dup (environment)
   "Duplicate the top value in the value stack of ENVIRONMENT."

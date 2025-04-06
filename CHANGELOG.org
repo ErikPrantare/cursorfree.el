@@ -20,6 +20,8 @@
   - New instruction "next" and "preve": Select the next or previous
     instance of a target.  Currently only matches the string content
     of the target.
+  - "every instance" now takes an optional argument that restricts
+    where it will search.
 - Talon bindings: Add "word" escape to add a single word to the value
   stack.
 
