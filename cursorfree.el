@@ -346,6 +346,10 @@ by `hatty-locate-token-region'."
 (cl-defmethod cursorfree--target-get ((target string))
   target)
 
+(cl-defmethod cursorfree--target-get ((target integer))
+  ;; TODO: Encode characters as singleton strings instead
+  (string target))
+
 (cl-defmethod cursorfree--target-get ((target cursorfree--anonymous-target))
   (funcall (cursorfree--anonymous-target-get target)))
 

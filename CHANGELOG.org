@@ -25,6 +25,8 @@
 - Talon bindings: Add "word" escape to add a single word to the value
   stack.
 
+** TODO Bump hatty version
+
 * 0.1.1 [2025-02-25 Tue]
 - Add temporary highlighting of acted upon target.
 - Expose ~cursorfree-make-action~ and ~cursorfree-make-modifier~ for
