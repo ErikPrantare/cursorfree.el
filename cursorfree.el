@@ -201,6 +201,21 @@ not remain on the value stack."
       (cursorfree--pop-value e) ; Ignore return value
       e)))
 
+(defun cursorfree--multiple-cursors-do (function targets)
+  (multiple-cursors-mode 0)
+
+  ;; Only create new cursors for non-final elements.
+  (while (cdr targets)
+    ;; Error?  No issue, just try again with the next element.
+    (condition-case e
+        (funcall function (car targets))
+      (:success (multiple-cursors-mode 1)
+                (mc/create-fake-cursor-at-point))
+      (error nil))
+    (pop targets))
+  ;; Finally, do it once with the real cursor
+  (when targets (funcall function (car targets))))
+
 (defun cursorfree-make-multi-cursor-action (function)
   "Translate FUNCTION into an instruction using multiple cursors.
 
@@ -210,19 +225,7 @@ target, a new cursor will be created."
     (let* ((e (cursorfree--clone-environment environment))
            (values (cursorfree-environment-value-stack e)))
       (setf (cursorfree-environment-value-stack e) nil)
-
-      (multiple-cursors-mode 0)
-
-      ;; Only create new cursors for non-final elements.
-      (while (cdr values)
-        ;; Error?  No issue, just try again with the next element.
-        (condition-case e
-            (funcall function (car values))
-          (:success (multiple-cursors-mode 1)
-                    (mc/create-fake-cursor-at-point))
-          (error nil))
-        (pop values))
-      (when values (funcall function (car values)))
+      (cursorfree--multiple-cursors-do function values)
       e)))
 
 (defun cursorfree-make-modifier (function)
