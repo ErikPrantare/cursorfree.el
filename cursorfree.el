@@ -473,14 +473,25 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree--target-put target1 string2)
     (cursorfree--target-put target2 string1)))
 
-;; TODO: Implement these with &rest params (requires changes to
-;; cursorfree-make-action)
-(defun cursorfree-target-change (target)
-  "Move point to TARGET and delete its contents."
+(cl-defgeneric cursorfree--target-change (target))
+
+(cl-defmethod cursorfree--target-change ((target cursorfree--region-target))
   (cursorfree--on-content-region target
     (lambda (region)
       (cursorfree--region-delete region)
       (goto-char (car region)))))
+
+(defun cursorfree-target-change (&rest targets)
+  "Move point to TARGET and delete its contents."
+  (let (region-targets other-targets)
+    (dolist (target targets)
+      (if (cursorfree--region-target-p target)
+          (push target region-targets)
+        (push target other-targets)))
+    (cursorfree--multiple-cursors-do #'cursorfree--target-change
+                                     region-targets)
+    (dolist (target other-targets)
+      (cursorfree--target-change target))))
 
 ;; TODO: Don't move point
 (defun cursorfree-target-clone (target)
@@ -710,7 +721,7 @@ This may, for example, be used for displaying warning from eglot."
     ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
-    ("change" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-change))
+    ("change" . ,(cursorfree-make-action #'cursorfree-target-change))
     ("comment" . ,(cursorfree-make-action #'cursorfree-target-comment))
     ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
     ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
