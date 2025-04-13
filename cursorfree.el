@@ -550,24 +550,31 @@ target.  Afterwards, the region will be pulsed."
 
 (defun cursorfree-target-crown (target)
   "Scroll window so TARGET is at the top."
-  ;; TODO
-  (save-excursion
-    (cursorfree-target-jump-beginning target)
-    (recenter 0))
-  (cursorfree--clamp-line))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (recenter 0))
+      (cursorfree--clamp-line))))
 
 (defun cursorfree-target-center (target)
   "Scroll window so TARGET is in the center."
-  (save-excursion
-    (cursorfree-target-jump-beginning target)
-    (recenter nil))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (recenter nil))
+      (cursorfree--clamp-line)))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-bottom (target)
   "Scroll window so TARGET is at the bottom."
-  (save-excursion
-    (cursorfree-target-jump-beginning target)
-    (recenter -1))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (recenter -1))
+      (cursorfree--clamp-line)))
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-drink (target)
@@ -748,18 +755,20 @@ effects, and do not add values to the value stack.")
 (defun cursorfree-paint-left (&optional target)
   "Expand TARGET leftwards until the next whitespace."
   (setq target (or target (cursorfree-this)))
-  (let ((region (cursorfree--content-region target)))
-    (cursorfree--make-target
-     (cons (cursorfree--skip-backward-from (car region) "^[:space:]\n")
-           (cdr region)))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (cursorfree--make-target
+       (cons (cursorfree--skip-backward-from (car region) "^[:space:]\n")
+             (cdr region))))))
 
 (defun cursorfree-paint-right (&optional target)
   "Expand TARGET rightwards until the next whitespace."
   (setq target (or target (cursorfree-this)))
-  (let ((region (cursorfree--content-region target)))
-    (cursorfree--make-target
-     (cons (car region)
-           (cursorfree--skip-forward-from (cdr region) "^[:space:]\n")))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (cursorfree--make-target
+       (cons (car region)
+             (cursorfree--skip-forward-from (cdr region) "^[:space:]\n"))))))
 
 (defun cursorfree-paint (&optional target)
   "Expand TARGET leftwards and rightwards until the next whitespace."
