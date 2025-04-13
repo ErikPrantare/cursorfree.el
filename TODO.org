@@ -17,6 +17,17 @@ handling this.
 
 * TODO Set up a better test "framework"
 Take inspiration from the cursorless project.
+- Test recorder:
+  - Need to record
+    - Buffer content before
+    - Buffer content after
+    - Point
+    - Regions of the hat targets used
+    - Which modifiers/actions were used
+  - I could probably get away with recording the utterance used for
+    each instruction.  This would also keep the test closer to what
+    the user would say.
+  - I want the tests to run with the changed buffer current and not.
 
 * TODO Default value for "every instance"
 ** TODO "token" modifier
