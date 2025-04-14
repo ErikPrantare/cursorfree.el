@@ -382,4 +382,56 @@ ddd"
                     (cursorfree--pusher (cursorfree--make-target (cons 22 26)))
                     (alist-get "upcase" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest hatty-edit--test-next ()
+  "next."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Word and test word word"
+             :points '(9))
+    :after (make-cursorfree--test-buffer-state
+            :string "Word and test word"
+            :points '(9))
+    :command-form '((cursorfree--pusher "word")
+                    (alist-get "next" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Next test next next test next"
+             :points '(30))
+    :after (make-cursorfree--test-buffer-state
+            :string "Next test next test next"
+            :points '(25))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 11 15)))
+                    (alist-get "next" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest hatty-edit--test-preve ()
+  "preve."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A test test here here test test"
+             :points '(18))
+    :after (make-cursorfree--test-buffer-state
+            :string "A test here here test test"
+            :points '(13))
+    :command-form '((cursorfree--pusher "test")
+                    (alist-get "preve" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A test o test and c test d test"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "A test o and c test d test"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 21 25)))
+                    (alist-get "preve" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here
