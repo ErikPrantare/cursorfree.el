@@ -1020,13 +1020,6 @@ This function respects narrowing."
   (cursorfree--make-target (cons (point) (point))
                            :constructor #'make-cursorfree--this-target))
 
-(defun cursorfree-extend-right (target1 target2)
-  "Return target extending TARGET2 to the end of TARGET1."
-  (cursorfree--make-target
-   (cons (car (cursorfree--make-target target2))
-         (max (cdr (cursorfree--make-target target2))
-              (cdr (cursorfree--make-target target1))))))
-
 (defun cursorfree-every-instance (target &optional view)
   "Return a list of every occurrence of TARGET.
 
@@ -1045,11 +1038,6 @@ Otherwise, the full buffer is searched."
             (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
                   matches))))
       (nreverse matches))))
-
-(defun cursorfree-dup (environment)
-  "Duplicate the top value in the value stack of ENVIRONMENT."
-  (cursorfree--push-value-pure environment
-    (cursorfree--peek-value environment)))
 
 (cl-defstruct cursorfree--kill-ring-target)
 
@@ -1093,15 +1081,6 @@ Otherwise, the full buffer is searched."
       (search-backward (cursorfree--target-get target))
       (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
 
-(defun cursorfree-filter (filter &rest region-targets)
-  "Return the REGION-TARGETS that are fully located inside FILTER."
-  (let ((filter-region (cursorfree--content-region filter)))
-    (seq-filter (lambda (target)
-                  (let ((region (cursorfree--content-region target)))
-                    (and (<= (car filter-region) (car region))
-                         (>= (cdr filter-region) (cdr region)))))
-                region-targets)))
-
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1123,10 +1102,7 @@ Otherwise, the full buffer is searched."
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
-    ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
-    ("dupe" . cursorfree-dup)
-    ("filter" . ,(cursorfree-make-flattening-modifier #'cursorfree-filter))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
     ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))))

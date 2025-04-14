@@ -338,22 +338,33 @@ ddd"
     :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
                     (alist-get "fuse" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--test-filter ()
-  "filter."
+(ert-deftest cursorfree--every-instance ()
+  "every instance."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
              :string "a a a b b a a b a"
-             :points '(18))
+             :points '(10))
+    :after (make-cursorfree--test-buffer-state
+            :string "b b b"
+            :points '(4))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 11 12)))
+                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a a a b b a a b a"
+             :points '(13))
     :after (make-cursorfree--test-buffer-state
             :string "a a a b b b a"
-            :points '(14))
-    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 17 18)))
-                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
+            :points '(11))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 13 14)))
                     (cursorfree--pusher (cursorfree--make-target (cons 9 10)))
                     (cursorfree--pusher (cursorfree--make-target (cons 15 16)))
                     (alist-get "past" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "filter" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 (ert-deftest cursorfree--test-upcase ()
