@@ -5,6 +5,7 @@
 ;; Author: Erik Präntare
 ;; Keywords: convenience
 ;; Version: 0.1.1
+;; Homepage: https://github.com/ErikPrantare/cursorfree.el
 ;; Package-Requires: ((emacs "29.1") (hatty "1.3.0"))
 ;; Created: 06 Sep 2024
 
@@ -162,12 +163,24 @@ This creates an initial environment with empty value stack, upon which
     (cursorfree--make-environment instructions)))
 
 (defun cursorfree--reverse-argument-order (function args)
+  "Mark FUNCTION for reverse reading order.  Ignore ARGS.
+
+This will reverse the order in which `cursorfree--apply' applies
+arguments.
+
+This function may be used as part of a `declare' form as follows:
+
+  (declare (cursorfree--reverse-argument-order t)"
   (put function 'cursorfree--reverse-argument-order t))
 
 (setf (alist-get 'cursorfree--reverse-argument-order defun-declarations-alist)
       (list #'cursorfree--reverse-argument-order))
 
 (defun cursorfree--apply (function args)
+  "Call FUNCTION with ARGS as arguments.
+
+If function has been marked with `cursorfree--reverse-argument-order',
+reverse that order of ARGS."
   (when (and (symbolp function)
              (get function 'cursorfree--reverse-argument-order))
     (setq args (reverse args)))
@@ -202,6 +215,10 @@ not remain on the value stack."
       e)))
 
 (defun cursorfree--multiple-cursors-do (function targets)
+  "Apply FUNCTION to each target in TARGETS.
+Create a new cursor each time.
+
+If invoking FUNCTION causes an error, no cursor is created."
   (multiple-cursors-mode 0)
 
   ;; Only create new cursors for non-final elements.
@@ -277,11 +294,10 @@ element of the list pushed first."
     (if-let ((bounds (bounds-of-thing-at-point thing)))
         (cursorfree--markify-region bounds))))
 
-(cl-defstruct cursorfree--anonymous-target
-  put get)
-
 (cl-defstruct cursorfree--region-target
-  content-region buffer)
+  content-region buffer
+  "Target referring to CONTENT-REGION inside of BUFFER.
+CONTENT-REGION is a cons cell of markers.")
 
 (cl-defun cursorfree--make-target
     (content-region &key (constructor #'make-cursorfree--region-target))
@@ -344,28 +360,26 @@ by `hatty-locate-token-region'."
   (_ (error (format "No method for getting content of target %s" target))))
 
 (cl-defmethod cursorfree--target-get ((target string))
+  "Return TARGET."
   target)
 
 (cl-defmethod cursorfree--target-get ((target integer))
+  "Convert TARGET to a string of length one."
   ;; TODO: Encode characters as singleton strings instead
   (string target))
 
-(cl-defmethod cursorfree--target-get ((target cursorfree--anonymous-target))
-  (funcall (cursorfree--anonymous-target-get target)))
-
 (cl-defmethod cursorfree--target-get ((target cursorfree--region-target))
+  "Return the buffer substring of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (buffer-substring-no-properties (car (cursorfree--content-region target))
                                     (cdr (cursorfree--content-region target)))))
 
 (cl-defgeneric cursorfree--target-put (target content)
   "Put CONTENT into TARGET."
-  (_ (error (format "No method for writing content to target %s" target))))
+  (_ (error (format "No method for writing %S to target %S" content target))))
 
-(cl-defmethod cursorfree--target-put ((target cursorfree--anonymous-target) content)
-  (funcall (cursorfree--anonymous-target-put target) content))
-
-(cl-defmethod cursorfree--target-put ((target cursorfree--region-target) content)
+(cl-defmethod cursorfree--target-put ((target cursorfree--region-target) (content string))
+  "Remove region of TARGET and insert CONTENT."
   (with-current-buffer (cursorfree--target-buffer target)
     (cursorfree--region-delete (cursorfree--content-region target))
     (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
@@ -477,16 +491,18 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree--target-put target1 string2)
     (cursorfree--target-put target2 string1)))
 
-(cl-defgeneric cursorfree--target-change (target))
+(cl-defgeneric cursorfree--target-change (target)
+  "Change TARGET interactively.")
 
 (cl-defmethod cursorfree--target-change ((target cursorfree--region-target))
+  "Remove contents of TARGET and put point there."
   (cursorfree--on-content-region target
     (lambda (region)
       (cursorfree--region-delete region)
       (goto-char (car region)))))
 
 (defun cursorfree-target-change (&rest targets)
-  "Move point to TARGET and delete its contents."
+  "Move point to TARGETS and delete its contents."
   (let (region-targets other-targets)
     (dolist (target targets)
       (if (cursorfree--region-target-p target)
@@ -935,7 +951,7 @@ nearest matching pairs of delimiters."
 
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
-thing-at-point functionalities."
+`thing-at-point' functionalities."
   (cursorfree-make-modifier
    (lambda (&optional target)
      (setq target (or target (cursorfree-this)))
@@ -999,7 +1015,8 @@ This function respects narrowing."
 
 (cl-defstruct (cursorfree--this-target (:include cursorfree--region-target)))
 
-(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) content)
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
+  "Insert CONTENT at point in the buffer of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (insert content)))
 
@@ -1041,11 +1058,11 @@ Otherwise, the full buffer is searched."
 
 (cl-defstruct cursorfree--kill-ring-target)
 
-(cl-defmethod cursorfree--target-get ((target cursorfree--kill-ring-target))
+(cl-defmethod cursorfree--target-get ((_ cursorfree--kill-ring-target))
   "Return current kill."
   (current-kill 0 nil))
 
-(cl-defmethod cursorfree--target-put ((target cursorfree--kill-ring-target) content)
+(cl-defmethod cursorfree--target-put ((_ cursorfree--kill-ring-target) content)
   "Add CONTENT to the kill ring."
   (kill-new content))
 
@@ -1060,6 +1077,7 @@ Otherwise, the full buffer is searched."
     (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
 
 (cl-defmethod cursorfree-next ((target cursorfree--region-target))
+  "Get the next literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (save-excursion
       (goto-char (cdr (cursorfree--content-region target)))
@@ -1073,6 +1091,7 @@ Otherwise, the full buffer is searched."
     (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
 
 (cl-defmethod cursorfree-previous ((target cursorfree--region-target))
+  "Get the previous literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (save-excursion
       (goto-char (car (cursorfree--content-region target)))
