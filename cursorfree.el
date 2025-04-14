@@ -1076,6 +1076,15 @@ Otherwise, the full buffer is searched."
       (search-backward (cursorfree--target-get target))
       (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
 
+(defun cursorfree-filter (filter &rest region-targets)
+  "Return the REGION-TARGETS that are fully located inside FILTER."
+  (let ((filter-region (cursorfree--content-region filter)))
+    (seq-filter (lambda (target)
+                  (let ((region (cursorfree--content-region target)))
+                    (and (<= (car filter-region) (car region))
+                         (>= (cdr filter-region) (cdr region)))))
+                region-targets)))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1099,6 +1108,7 @@ Otherwise, the full buffer is searched."
     ("right" . ,(cursorfree-make-modifier #'cursorfree-extend-right))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
     ("dupe" . cursorfree-dup)
+    ("filter" . ,(cursorfree-make-flattening-modifier #'cursorfree-filter))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
     ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))))

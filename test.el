@@ -307,7 +307,7 @@
                     (cursorfree--pusher ?$)
                     (alist-get "wrap" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--join ()
+(ert-deftest cursorfree--test-join ()
   "join."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -324,7 +324,7 @@ test"
     :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
                     (alist-get "join" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--fuse ()
+(ert-deftest cursorfree--test-fuse ()
   "fuse."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -337,5 +337,23 @@ ddd"
             :points '(1))
     :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
                     (alist-get "fuse" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-filter ()
+  "filter."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a a a b b a a b a"
+             :points '(18))
+    :after (make-cursorfree--test-buffer-state
+            :string "a a a b b b a"
+            :points '(14))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 17 18)))
+                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
+                    (cursorfree--pusher (cursorfree--make-target (cons 9 10)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 15 16)))
+                    (alist-get "past" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "filter" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 ;;; test.el ends here
