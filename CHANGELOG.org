@@ -22,6 +22,10 @@
     of the target.
   - "every instance" now takes an optional argument that restricts
     where it will search.
+  - New instruction "filter": Removes all targets not occurring inside
+    the top target.
+  - New instruction "token": Returns the hatty-token at the beginning
+    of the target.
 - Talon bindings: Add "word" escape to add a single word to the value
   stack.
 

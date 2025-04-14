@@ -1100,6 +1100,7 @@ Otherwise, the full buffer is searched."
     ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
+    ("token" . ,(cursorfree-thing-to-modifier 'hatty-token))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
