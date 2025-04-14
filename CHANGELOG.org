@@ -1,3 +1,35 @@
+* 0.2.0 [2025-04-14 Mon]
+- Actions now respect which buffers targets belong to.
+- Actions:
+  - "chuck" now removes each target in the value stack.
+  - New instruction "unwrap": Remove surrounding parentheses and
+    quotes.
+  - "pick" now pushes buttons.
+  - "bring" can now bring to multiple places, or to point if none are
+    given.
+  - "move" can now bring to multiple places, or to point if none are
+    given.
+  - "pull" has been removed, as a "bring" can now be used in its place.
+- Modifiers:
+  - All modifiers now default to using "this" as the target when no
+    target is given.
+  - Removed "extend".
+  - New instruction "clip": Adds the clipboard as a target.  This can
+    be moved to or from as with other targets.
+  - Rename "rightline" to "tail", "leftline" to "head".
+  - Fix "selection" command.
+  - New instruction "next" and "preve": Select the next or previous
+    instance of a target.  Currently only matches the string content
+    of the target.
+  - "every instance" now takes an optional argument that restricts
+    where it will search.
+  - New instruction "token": Returns the ~hatty-token~ at the beginning
+    of the target.
+- Talon bindings: Add "word" escape to add a single word to the value
+  stack.  These can be read from like ordinary targets.
+
+** TODO Bump hatty version
+
 * 0.1.1 [2025-02-25 Tue]
 - Add temporary highlighting of acted upon target.
 - Expose ~cursorfree-make-action~ and ~cursorfree-make-modifier~ for

@@ -24,12 +24,16 @@ def cursorfree_quoted_char(m) -> list[str]:
 def cursorfree_quoted_number(m) -> list[str]:
     return f"(cursorfree--pusher {m.number})"
 
+@module.capture(rule="word <word>")
+def cursorfree_quoted_word(m) -> list[str]:
+    return f"(cursorfree--pusher \"{m.word}\")"
 
 @module.capture(rule=
                 "{user.cursorfree_modifier}"
                 "| <user.cursorfree_hat>"
                 "| <user.cursorfree_quoted_char>"
                 "| <user.cursorfree_quoted_number>"
+                "| <user.cursorfree_quoted_word>"
                 )
 def cursorfree_nonterminator(m) -> list[str]:
     return m[0]

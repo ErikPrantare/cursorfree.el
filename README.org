@@ -50,10 +50,9 @@ Set up [[https://github.com/ErikPrantare/talon-list.el][talon-list.el]] and add 
     cursorfree-modifiers)
 #+end_src
 
-Then, copy [[file:talon/cursorfree.py][talon/cursorfree.py]] to your talon
-configuration.  It is assumed you have a rule
-~<user.any_alphanumeric_key>~, as provided by the community
-configuration.
+Then, copy [[file:talon/cursorfree.py][talon/cursorfree.py]] to your talon configuration.  It is
+assumed you have a rule ~<user.any_alphanumeric_key>~, as provided by
+the community configuration.
 
 After this, add the following as a spoken rule to your talon
 configuration:
@@ -86,6 +85,7 @@ the target that was put on the value stack.
   stack.  If the color or shape are the ~default~ color or shape, they
   may be elided from the utterance.
 - ~car <character>~: Add the character ~character~ to the value stack.
+- ~word <word>~: Add the string ~word~ to the value stack.
 
 *** Actions
 An action is an instruction that is evaluated solely for its side
@@ -124,6 +124,7 @@ first argument, the next one for the second argument, and so on.
 | bottom      | cursorfree-target-bottom           |
 | pick        | cursorfree-target-pick             |
 | fuse        | cursorfree-target-fuse             |
+| join        | cursorfree-target-join             |
 |-------------+------------------------------------|
 
 *** Modifiers
@@ -141,7 +142,7 @@ often but not always by modifying previous targets.
 | selection   | cursorfree-current-selection        |
 | line        | cursorfree-thing-to-modifier [fn:1] |
 | inside      | cursorfree-inner-parenthesis-dwim   |
-| outer       | cursorfree-outer-parenthesis-dwim   |
+| outside     | cursorfree-outer-parenthesis-dwim   |
 |-------------+-------------------------------------|
 
 [fn:1] Uses the builtin ~thingatpt~ Emacs package to select the new

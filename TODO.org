@@ -1,12 +1,8 @@
-* TODO Create a terminology header in README.
-
-* TODO Integrate with multiple-cursors.
-
 * TODO Commands:
-- unwrap: Remove containing parentheses.
 - block: Properly select paragraph in all modes.  Currently does not
   always work in org-mode.
 - filler: Implicitly act upon "block".
 
-* TODO Make target a cl-struct
-This is to force the usage of marks for all target bounds.
+* TODO cursorfree-this: Potentially return multiple (e.g. for multiple cursors)
+This is probably simplest if we generalize targets, so they can be
+lists as well.

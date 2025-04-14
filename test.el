@@ -25,245 +25,424 @@
 
 ;;; Code:
 
-(ert-deftest cursorfree--target-overwrite ()
-  "target-overwrite."
-  (with-temp-buffer
-    (insert "aaa bbb")
-    (cursorfree--target-overwrite
-     (cursorfree--markify-region
-         (cons (+ 4 (point-min))
-               (point-max)))
-     "ccc")
-    (should (string= (buffer-string) "aaa ccc"))))
+(cl-defstruct cursorfree--test-buffer-state
+  string
+  points
+  (markers nil))
 
-(ert-deftest cursorfree--target-overwrite ()
-  "target-overwrite."
-  (with-temp-buffer
-    (insert "aaa bbb")
-    (cursorfree-evaluate
-     `(,(cursorfree--markify-region
-         (cons (+ 4 (point-min))
-               (point-max)))
-       "ccc"
-       target-overwrite))
-    (should (string= (buffer-string) "aaa ccc"))))
+(cl-defstruct cursorfree--test-parameters
+   (before (make-my/test-buffer-state
+            :string ""
+            :points nil)
+           :type my/test-buffer-state)
+   (after (make-my/test-buffer-state
+            :string ""
+            :points nil)
+          :type my/test-buffer-state)
+   command-form)
 
-(ert-deftest cursorfree--target-overwrite ()
-  "target-overwrite."
+(defun cursorfree--run-test (parameters)
   (with-temp-buffer
-    (insert "aaa bbb")
-    (cursorfree--target-overwrite
-     (cursorfree--markify-region
-      (cons (+ 4 (point-min))
-            (point-max)))
-     "ccc")
-    (should (string= (buffer-string) "aaa ccc"))))
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (insert (cursorfree--test-buffer-state-string
+               (cursorfree--test-parameters-before parameters)))
+      ;; Assume we only use one point for now
+      (goto-char (car (cursorfree--test-buffer-state-points
+                       (cursorfree--test-parameters-before parameters))))
+      (funcall #'cursorfree-evaluate
+               (seq-map #'eval (cursorfree--test-parameters-command-form
+                                parameters)))
+      (should (equal (buffer-string)
+                     (cursorfree--test-buffer-state-string
+                      (cursorfree--test-parameters-after parameters))))
+      (should (equal (point)
+                     (car (cursorfree--test-buffer-state-points
+                           (cursorfree--test-parameters-after parameters))))))))
 
-(ert-deftest cursorfree--target-change ()
-  "target-change."
-  (with-temp-buffer
-    (insert "aaa bbb")
-    (cursorfree-target-change
-     (cursorfree--markify-region
-      (cons (+ 2 (point-min))
-            (+ 5 (point-min)))))
-    (should (string= (buffer-string) "aabb"))
-    (should (= (point) (+ 2 (point-min))))))
+(ert-deftest cursorfree--test-pre ()
+  "jump/pre."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is a test"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "This is a test"
+            :points '(9))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 9 10)))
+                    (alist-get "pre" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--target-bring ()
-  "target-bring."
-  (with-temp-buffer
-    (insert "aaa ")
-    (goto-char (point-max))
-    (cursorfree-target-bring
-     (cursorfree--markify-region
-      (cons (point-min)
-            (+ 3 (point-min)))))
-    (should (string= (buffer-string) "aaa aaa"))))
+(ert-deftest cursorfree--test-post ()
+  "post."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is a test"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "This is a test"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 9 10)))
+                    (alist-get "post" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--target-move ()
-  "target-move."
-  (with-temp-buffer
-    (insert "aaa bbb ")
-    (goto-char (point-max))
-    (cursorfree-target-move
-     (cursorfree--markify-region
-      (cons (point-min)
-            (+ 3 (point-min)))))
-    (should (string= (buffer-string) "bbb aaa"))))
+(ert-deftest cursorfree--test-change ()
+  "change."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A small brown fox"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "A small  fox"
+            :points '(9))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 9 14)))
+                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--target-chuck ()
-  "target-chuck."
-  (with-temp-buffer
-    (insert "aaa bbb ccc")
-    (goto-char (point-max))
-    (cursorfree-target-chuck
-     (cursorfree--markify-region
-      (cons (+ 4 (point-min))
-            (+ 7 (point-min)))))
-    (should (string= (buffer-string) "aaa ccc"))))
+(ert-deftest cursorfree--test-bring ()
+  "bring."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This word will be overwritten"
+             :points '(30))
+    :after (make-cursorfree--test-buffer-state
+            :string "This overwritten will be overwritten"
+            :points '(37))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 10)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 19 30)))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal))))
 
-(ert-deftest cursorfree--inner-parenthesis ()
-  "inner-parenthesis, inner-parenthesis-any, inner-parenthesis-dwim."
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-inner-parenthesis
-      ?\(
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "()")))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Bringing a  word to point"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "Bringing a point word to point"
+            :points '(17))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 21 26)))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal)))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-inner-parenthesis
-      ?\[
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "([] bbb ccc)")))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-inner-parenthesis-any
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "([] bbb ccc)")))
+(ert-deftest cursorfree--test-move ()
+  "move."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Moving words is fun"
+             :points '(20))
+    :after (make-cursorfree--test-buffer-state
+            :string "words Moving fun"
+            :points '(17))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 14 16)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 1 7)))
+                    (alist-get "move" cursorfree-actions nil nil #'equal))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-        (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree-inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "([] bbb ccc)")))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Moving a  to point word"
+             :points '(10))
+    :after (make-cursorfree--test-buffer-state
+            :string "Moving a word to point"
+            :points '(14))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 20 24)))
+                    (alist-get "move" cursorfree-actions nil nil #'equal)))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-        (cons (+ (point-min) 2) (+ (point-min) 3)))
-      (cursorfree--pusher ?\()
-      #'cursorfree-inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "()")))
+(ert-deftest cursorfree--test-chuck ()
+  "chuck."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "I must remove an extraneous extraneous word"
+             :points '(44))
+    :after (make-cursorfree--test-buffer-state
+            :string "I must remove an extraneous word"
+            :points '(33))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 18 28)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
 
-  (with-temp-buffer
-    (insert "(\"aaa\" bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-        (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree-inner-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "(\"\" bbb ccc)"))))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This sentence will be decimated for sure"
+             :points '(41))
+    :after (make-cursorfree--test-buffer-state
+            :string "This will decimated sure"
+            :points '(25))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 14)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 20 22)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 33 36)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--inner ()
+  "inner."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "()"
+            :points '(3))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (cursorfree--pusher ?\()
+                    (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "([] bbb ccc)"
+            :points '(13))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (cursorfree--pusher ?\[)
+                    (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "([] bbb ccc)"
+            :points '(13))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(\"aaa\" bbb ccc)"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "(\"\" bbb ccc)"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 (ert-deftest cursorfree--outer-parenthesis ()
-  "outer-parenthesis, outer-parenthesis-any, outer-parenthesis-dwim."
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-outer-parenthesis
-      ?\(
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "")))
+  "outer."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string ""
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (cursorfree--pusher ?\()
+                    (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-outer-parenthesis
-      ?\[
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "(bbb ccc)")))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "(bbb ccc)"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (cursorfree--pusher ?\[)
+                    (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-target-chuck
-     (cursorfree-outer-parenthesis-any
-      (cursorfree--markify-region
-       (cons (+ 2 (point-min))
-             (+ 3 (point-min))))))
-    (should (string= (buffer-string) "(bbb ccc)")))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "([aaa] bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "(bbb ccc)"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-        (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree-outer-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "(bbb ccc)")))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(\"aaa\" bbb ccc)"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "(bbb ccc)"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
+                    (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
-  (with-temp-buffer
-    (insert "([aaa] bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-        (cons (+ (point-min) 2) (+ (point-min) 3)))
-      (cursorfree--pusher ?\()
-      #'cursorfree-outer-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "")))
-
-  (with-temp-buffer
-    (insert "(\"aaa\" bbb ccc)")
-    (cursorfree-evaluate
-     (list
-      (cursorfree--pusher
-       (cons (+ (point-min) 2) (+ (point-min) 3)))
-      #'cursorfree-outer-parenthesis-dwim
-      (cursorfree--to-action #'cursorfree-target-chuck)))
-    (should (string= (buffer-string) "(bbb ccc)"))))
-
-(ert-deftest cursorfree--target-indent ()
-  "`cursorfree-target-indent'"
-  ;; Handle empty buffers
-  (with-temp-buffer
-    (cursorfree-target-indent (cons (point-min) (point-min)))))
-
-(ert-deftest cursorfree--wrap-parentheses ()
-  "`cursorfree-wrap-parentheses'."
-  (with-temp-buffer
-    (insert "aaa bbb ccc")
-    (cursorfree-target-wrap-parentheses
-     ?{
-     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
-    (should (string= (buffer-string) "aaa {bbb} ccc")))
+(ert-deftest cursorfree--wrap ()
+  "wrap."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "aaa bbb ccc"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "aaa {bbb} ccc"
+            :points '(14))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 5 8)))
+                    (cursorfree--pusher ?\{)
+                    (alist-get "wrap" cursorfree-actions nil nil #'equal))))
 
   ;; Non-parentheses use same character for both ends
-  (with-temp-buffer
-    (insert "aaa bbb ccc")
-    (cursorfree-target-wrap-parentheses
-     ?$
-     (cursorfree--markify-region (cons (+ (point-min) 4) (+ (point-min) 7))))
-    (should (string= (buffer-string) "aaa $bbb$ ccc"))))
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "aaa bbb ccc"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "aaa $bbb$ ccc"
+            :points '(14))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 5 8)))
+                    (cursorfree--pusher ?$)
+                    (alist-get "wrap" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--targets-join ()
-  "cursorfree--targets-join."
-  (should (equal (cursorfree--markify-region '(5 . 100))
-                 (cursorfree--targets-join
-                  '((43 . 30)
-                    (5 . 20)
-                    (65 . 100)
-                    (23 . 25))))))
+(ert-deftest cursorfree--test-join ()
+  "join."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This
+is
+a
+little
+test"
+             :points '(10))
+    :after (make-cursorfree--test-buffer-state
+            :string "This is a little test"
+            :points '(10))
+    :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "join" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--target-fuse ()
-  "cursorfree-target-fuse."
-  (insert "aaa bbb ccc\nddd")
-  (cursorfree-target-fuse (cons (+ (point-min) 5) (point-max)))
-  (should (string= (buffer-string) "aaa bbbcccddd")))
+(ert-deftest cursorfree--test-fuse ()
+  "fuse."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "aaa bbb ccc
+ddd"
+             :points '(8))
+    :after (make-cursorfree--test-buffer-state
+            :string "aaabbbcccddd"
+            :points '(7))
+    :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "fuse" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--every-instance ()
+  "every instance."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a a a b b a a b a"
+             :points '(10))
+    :after (make-cursorfree--test-buffer-state
+            :string "b b b"
+            :points '(4))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 11 12)))
+                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a a a b b a a b a"
+             :points '(13))
+    :after (make-cursorfree--test-buffer-state
+            :string "a a a b b b a"
+            :points '(11))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 13 14)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 9 10)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 15 16)))
+                    (alist-get "past" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-upcase ()
+  "upcase."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is a test"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "This IS a test"
+            :points '(15))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 8)))
+                    (alist-get "upcase" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is another test over here"
+             :points '(31))
+    :after (make-cursorfree--test-buffer-state
+            :string "THIS is ANOTHER test OVER here"
+            :points '(31))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 1 5)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 9 16)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 22 26)))
+                    (alist-get "upcase" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest hatty-edit--test-next ()
+  "next."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Word and test word word"
+             :points '(9))
+    :after (make-cursorfree--test-buffer-state
+            :string "Word and test word"
+            :points '(9))
+    :command-form '((cursorfree--pusher "word")
+                    (alist-get "next" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Next test next next test next"
+             :points '(30))
+    :after (make-cursorfree--test-buffer-state
+            :string "Next test next test next"
+            :points '(25))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 11 15)))
+                    (alist-get "next" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest hatty-edit--test-preve ()
+  "preve."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A test test here here test test"
+             :points '(18))
+    :after (make-cursorfree--test-buffer-state
+            :string "A test here here test test"
+            :points '(13))
+    :command-form '((cursorfree--pusher "test")
+                    (alist-get "preve" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A test o test and c test d test"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "A test o and c test d test"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 21 25)))
+                    (alist-get "preve" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 ;;; test.el ends here
