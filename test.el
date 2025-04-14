@@ -317,10 +317,10 @@ is
 a
 little
 test"
-             :points '(26))
+             :points '(10))
     :after (make-cursorfree--test-buffer-state
             :string "This is a little test"
-            :points '(1))
+            :points '(10))
     :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
                     (alist-get "join" cursorfree-actions nil nil #'equal)))))
 
@@ -331,10 +331,10 @@ test"
     :before (make-cursorfree--test-buffer-state
              :string "aaa bbb ccc
 ddd"
-             :points '(16))
+             :points '(8))
     :after (make-cursorfree--test-buffer-state
             :string "aaabbbcccddd"
-            :points '(1))
+            :points '(7))
     :command-form '((alist-get "everything" cursorfree-modifiers nil nil #'equal)
                     (alist-get "fuse" cursorfree-actions nil nil #'equal)))))
 

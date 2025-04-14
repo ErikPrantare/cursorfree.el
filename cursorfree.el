@@ -686,23 +686,18 @@ follow the thing at TARGET."
 ;; TODO: Errors on invocation?
 (defun cursorfree-target-fuse (target)
   "Remove all whitespace within TARGET."
-  (let ((content (cursorfree--target-get target)))
-    (cursorfree--target-put
-     target
-     (with-temp-buffer
-       (insert content)
-       (replace-regexp (rx (or whitespace "\n")) "" nil (point-min) (point-max))
-       (buffer-string)))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (replace-regexp (rx (or whitespace "\n")) ""
+                         nil (car region) (cdr region))))))
 
 (defun cursorfree-target-join (target)
-  "Remove all newlines within TARGET."
-  (let ((content (cursorfree--target-get target)))
-    (cursorfree--target-put
-     target
-     (with-temp-buffer
-       (insert content)
-       (replace-regexp (rx "\n" (zero-or-more " ")) "" nil (point-min) (point-max))
-       (buffer-string)))))
+  "Join TARGET into one line."
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (join-line nil (car region) (cdr region))))))
 
 (defun cursorfree-target-break (target)
   "Insert newline before TARGET."
