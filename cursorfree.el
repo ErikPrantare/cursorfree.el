@@ -507,39 +507,42 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree--target-get target))))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
-  "Define function with NAME that performs FUNCTION on a target.
+  "Define function with NAME applying FUNCTION on targets.
+Use DOCSTRING for the new function.
 
-FUNCTION will be invoked with the bounds of the content region of the
-target.  Afterwards, the region will be pulsed."
+For each argument, the defined function NAME invokes FUNCTION on the
+content region.  Afterwards, the region will be pulsed."
   (declare (indent defun))
-  `(defun ,name (target)
-     (cursorfree--on-content-region target
-       (lambda (region)
-         (,function (car region) (cdr region))))
-     (cursorfree-target-pulse target)))
+  `(defun ,name (&rest targets)
+     ,docstring
+     (dolist (target targets)
+       (cursorfree--on-content-region target
+         (lambda (region)
+           (,function (car region) (cdr region))))
+       (cursorfree-target-pulse target))))
 
 (cursorfree--simple-content-function cursorfree-target-comment
-  "Comment out TARGET."
+  "Comment out TARGETS."
   comment-region)
 
 (cursorfree--simple-content-function cursorfree-target-uncomment
-  "Uncomment TARGET."
+  "Uncomment TARGETS."
   uncomment-region)
 
 (cursorfree--simple-content-function cursorfree-target-narrow
-  "Narrow region to TARGET."
+  "Narrow region to the last element of TARGETS."
   narrow-to-region)
 
 (cursorfree--simple-content-function cursorfree-target-fill
-  "Fill the paragraphs in TARGET."
+  "Fill the paragraphs in TARGETS."
   fill-region)
 
 (cursorfree--simple-content-function cursorfree-target-capitalize
-  "Capitalize the first character of each word in TARGET."
+  "Capitalize the first character of each word in TARGETS."
   capitalize-region)
 
 (cursorfree--simple-content-function cursorfree-target-upcase
-  "Convert TARGET to upper case."
+  "Convert TARGETS to upper case."
   upcase-region)
 
 (cursorfree--simple-content-function cursorfree-target-downcase

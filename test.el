@@ -356,4 +356,30 @@ ddd"
                     (alist-get "filter" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-upcase ()
+  "upcase."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is a test"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "This IS a test"
+            :points '(15))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 8)))
+                    (alist-get "upcase" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is another test over here"
+             :points '(31))
+    :after (make-cursorfree--test-buffer-state
+            :string "THIS is ANOTHER test OVER here"
+            :points '(31))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 1 5)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 9 16)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 22 26)))
+                    (alist-get "upcase" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here
