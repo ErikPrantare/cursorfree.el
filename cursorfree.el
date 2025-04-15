@@ -295,9 +295,9 @@ element of the list pushed first."
         (cursorfree--markify-region bounds))))
 
 (cl-defstruct cursorfree--region-target
-  content-region buffer
-  "Target referring to CONTENT-REGION inside of BUFFER.
-CONTENT-REGION is a cons cell of markers.")
+   "Target referring to CONTENT-REGION inside of BUFFER.
+CONTENT-REGION is a cons cell of markers."
+  content-region buffer)
 
 (cl-defun cursorfree--make-target
     (content-region &key (constructor #'make-cursorfree--region-target))
