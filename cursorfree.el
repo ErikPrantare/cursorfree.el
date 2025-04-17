@@ -170,7 +170,7 @@ arguments.
 
 This function may be used as part of a `declare' form as follows:
 
-  (declare (cursorfree--reverse-argument-order t)"
+  (declare (cursorfree--reverse-argument-order))"
   (put function 'cursorfree--reverse-argument-order t))
 
 (setf (alist-get 'cursorfree--reverse-argument-order defun-declarations-alist)
@@ -274,12 +274,10 @@ element of the list pushed first."
       (cursorfree--push-values e (cursorfree--pop-value e))
       e)))
 
-
-;; TODO: Insert buffer info
-(defun cursorfree--markify-region (region)
-  "Return REGION with the endpoints as markers."
+(defun cursorfree--ensure-marker-region (region)
+  "Return REGION, with the endpoints turned into markers as needed."
   (unless (consp region)
-    (error "Invalid argument %s in cursorfree--markify-region" region))
+    (error "Invalid argument %s in cursorfree--ensure-marker-region" region))
   (cons (if (markerp (car region))
             (car region)
           (move-marker (make-marker) (car region)))
@@ -292,7 +290,7 @@ element of the list pushed first."
   (save-excursion
     (goto-char position)
     (if-let ((bounds (bounds-of-thing-at-point thing)))
-        (cursorfree--markify-region bounds))))
+        (cursorfree--ensure-marker-region bounds))))
 
 (cl-defstruct cursorfree--region-target
    "Target referring to CONTENT-REGION inside of BUFFER.
@@ -301,11 +299,11 @@ CONTENT-REGION is a cons cell of markers."
 
 (cl-defun cursorfree--make-target
     (content-region &key (constructor #'make-cursorfree--region-target))
-  "Return a target spanning CONTENT-REGION.
+  "Return a target spanning CONTENT-REGION in the current buffer.
 
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
 may be invoked equivalently to `make-cursorfree--region-target'."
-  (let* ((region (cursorfree--markify-region content-region))
+  (let* ((region (cursorfree--ensure-marker-region content-region))
          (buffer (marker-buffer (car region))))
     (funcall constructor
      :content-region region
@@ -326,14 +324,15 @@ Defaults to the current buffer."
   (cursorfree--region-target-buffer target))
 
 (defun cursorfree--target-window (target)
-  "Get the window associated with `cursorfree--region-target' TARGET."
+  "Get the window showing the buffer of TARGET.
+If no window shows the buffer of TARGET, return nil."
   (get-buffer-window (cursorfree--target-buffer target)))
 
 (defun cursorfree--on-content-region (region-target f)
   "Apply F to the content region of REGION-TARGET."
   (declare (indent defun))
   (unless (cursorfree--region-target-p region-target)
-    (error (format "Type error: %s is not of type cursorfree--region-target." region-target)))
+    (error (format "Type error: %s is not of type cursorfree--region-target" region-target)))
   (with-selected-window (cursorfree--target-window region-target)
     (with-current-buffer (cursorfree--target-buffer region-target)
       (let ((region (cursorfree--content-region region-target)))
@@ -394,7 +393,7 @@ by `hatty-locate-token-region'."
     (lambda (region)
       (save-excursion
         (goto-char (cdr region))
-        (cursorfree--markify-region
+        (cursorfree--ensure-marker-region
          (if (/= 0 (skip-chars-forward "[:space:]\n"))
              (cons (car region) (point))
            (goto-char (car region))
@@ -429,17 +428,21 @@ by `hatty-locate-token-region'."
       (goto-char (cdr region)))))
 
 (defun cursorfree-target-jump-beginning (target)
-  "Move point to beginning of TARGET."
+  "Move point to beginning of TARGET.
+If a window displays the buffer of TARGET, select it."
   (cursorfree--on-content-region target
     (lambda (region)
-      (select-window (get-buffer-window (marker-buffer (car region)) 'visible))
+      (when (cursorfree--target-window target)
+        (select-window (cursorfree--target-window target)))
       (goto-char (car region)))))
 
 (defun cursorfree-target-jump-end (target)
-  "Move point to end of TARGET."
+  "Move point to end of TARGET.
+If a window displays the buffer of TARGET, select it."
   (cursorfree--on-content-region target
     (lambda (region)
-      (select-window (get-buffer-window (marker-buffer (car region)) 'visible))
+      (when (cursorfree--target-window target)
+        (select-window (cursorfree--target-window target)))
       (goto-char (cdr region)))))
 
 (defun cursorfree-target-indent (target)
@@ -807,10 +810,11 @@ effects, and do not add values to the value stack.")
 (defun cursorfree-trim (&optional target)
   "Shrink TARGET until there is no whitespace to the left or right."
   (setq target (or target (cursorfree-this)))
-  (let ((region (cursorfree--content-region target)))
-    (cursorfree--make-target
-     (cons (cursorfree--skip-forward-from (car region) "[:space:]\n")
-           (cursorfree--skip-backward-from (cdr region) "[:space:]\n")))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (cursorfree--make-target
+       (cons (cursorfree--skip-forward-from (car region) "[:space:]\n")
+             (cursorfree--skip-backward-from (cdr region) "[:space:]\n"))))))
 
 (defun cursorfree-inner-parenthesis (delimiter &optional target)
   "Expand TARGET to fill the insides of DELIMITER.
@@ -922,18 +926,22 @@ nearest matching pairs of delimiters."
                 #'cursorfree-outer-parenthesis-any))
              environment)))
 
-(defun cursorfree--targets-join (targets)
+(defun cursorfree--targets-hull (&rest targets)
   "Return the smallest target that can fit all TARGETS."
-  (cursorfree--make-target
-   (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--content-region target)))
-                              targets))
-         (apply #'max (mapcar (lambda (target) (cdr (cursorfree--content-region target)))
-                              targets)))))
+  (when targets
+    ;; Make sure target gets created in correct buffer (max and min do
+    ;; not return the corresponding marker, but a new integer instead)
+    (with-current-buffer (cursorfree--target-buffer (car targets))
+      (cursorfree--make-target
+       (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--content-region target)))
+                                  targets))
+             (apply #'max (mapcar (lambda (target) (cdr (cursorfree--content-region target)))
+                                  targets)))))))
 
 (defun cursorfree-past (target1 &optional target2)
   "Return the smallest target that can fit TARGET1 and TARGET2."
   (setq target2 (or target2 (cursorfree-this)))
-  (cursorfree--targets-join (list target1 target2)))
+  (cursorfree--targets-hull target1 target2))
 
 (defun cursorfree-current-selection ()
   "Return the active region as a target."
@@ -1027,17 +1035,19 @@ If target VIEW is given, only instances inside of it will be matched.
 Otherwise, the full buffer is searched."
   (declare (cursorfree--reverse-argument-order))
   (with-current-buffer (cursorfree--target-buffer target)
-    (setq view (or view (cursorfree-everything))))
-  (with-current-buffer (cursorfree--target-buffer view)
-    (let ((search-string (cursorfree--target-get target))
-          (matches '()))
-      (unless (equal search-string "")
-        (save-excursion
-          (goto-char (car (cursorfree--content-region view)))
-          (while (search-forward search-string (cdr (cursorfree--content-region view)) t)
-            (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
-                  matches))))
-      (nreverse matches))))
+    (setq view (or view (with-current-buffer (cursorfree--target-buffer target)
+                          (cursorfree-everything)))))
+  (cursorfree--on-content-region view
+    (lambda (view-region)
+      (let ((search-string (cursorfree--target-get target))
+            (matches '()))
+        (unless (equal search-string "")
+          (save-excursion
+            (goto-char (car view-region))
+            (while (search-forward search-string (cdr view-region) t)
+              (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
+                    matches))))
+        (nreverse matches)))))
 
 (cl-defstruct cursorfree--kill-ring-target)
 
