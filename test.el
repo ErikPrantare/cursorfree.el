@@ -211,8 +211,8 @@
                     (cursorfree--pusher (cursorfree--make-target (cons 33 36)))
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--inner ()
-  "inner."
+(ert-deftest cursorfree--test-inside ()
+  "inside."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -263,8 +263,8 @@
                     (alist-get "inside" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest cursorfree--outer-parenthesis ()
-  "outer."
+(ert-deftest cursorfree--test-outside ()
+  "outside."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -340,6 +340,20 @@
             :points '(14))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 5 8)))
                     (cursorfree--pusher ?$)
+                    (alist-get "wrap" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This is a test of multiple words"
+             :points '(33))
+    :after (make-cursorfree--test-buffer-state
+            :string "This (is) a (test) of (multiple) words"
+            :points '(39))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 8)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 11 15)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 19 27)))
+                    (cursorfree--pusher 40)
                     (alist-get "wrap" cursorfree-actions nil nil #'equal)))))
 
 (ert-deftest cursorfree--test-join ()

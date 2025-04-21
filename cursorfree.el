@@ -627,25 +627,26 @@ content region.  Afterwards, the region will be pulsed."
   (end-of-line)
   (newline))
 
-(defun cursorfree-target-wrap-parentheses (parenthesis target)
-  "Wrap TARGET with characters specified by PARENTHESIS.
+(defun cursorfree-target-wrap-parentheses (parenthesis &rest targets)
+  "Wrap TARGETS with characters specified by PARENTHESIS.
 
-Insert PARENTHESIS before TARGET.  If PARENTHESIS is some type of
-parenthesis, insert the matching right version at the end of
-TARGET.  Otherwise, insert PARENTHESIS instead."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (save-excursion
-        (goto-char (car region))
-        (insert parenthesis)
-        (goto-char (cdr region))
-        (insert
-         (pcase parenthesis
-           (?\( ?\))
-           (?\[ ?\])
-           (?< ?>)
-           (?{ ?})
-           (_ parenthesis)))))))
+Insert PARENTHESIS before TARGETS.  If PARENTHESIS is some type of
+parenthesis, insert the matching right version at the end of TARGETS.
+Otherwise, insert PARENTHESIS instead."
+  (dolist (target targets)
+    (cursorfree--on-content-region target
+      (lambda (region)
+        (save-excursion
+          (goto-char (car region))
+          (insert parenthesis)
+          (goto-char (cdr region))
+          (insert
+           (pcase parenthesis
+             (?\( ?\))
+             (?\[ ?\])
+             (?< ?>)
+             (?{ ?})
+             (_ parenthesis))))))))
 
 (defvar cursorfree-dwim-follow-alist
   `((org-mode . org-open-at-point)
