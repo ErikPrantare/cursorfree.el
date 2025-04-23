@@ -28,12 +28,17 @@ def cursorfree_quoted_number(m) -> list[str]:
 def cursorfree_quoted_word(m) -> list[str]:
     return f"(cursorfree--pusher \"{m.word}\")"
 
+@module.capture(rule="split <number>")
+def cursorfree_quoted_window(m) -> list[str]:
+    return f"(cursorfree--pusher (winum-get-window-by-number {m.number}))"
+
 @module.capture(rule=
                 "{user.cursorfree_modifier}"
                 "| <user.cursorfree_hat>"
                 "| <user.cursorfree_quoted_char>"
                 "| <user.cursorfree_quoted_number>"
                 "| <user.cursorfree_quoted_word>"
+                "| <user.cursorfree_quoted_window>"
                 )
 def cursorfree_nonterminator(m) -> list[str]:
     return m[0]

@@ -86,6 +86,8 @@ the target that was put on the value stack.
   may be elided from the utterance.
 - ~car <character>~: Add the character ~character~ to the value stack.
 - ~word <word>~: Add the string ~word~ to the value stack.
+- ~split <number>~: Add the window indexed ~<number>~ to the value
+  stack.  This only works if you have [[https://github.com/deb0ch/emacs-winum][winum]] set up.
 
 *** Actions
 An action is an instruction that is evaluated solely for its side

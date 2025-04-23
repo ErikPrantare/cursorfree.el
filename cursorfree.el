@@ -333,7 +333,7 @@ If no window shows the buffer of TARGET, return nil."
   (declare (indent defun))
   (unless (cursorfree--region-target-p region-target)
     (error (format "Type error: %s is not of type cursorfree--region-target" region-target)))
-  (with-selected-window (cursorfree--target-window region-target)
+  (with-selected-window (window-normalize-window (cursorfree--target-window region-target))
     (with-current-buffer (cursorfree--target-buffer region-target)
       (let ((region (cursorfree--content-region region-target)))
         (funcall f region)))))
@@ -356,7 +356,7 @@ by `hatty-locate-token-region'."
 
 (cl-defgeneric cursorfree--target-get (target)
   "Return the content referred to by TARGET."
-  (_ (error (format "No method for getting content of target %s" target))))
+  (error (format "No method for getting content of target %s" target)))
 
 (cl-defmethod cursorfree--target-get ((target string))
   "Return TARGET."
@@ -367,6 +367,10 @@ by `hatty-locate-token-region'."
   ;; TODO: Encode characters as singleton strings instead
   (string target))
 
+(cl-defmethod cursorfree--target-get ((target window))
+  "Return TARGET."
+  target)
+
 (cl-defmethod cursorfree--target-get ((target cursorfree--region-target))
   "Return the buffer substring of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
@@ -375,7 +379,16 @@ by `hatty-locate-token-region'."
 
 (cl-defgeneric cursorfree--target-put (target content)
   "Put CONTENT into TARGET."
-  (_ (error (format "No method for writing %S to target %S" content target))))
+  (error (format "No method for writing %S to target %S" content target)))
+
+(cl-defmethod cursorfree--target-put ((target window) (content buffer))
+  (set-window-buffer target content))
+
+(cl-defmethod cursorfree--target-put ((target window) (content window))
+  (cursorfree--target-put target (window-buffer content)))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content window))
+  (cursorfree--target-put (cursorfree--target-window target) content))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--region-target) (content string))
   "Remove region of TARGET and insert CONTENT."
@@ -427,6 +440,20 @@ by `hatty-locate-token-region'."
       (set-mark (car region))
       (goto-char (cdr region)))))
 
+(cl-defgeneric cursorfree-target-jump-ambiguous (target)
+  "Jump to target.
+
+The meaning of \"jump\" is left ambiguous to allow targets of
+different types to be jumped to.  See the implemented methods for
+examples."
+  (error (format "No method for jumping to %s" target)))
+
+(cl-defmethod cursorfree-target-jump-ambiguous ((target cursorfree--region-target))
+  (cursorfree-target-jump-beginning target))
+
+(cl-defmethod cursorfree-target-jump-ambiguous ((target window))
+  (select-window target))
+
 (defun cursorfree-target-jump-beginning (target)
   "Move point to beginning of TARGET.
 If a window displays the buffer of TARGET, select it."
@@ -457,11 +484,21 @@ If a window displays the buffer of TARGET, select it."
                           (cursorfree--target-get target))
   (cursorfree-target-pulse target))
 
+(cl-defgeneric cursorfree-target-delete (target)
+  "Delete TARGET."
+  (error (format "No method for deleting target %s" target)))
+
+(cl-defmethod cursorfree-target-delete ((target cursorfree--region-target))
+  (cursorfree--region-delete (cursorfree--deletion-region target))
+  (cursorfree-target-indent (cursorfree-line target)))
+
+(cl-defmethod cursorfree-target-delete ((target window))
+  (delete-window target))
+
 (defun cursorfree-target-chuck (&rest targets)
   "Delete TARGETS and indent the resulting text."
   (dolist (target targets)
-    (cursorfree--region-delete (cursorfree--deletion-region target))
-    (cursorfree-target-indent (cursorfree-line target))))
+    (cursorfree-target-delete target)))
 
 (defmacro cursorfree--for-each-cursor (&rest body)
   "Evaluate BODY for each cursor."
@@ -479,13 +516,25 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree--target-put target (cursorfree--target-get source))
     (cursorfree-target-pulse target)))
 
+(cl-defgeneric cursorfree--target-move (source target)
+  (error (format "No method for moving source %s to target %s" source target)))
+
+(cl-defgeneric cursorfree--target-move (source (target cursorfree--region-target))
+  (cursorfree-target-bring source target)
+  (cursorfree-target-chuck source))
+
+(cl-defgeneric cursorfree--target-move ((source window) target)
+  (cursorfree--target-put target source)
+  (with-selected-window source
+    (previous-buffer)))
+
 (defun cursorfree-target-move (source &rest targets)
   "Overwrite TARGETS with SOURCE, then delete SOURCE.
 
 If no targets are given, overwrite `cursorfree-this' instead."
   (setq targets (or targets (list (cursorfree-this))))
-  (apply #'cursorfree-target-bring (cons source targets))
-  (cursorfree-target-chuck source))
+  (dolist (target targets)
+    (cursorfree--target-move source target)))
 
 (defun cursorfree-target-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."
@@ -740,7 +789,7 @@ This may, for example, be used for displaying warning from eglot."
     ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
     ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
+    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-ambiguous))
     ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
     ("change" . ,(cursorfree-make-action #'cursorfree-target-change))
@@ -1017,7 +1066,14 @@ This function respects narrowing."
     (forward-line (1- index))
     (cursorfree-line (cursorfree--make-target (cons (point) (point))))))
 
-(cl-defstruct (cursorfree--this-target (:include cursorfree--region-target)))
+(cl-defstruct (cursorfree--this-target (:include cursorfree--region-target))
+  "Target indicating the \"the currently active thing\".  The meaning
+of this is generally context dependent.  For example, when dealing
+with regions, it denotes point, but when dealing with windows, it
+denotes the currently selected window.
+
+Generic functions may be overridden to provide specialized behavior
+for \"this\".")
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
@@ -1025,7 +1081,11 @@ This function respects narrowing."
     (insert content)))
 
 (defun cursorfree-this ()
-  "Return an empty region located at point."
+  "Return an empty region located at point.
+
+The returned target this of type `cursorfree--this-target'.  Generic
+functions can be overloaded on this type to give more
+context-dependent behavior for whatever \"this\" means."
   (cursorfree--make-target (cons (point) (point))
                            :constructor #'make-cursorfree--this-target))
 
