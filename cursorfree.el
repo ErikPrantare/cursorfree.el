@@ -162,8 +162,8 @@ This creates an initial environment with empty value stack, upon which
   (cursorfree-evaluate-environment
     (cursorfree--make-environment instructions)))
 
-(defun cursorfree--reverse-argument-order (function args)
-  "Mark FUNCTION for reverse reading order.  Ignore ARGS.
+(defun cursorfree--reverse-argument-order (function)
+  "Mark FUNCTION for reverse reading order.
 
 This will reverse the order in which `cursorfree--apply' applies
 arguments.
@@ -174,7 +174,28 @@ This function may be used as part of a `declare' form as follows:
   (put function 'cursorfree--reverse-argument-order t))
 
 (setf (alist-get 'cursorfree--reverse-argument-order defun-declarations-alist)
-      (list #'cursorfree--reverse-argument-order))
+      (list (lambda (function args)
+              `(cursorfree--reverse-argument-order #',function))))
+
+(defun cursorfree--optional-bag-get-index (arglist spec argument)
+  (seq-position
+   (byte-compile-arglist-vars arglist)
+   (let ((test-functions
+          (seq-map (lambda (entry)
+                     (eval `(lambda (%)
+                              (when ,(car entry) ',(cadr entry)))))
+                   spec)))
+     (seq-some (lambda (test-function)
+                 (funcall test-function argument))
+               test-functions))))
+
+(defun cursorfree--optional-bag (function arglist &rest spec)
+  `(progn
+     (put #',function 'cursorfree--arglist ',arglist)
+     (put #',function 'cursorfree--optional-bag-spec ',spec)))
+
+(setf (alist-get 'cursorfree--optional-bag defun-declarations-alist)
+      (list #'cursorfree--optional-bag))
 
 (defun cursorfree--apply (function args)
   "Call FUNCTION with ARGS as arguments.
@@ -186,6 +207,19 @@ reverse that order of ARGS."
     (setq args (reverse args)))
   (apply function args))
 
+(defun cursorfree--densify-alist (indexed-args)
+  (when-let ((max-index (caar (seq-sort-by #'car #'> indexed-args))))
+    (let ((argument-list (make-list (1+ max-index) nil)))
+      (dolist (indexed-arg indexed-args)
+        (setf (seq-elt argument-list (car indexed-arg)) (cdr indexed-arg)))
+      argument-list)))
+
+(defun cursorfree--get-positional-indices (function args)
+  (when (and (symbolp function)
+             (get function 'cursorfree--reverse-argument-order))
+    (setq args (reverse args)))
+  (seq-map-indexed (lambda (arg index) (cons index arg)) args))
+
 (defun cursorfree--apply-on-stack (function stack)
   "Apply FUNCTION to the top elements of STACK.
 Returns the unapplied elements of STACK with the return value of
@@ -195,10 +229,25 @@ The arity of FUNCTION is read from the cdr of `func-arity'.  The
 function is evaluated with the top values of STACK, with the top
 elements applied as the first arguments.  &rest arguments are
 supported."
-  (let* ((arity (cdr (func-arity function)))
-         (args (if (eq arity 'many) stack (take arity stack)))
-         (tail (if (eq arity 'many) '() (nthcdr arity stack))))
-    (cons (cursorfree--apply function args) tail)))
+  (let ((optional-bag-spec
+         (and (symbolp function)
+              (get function 'cursorfree--optional-bag-spec)))
+        arg-map)
+    (when optional-bag-spec
+      (while-let ((index (and (seq-first stack)
+                              (cursorfree--optional-bag-get-index
+                               (get function 'cursorfree--arglist)
+                               optional-bag-spec
+                               (seq-first stack)))))
+        (push (cons index (pop stack)) arg-map)))
+
+    (let* ((arity (if optional-bag-spec
+                      (car (func-arity function))
+                    (cdr (func-arity function))))
+           (args (if (eq arity 'many) stack (take arity stack)))
+           (tail (if (eq arity 'many) '() (nthcdr arity stack))))
+      (setq arg-map (append arg-map (cursorfree--get-positional-indices function args)))
+      (cons (apply function (cursorfree--densify-alist arg-map)) tail))))
 
 (defun cursorfree-make-action (function)
   "Translate FUNCTION into an instruction not producing any value.
@@ -319,7 +368,7 @@ may be invoked equivalently to `make-cursorfree--region-target'."
 Defaults to the current buffer."
   (current-buffer))
 
-(cl-defgeneric cursorfree--target-buffer ((target cursorfree--region-target))
+(cl-defmethod cursorfree--target-buffer ((target cursorfree--region-target))
   "Get the buffer associated with `cursorfree--region-target' TARGET."
   (cursorfree--region-target-buffer target))
 
@@ -387,14 +436,38 @@ by `hatty-locate-token-region'."
 (cl-defmethod cursorfree--target-put ((target window) (content window))
   (cursorfree--target-put target (window-buffer content)))
 
-(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content window))
-  (cursorfree--target-put (cursorfree--target-window target) content))
-
 (cl-defmethod cursorfree--target-put ((target cursorfree--region-target) (content string))
   "Remove region of TARGET and insert CONTENT."
   (with-current-buffer (cursorfree--target-buffer target)
     (cursorfree--region-delete (cursorfree--content-region target))
     (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
+
+(cl-defstruct (cursorfree--this-target (:include cursorfree--region-target))
+  "Target indicating the \"the currently active thing\".  The meaning
+of this is generally context dependent.  For example, when dealing
+with regions, it denotes point, but when dealing with windows, it
+denotes the currently selected window.
+
+Generic functions may be overridden to provide specialized behavior
+for \"this\".")
+
+(defun cursorfree-this ()
+  "Return an empty region located at point.
+
+The returned target this of type `cursorfree--this-target'.  Generic
+functions can be overloaded on this type to give more
+context-dependent behavior for whatever \"this\" means."
+  (cursorfree--make-target (cons (point) (point))
+                           :constructor #'make-cursorfree--this-target))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
+  "Insert CONTENT at point in the buffer of TARGET."
+  (with-current-buffer (cursorfree--target-buffer target)
+    (insert content)))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content window))
+  (cursorfree--target-put (cursorfree--target-window target) content))
+
 
 ;;;; End of core functions
 
@@ -519,11 +592,11 @@ If no targets are given, overwrite `cursorfree-this' instead."
 (cl-defgeneric cursorfree--target-move (source target)
   (error (format "No method for moving source %s to target %s" source target)))
 
-(cl-defgeneric cursorfree--target-move (source (target cursorfree--region-target))
+(cl-defmethod cursorfree--target-move (source (target cursorfree--region-target))
   (cursorfree-target-bring source target)
   (cursorfree-target-chuck source))
 
-(cl-defgeneric cursorfree--target-move ((source window) target)
+(cl-defmethod cursorfree--target-move ((source window) target)
   (cursorfree--target-put target source)
   (with-selected-window source
     (previous-buffer)))
@@ -1013,12 +1086,19 @@ The extension is done from the beginning of the target.  See
         (cursorfree--bounds-of-thing-at thing
                                         (car (cursorfree--content-region target))))))))
 
-(defun cursorfree-everything ()
+(defun cursorfree-everything (&optional window-or-buffer)
   "Return a target referring to the full content of the buffer.
 
 This function respects narrowing."
-  (cursorfree--make-target
-   (cons (point-min) (point-max))))
+  (declare (cursorfree--optional-bag
+            ((or (bufferp %) (windowp %)) window-or-buffer)))
+  (let ((in-buffer (cond
+                    ((windowp window-or-buffer) (window-buffer window-or-buffer))
+                    ((bufferp window-or-buffer) window-or-buffer)
+                    (t (current-buffer)))))
+    (with-current-buffer in-buffer
+      (cursorfree--make-target
+       (cons (point-min) (point-max))))))
 
 (defun cursorfree-visible ()
   "Return a target referring to the visible portion of the buffer."
@@ -1066,29 +1146,6 @@ This function respects narrowing."
     (forward-line (1- index))
     (cursorfree-line (cursorfree--make-target (cons (point) (point))))))
 
-(cl-defstruct (cursorfree--this-target (:include cursorfree--region-target))
-  "Target indicating the \"the currently active thing\".  The meaning
-of this is generally context dependent.  For example, when dealing
-with regions, it denotes point, but when dealing with windows, it
-denotes the currently selected window.
-
-Generic functions may be overridden to provide specialized behavior
-for \"this\".")
-
-(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
-  "Insert CONTENT at point in the buffer of TARGET."
-  (with-current-buffer (cursorfree--target-buffer target)
-    (insert content)))
-
-(defun cursorfree-this ()
-  "Return an empty region located at point.
-
-The returned target this of type `cursorfree--this-target'.  Generic
-functions can be overloaded on this type to give more
-context-dependent behavior for whatever \"this\" means."
-  (cursorfree--make-target (cons (point) (point))
-                           :constructor #'make-cursorfree--this-target))
-
 (defun cursorfree-every-instance (target &optional view)
   "Return a list of every occurrence of TARGET.
 
@@ -1096,8 +1153,7 @@ If target VIEW is given, only instances inside of it will be matched.
 Otherwise, the full buffer is searched."
   (declare (cursorfree--reverse-argument-order))
   (with-current-buffer (cursorfree--target-buffer target)
-    (setq view (or view (with-current-buffer (cursorfree--target-buffer target)
-                          (cursorfree-everything)))))
+    (setq view (or view (cursorfree-everything (cursorfree--target-buffer target)))))
   (cursorfree--on-content-region view
     (lambda (view-region)
       (let ((search-string (cursorfree--target-get target))
