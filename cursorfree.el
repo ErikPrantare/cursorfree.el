@@ -646,6 +646,12 @@ If no targets are given, overwrite `cursorfree-this' instead."
       (cursorfree--region-delete region)
       (goto-char (car region)))))
 
+(cl-defmethod cursorfree--target-change ((target cursorfree--parallel-target))
+  "Remove contents of TARGET and put points there."
+  (cursorfree--multiple-cursors-do
+   #'cursorfree--target-change
+   (cursorfree--parallel-target-targets target)))
+
 (defun cursorfree-target-change (&rest targets)
   "Move point to TARGETS and delete its contents."
   (let (region-targets other-targets)
