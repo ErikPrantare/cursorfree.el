@@ -45,22 +45,32 @@
     :documentation "Whether evaluating the command is invariant to the
     selected window."))
 
+(defun cursorfree--multiple-cursor-points ()
+  (let ((points (list (point))))
+    (mc/for-each-fake-cursor
+     (push (marker-position (overlay-get cursor 'point)) points))
+    points))
+
 (defun cursorfree--setup-test (parameters)
   (delete-region (point-min) (point-max))
   (insert (cursorfree--test-buffer-state-string
            (cursorfree--test-parameters-before parameters)))
-  ;; Assume we only use one point for now
-  (goto-char (car (cursorfree--test-buffer-state-points
-                   (cursorfree--test-parameters-before parameters)))))
+  (goto-char (seq-first (cursorfree--test-buffer-state-points
+                         (cursorfree--test-parameters-before parameters))))
+  (multiple-cursors-mode 0)
+  (seq-doseq (point (seq-rest (cursorfree--test-buffer-state-points
+                               (cursorfree--test-parameters-before parameters))))
+    (mc/create-fake-cursor-at-point)
+    (goto-char point)))
 
 (defun cursorfree--test-check-state (parameters)
   (should (equal (buffer-string)
                      (cursorfree--test-buffer-state-string
                       (cursorfree--test-parameters-after parameters))))
-  ;; Assume we only use one point for now
-  (should (equal (point)
-                 (car (cursorfree--test-buffer-state-points
-                       (cursorfree--test-parameters-after parameters))))))
+  ;; We do not test the order (for now)
+  (should (equal (seq-sort #'< (cursorfree--multiple-cursor-points))
+                 (seq-sort #'< (cursorfree--test-buffer-state-points
+                                (cursorfree--test-parameters-after parameters))))))
 
 (defun cursorfree--run-test (parameters)
   (save-window-excursion
@@ -617,5 +627,20 @@
                      (cursorfree--pusher (cursorfree--make-target (cons 24 28)))
                      (alist-get "outside" cursorfree-modifiers nil nil #'equal)
                      (alist-get "swap" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-parallel-pre ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "I will put the cursor before multiple elements"
+             :points '(47))
+    :after (make-cursorfree--test-buffer-state
+            :string "I will put the cursor before multiple elements"
+            :points '(8 16 30))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 8 11)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 16 22)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 30 38)))
+                    (alist-get "smash" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "pre" cursorfree-actions nil nil #'equal)))))
 
 ;;; test.el ends here

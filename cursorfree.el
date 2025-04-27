@@ -273,20 +273,28 @@ not remain on the value stack."
   "Apply FUNCTION to each target in TARGETS.
 Create a new cursor each time.
 
-If invoking FUNCTION causes an error, no cursor is created."
-  (multiple-cursors-mode 0)
+Each target is assumed to be in the same buffer.
 
-  ;; Only create new cursors for non-final elements.
-  (while (cdr targets)
-    ;; Error?  No issue, just try again with the next element.
-    (condition-case e
-        (funcall function (car targets))
-      (:success (multiple-cursors-mode 1)
-                (mc/create-fake-cursor-at-point))
-      (error nil))
-    (pop targets))
-  ;; Finally, do it once with the real cursor
-  (when targets (funcall function (car targets))))
+If invoking FUNCTION causes an error, no cursor is created."
+  (when targets
+    (cursorfree--on-content-region (car targets)
+      ;; We do not actually use region, we only invoke the above function
+      ;; to ensure that everything is performed in the correct context.
+      (lambda (region)
+        (multiple-cursors-mode 0)
+
+        ;; Only create new cursors for non-final elements.
+        (while (cdr targets)
+          ;; Error?  No issue, just try again with the next element.
+          (condition-case e
+              (funcall function (car targets))
+            (:success (multiple-cursors-mode 1)
+                      (mc/create-fake-cursor-at-point))
+            (error nil))
+          (pop targets))
+
+        ;; Finally, do it once with the real cursor
+        (funcall function (car targets))))))
 
 (defun cursorfree-make-multi-cursor-action (function)
   "Translate FUNCTION into an instruction using multiple cursors.
@@ -407,6 +415,23 @@ If no window shows the buffer of TARGET, return nil."
    ;;into a parallel target.
     (make-cursorfree--parallel-target
      :targets (nreverse result))))
+
+(cl-defgeneric cursorfree--on-content-region-cursor-effect (target f)
+  (declare (indent defun))
+  (error (format "Type error: %s has no content region" target)))
+
+(cl-defmethod cursorfree--on-content-region-cursor-effect ((target cursorfree--region-target) f)
+  (cursorfree--on-content-region target f))
+
+(cl-defmethod cursorfree--on-content-region-cursor-effect ((target cursorfree--parallel-target) f)
+  ;; For now, assume that the parallel target is just a parallel of
+  ;; region targets
+  (cursorfree--multiple-cursors-do
+   (lambda (target)
+     (cursorfree--on-content-region target
+       (lambda (region)
+         (funcall f region))))
+   (cursorfree--parallel-target-targets target)))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a token.
@@ -555,7 +580,7 @@ examples."
 (defun cursorfree-target-jump-beginning (target)
   "Move point to beginning of TARGET.
 If a window displays the buffer of TARGET, select it."
-  (cursorfree--on-content-region target
+  (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (when (cursorfree--target-window target)
         (select-window (cursorfree--target-window target)))
@@ -564,7 +589,7 @@ If a window displays the buffer of TARGET, select it."
 (defun cursorfree-target-jump-end (target)
   "Move point to end of TARGET.
 If a window displays the buffer of TARGET, select it."
-  (cursorfree--on-content-region target
+  (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (when (cursorfree--target-window target)
         (select-window (cursorfree--target-window target)))
@@ -572,7 +597,7 @@ If a window displays the buffer of TARGET, select it."
 
 (defun cursorfree-target-indent (target)
   "Indent TARGET."
-  (cursorfree--on-content-region target
+  (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (indent-region (car region) (cdr region)))))
 
@@ -770,16 +795,20 @@ content region.  Afterwards, the region will be pulsed."
 
 (defun cursorfree-target-drink (target)
   "Insert an empty line before TARGET and put point on it."
-  (cursorfree-target-jump-beginning target)
-  (beginning-of-line)
-  (newline)
-  (backward-char))
+  (cursorfree--on-content-region-cursor-effect target
+    (lambda (region)
+      (goto-char (car region))
+      (beginning-of-line)
+      (newline)
+      (backward-char))))
 
 (defun cursorfree-target-pour (target)
   "Insert an empty line after TARGET and put point on it."
-  (cursorfree-target-jump-end target)
-  (end-of-line)
-  (newline))
+  (cursorfree--on-content-region-cursor-effect target
+    (lambda (region)
+      (goto-char (cdr region))
+      (end-of-line)
+      (newline))))
 
 (defun cursorfree-target-wrap-parentheses (parenthesis &rest targets)
   "Wrap TARGETS with characters specified by PARENTHESIS.
