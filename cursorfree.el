@@ -342,9 +342,12 @@ element of the list pushed first."
         (cursorfree--ensure-marker-region bounds))))
 
 (cl-defstruct cursorfree--region-target
-   "Target referring to CONTENT-REGION inside of BUFFER.
+  "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
   content-region buffer)
+
+(cl-defstruct cursorfree--parallel-target
+  targets)
 
 (cl-defun cursorfree--make-target
     (content-region &key (constructor #'make-cursorfree--region-target))
@@ -355,8 +358,8 @@ may be invoked equivalently to `make-cursorfree--region-target'."
   (let* ((region (cursorfree--ensure-marker-region content-region))
          (buffer (marker-buffer (car region))))
     (funcall constructor
-     :content-region region
-     :buffer buffer)))
+             :content-region region
+             :buffer buffer)))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
@@ -377,15 +380,27 @@ Defaults to the current buffer."
 If no window shows the buffer of TARGET, return nil."
   (get-buffer-window (cursorfree--target-buffer target)))
 
-(defun cursorfree--on-content-region (region-target f)
-  "Apply F to the content region of REGION-TARGET."
+(cl-defgeneric cursorfree--on-content-region (target f)
   (declare (indent defun))
-  (unless (cursorfree--region-target-p region-target)
-    (error (format "Type error: %s is not of type cursorfree--region-target" region-target)))
-  (with-selected-window (window-normalize-window (cursorfree--target-window region-target))
-    (with-current-buffer (cursorfree--target-buffer region-target)
-      (let ((region (cursorfree--content-region region-target)))
+  (error (format "Type error: %s has no content region" target)))
+
+(cl-defmethod cursorfree--on-content-region ((target cursorfree--region-target) f)
+  "Apply F to the content region of TARGET."
+  (with-selected-window (window-normalize-window (cursorfree--target-window target))
+    (with-current-buffer (cursorfree--target-buffer target)
+      (let ((region (cursorfree--content-region target)))
         (funcall f region)))))
+
+(cl-defmethod cursorfree--on-content-region ((target cursorfree--parallel-target) f)
+  (let ((result '()))
+    (seq-doseq (target (cursorfree--parallel-target-targets target))
+      (push (cursorfree--on-content-region target f)
+            result))
+   ;;HACK: Always wrap the results in a parallel-target.  In this way,
+   ;;if f returns a target, we will automatically promote the result
+   ;;into a parallel target.
+    (make-cursorfree--parallel-target
+     :targets (nreverse result))))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a token.
@@ -441,6 +456,10 @@ by `hatty-locate-token-region'."
   (with-current-buffer (cursorfree--target-buffer target)
     (cursorfree--region-delete (cursorfree--content-region target))
     (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
+
+(cl-defmethod cursorfree--target-put ((target cursorfree--parallel-target) content)
+  (seq-doseq (target (cursorfree--parallel-target targets))
+    (cursorfree--target-put target content)))
 
 (cl-defstruct (cursorfree--this-target (:include cursorfree--region-target))
   "Target indicating the \"the currently active thing\".  The meaning
@@ -513,7 +532,7 @@ context-dependent behavior for whatever \"this\" means."
       (set-mark (car region))
       (goto-char (cdr region)))))
 
-(cl-defgeneric cursorfree-target-jump-ambiguous (target)
+(cl-defgeneric cursorfree-target-jump (target)
   "Jump to target.
 
 The meaning of \"jump\" is left ambiguous to allow targets of
@@ -521,10 +540,10 @@ different types to be jumped to.  See the implemented methods for
 examples."
   (error (format "No method for jumping to %s" target)))
 
-(cl-defmethod cursorfree-target-jump-ambiguous ((target cursorfree--region-target))
+(cl-defmethod cursorfree-target-jump ((target cursorfree--region-target))
   (cursorfree-target-jump-beginning target))
 
-(cl-defmethod cursorfree-target-jump-ambiguous ((target window))
+(cl-defmethod cursorfree-target-jump ((target window))
   (select-window target))
 
 (defun cursorfree-target-jump-beginning (target)
@@ -565,6 +584,10 @@ If a window displays the buffer of TARGET, select it."
   (cursorfree--region-delete (cursorfree--deletion-region target))
   (cursorfree-target-indent (cursorfree-line target)))
 
+(cl-defmethod cursorfree-target-delete ((targets cursorfree--parallel-target))
+  (seq-doseq (target (cursorfree--parallel-target-targets targets))
+    (cursorfree-target-delete target)))
+
 (cl-defmethod cursorfree-target-delete ((target window))
   (delete-window target))
 
@@ -590,11 +613,8 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree-target-pulse target)))
 
 (cl-defgeneric cursorfree--target-move (source target)
-  (error (format "No method for moving source %s to target %s" source target)))
-
-(cl-defmethod cursorfree--target-move (source (target cursorfree--region-target))
   (cursorfree-target-bring source target)
-  (cursorfree-target-chuck source))
+  (cursorfree-target-delete source))
 
 (cl-defmethod cursorfree--target-move ((source window) target)
   (cursorfree--target-put target source)
@@ -816,7 +836,7 @@ follow the thing at TARGET."
     (lambda (region)
       (save-excursion
         (replace-regexp (rx (or whitespace "\n")) ""
-                         nil (car region) (cdr region))))))
+                        nil (car region) (cdr region))))))
 
 (defun cursorfree-target-join (target)
   "Join TARGET into one line."
@@ -846,14 +866,14 @@ This may, for example, be used for displaying warning from eglot."
         (cursorfree-target-pulse region)))))
 
 (defun cursorfree-target-occur (target)
-    "List occurrences of TARGET in the current buffer."
-    (occur (rx (literal (cursorfree--target-get target)))))
+  "List occurrences of TARGET in the current buffer."
+  (occur (rx (literal (cursorfree--target-get target)))))
 
 (defun cursorfree-target-unwrap-parentheses (target)
-    "Remove parentheses or quotation around TARGET."
-    (cursorfree-target-bring
-     (cursorfree-inner-parenthesis-any target)
-     (cursorfree-outer-parenthesis-any target)))
+  "Remove parentheses or quotation around TARGET."
+  (cursorfree-target-bring
+   (cursorfree-inner-parenthesis-any target)
+   (cursorfree-outer-parenthesis-any target)))
 
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
@@ -863,7 +883,7 @@ This may, for example, be used for displaying warning from eglot."
     ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
     ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-ambiguous))
+    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump))
     ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
     ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
     ("change" . ,(cursorfree-make-action #'cursorfree-target-change))
@@ -940,17 +960,15 @@ effects, and do not add values to the value stack.")
        (cons (cursorfree--skip-forward-from (car region) "[:space:]\n")
              (cursorfree--skip-backward-from (cdr region) "[:space:]\n"))))))
 
-(defun cursorfree-inner-parenthesis (delimiter &optional target)
-  "Expand TARGET to fill the insides of DELIMITER.
+(defun cursorfree--inner-parenthesis (region delimiter)
+  "Expand REGION to fill the insides of DELIMITER.
 
 This function will match parentheses and quotation marks to the
 left and right."
-  (setq target (or target (cursorfree-this)))
   (save-excursion
     ;; evil-inner-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
-    (set-buffer (cursorfree--target-buffer target))
-    (goto-char (car (cursorfree--content-region target)))
+    (goto-char (car region))
     (let ((expanded
            (funcall
             (cl-case delimiter
@@ -961,19 +979,17 @@ left and right."
               (?\" #'evil-inner-double-quote)
               (?\' #'evil-inner-single-quote)
               (?\` #'evil-inner-back-quote)))))
-      (cursorfree--make-target (cons (car expanded) (cadr expanded))))))
+      (cons (car expanded) (cadr expanded)))))
 
-(defun cursorfree-outer-parenthesis (delimiter &optional target)
-  "Expand TARGET to contain the closest DELIMITER.
+(defun cursorfree--outer-parenthesis (region delimiter)
+  "Expand REGION to contain the closest DELIMITER.
 
 This function will match parentheses and quotation marks to the
 left and right."
-  (setq target (or target (cursorfree-this)))
   (save-excursion
     ;; evil-outer-double-quote uses the location of point for the
     ;; expansion.  Put point at the beginning of the region.
-    (set-buffer (cursorfree--target-buffer target))
-    (goto-char (car (cursorfree--content-region target)))
+    (goto-char (car region))
     (let ((expanded
            (funcall
             (cl-case delimiter
@@ -984,71 +1000,64 @@ left and right."
               (?\" #'evil-a-double-quote)
               (?\' #'evil-a-single-quote)
               (?\` #'evil-a-back-quote)))))
-      (cursorfree--make-target (cons (car expanded) (cadr expanded))))))
+      (cons (car expanded) (cadr expanded)))))
 
-(defun cursorfree-inner-parenthesis-any (&optional target)
-  "Expand TARGET to fill the insides of the closest delimiters.
-
-This function tries different parentheses and quotations to
-figure out whichever is closest."
+(defun cursorfree--parenthesis-expansion-impl (target parenthesis expansion-function)
+  "Common interface for expanding to inner and outer parentheses"
   (setq target (or target (cursorfree-this)))
-  (-max-by (-on #'> (lambda (target) (car (cursorfree--content-region target))))
-           ;; Filter out whenever the evil-inner-*-quote messes up the
-           ;; region (it selects the next region if not currently in a
-           ;; quote)
-           (--filter (<= (car (cursorfree--content-region it))
-                         (car (cursorfree--content-region target)))
-                     (--keep (condition-case nil
-                                 (cursorfree-inner-parenthesis it target)
-                               (error nil))
-                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (thread-last
+        (ensure-list (or parenthesis '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))
+        (seq-keep (lambda (parenthesis)
+                    (condition-case nil
+                        (funcall expansion-function region parenthesis)
+                      (error nil))))
+        ;; Filter out whenever the evil-inner-*-quote messes up the
+        ;; region (it selects the next region if not currently in a
+        ;; quote)
+        (seq-filter (lambda (expanded)
+                      (<= (car expanded) (car region))))
+        ;; Pick the result with the tightest bounds
+        (seq-sort-by #'car #'>)
+        car
+        cursorfree--make-target))))
 
-(defun cursorfree-outer-parenthesis-any (&optional target)
-  "Expand TARGET to contain the closest delimiters.
+(defun cursorfree-inner-parenthesis-dwim (&optional target parenthesis)
+  "Expand TARGET to fill the insides of PARENTHESIS.
 
-This function tries different parentheses and quotations to
-figure out whichever is closest."
-  (setq target (or target (cursorfree-this)))
-  (-max-by (-on #'> (lambda (target) (car (cursorfree--content-region target))))
-           ;; Filter out whenever the evil-inner-*-quote messes up the
-           ;; region (it selects the next region if not currently in a
-           ;; quote)
-           (--filter (<= (car (cursorfree--content-region it))
-                         (car (cursorfree--content-region target)))
-                     (--keep (condition-case nil
-                                 (cursorfree-outer-parenthesis it target)
-                               (error nil))
-                             '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))))
+TARGET defaults to the target returned by `cursorfree-this'.
 
-(defun cursorfree-inner-parenthesis-dwim (environment)
-  "Expand a target to fill the insides of some delimiter.
+If PARENTHESIS is given, expand target until it reaches corresponding
+matching parentheses on both sides.  Otherwise, try to guess which
+parenthesis is intended."
+  (declare (cursorfree--optional-bag
+            ((characterp %) parenthesis)
+            ((or (cursorfree--region-target-p %)
+                 (cursorfree--parallel-target-p %))
+             target)))
+  (cursorfree--parenthesis-expansion-impl
+   target
+   parenthesis
+   #'cursorfree--inner-parenthesis))
 
-This will read the top value of ENVIRONMENT.  If this is a
-character, the next element is assumed to be a target to be
-expanded until the delimiter given by the character.  Otherwise,
-assumes that the top element was a target and expands it to the
-nearest matching pairs of delimiters."
-  (let ((head (cursorfree--peek-value environment)))
-    (funcall (cursorfree-make-modifier
-              (if (characterp head)
-                  #'cursorfree-inner-parenthesis
-                #'cursorfree-inner-parenthesis-any))
-             environment)))
+(defun cursorfree-outer-parenthesis-dwim (&optional target parenthesis)
+  "Expand TARGET to contain enclosing PARENTHESIS.
 
-(defun cursorfree-outer-parenthesis-dwim (environment)
-  "Expand a target to contain some delimiter.
+TARGET defaults to the target returned by `cursorfree-this'.
 
-This will read the top value of ENVIRONMENT.  If this is a
-character, the next element is assumed to be a target to be
-expanded until the delimiter given by the character.  Otherwise,
-assumes that the top element was a target and expands it to the
-nearest matching pairs of delimiters."
-  (let ((head (cursorfree--peek-value environment)))
-    (funcall (cursorfree-make-modifier
-              (if (characterp head)
-                  #'cursorfree-outer-parenthesis
-                #'cursorfree-outer-parenthesis-any))
-             environment)))
+If PARENTHESIS is given, expand target until it reaches corresponding
+matching parentheses on both sides.  Otherwise, try to guess which
+parenthesis is intended."
+  (declare (cursorfree--optional-bag
+            ((characterp %) parenthesis)
+            ((or (cursorfree--region-target-p %)
+                 (cursorfree--parallel-target-p %))
+             target)))
+  (cursorfree--parenthesis-expansion-impl
+   target
+   parenthesis
+   #'cursorfree--outer-parenthesis))
 
 (defun cursorfree--targets-hull (&rest targets)
   "Return the smallest target that can fit all TARGETS."
@@ -1148,24 +1157,30 @@ This function respects narrowing."
     (cursorfree-line (cursorfree--make-target (cons (point) (point))))))
 
 (defun cursorfree-every-instance (target &optional view)
-  "Return a list of every occurrence of TARGET.
+  "Return a parallel target of every occurrence of TARGET.
 
-If target VIEW is given, only instances inside of it will be matched.
-Otherwise, the full buffer is searched."
+If target VIEW is a region target, only instances inside of it will be
+matched.  If it is a window, search within the buffer of that window.
+Otherwise, search the buffer of TARGET."
   (declare (cursorfree--reverse-argument-order))
-  (with-current-buffer (cursorfree--target-buffer target)
-    (setq view (or view (cursorfree-everything (cursorfree--target-buffer target)))))
-  (cursorfree--on-content-region view
-    (lambda (view-region)
-      (let ((search-string (cursorfree--target-get target))
-            (matches '()))
-        (unless (equal search-string "")
-          (save-excursion
-            (goto-char (car view-region))
-            (while (search-forward search-string (cdr view-region) t)
-              (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
-                    matches))))
-        (nreverse matches)))))
+  (setq view
+        (cond
+         ((cursorfree--region-target-p view) view)
+         ((windowp view) (cursorfree-everything view))
+         (t (cursorfree-everything (cursorfree--target-buffer target)))))
+  (list (make-cursorfree--parallel-target
+         :targets
+         (cursorfree--on-content-region view
+           (lambda (view-region)
+             (let ((search-string (cursorfree--target-get target))
+                   (matches '()))
+               (unless (equal search-string "")
+                 (save-excursion
+                   (goto-char (car view-region))
+                   (while (search-forward search-string (cdr view-region) t)
+                     (push (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))
+                           matches))))
+               (nreverse matches)))))))
 
 (cl-defstruct cursorfree--kill-ring-target)
 
@@ -1209,6 +1224,13 @@ Otherwise, the full buffer is searched."
       (search-backward (cursorfree--target-get target))
       (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
 
+(defun cursorfree-make-parallel (&rest targets)
+  "Make a parallel target out of TARGETS.
+
+See `cursorfree--parallel-target' for more information on parallel
+targets."
+  (make-cursorfree--parallel-target :targets targets))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1216,8 +1238,8 @@ Otherwise, the full buffer is searched."
     ("trim" . ,(cursorfree-make-modifier #'cursorfree-trim))
     ("past" . ,(cursorfree-make-modifier #'cursorfree-past))
     ("selection" . ,(cursorfree-make-modifier #'cursorfree-current-selection))
-    ("inside" . cursorfree-inner-parenthesis-dwim)
-    ("outside" . cursorfree-outer-parenthesis-dwim)
+    ("inside" . ,(cursorfree-make-modifier #'cursorfree-inner-parenthesis-dwim))
+    ("outside" . ,(cursorfree-make-modifier #'cursorfree-outer-parenthesis-dwim))
     ("line" . ,(cursorfree-make-modifier #'cursorfree-line))
     ("tail" . ,(cursorfree-make-modifier #'cursorfree-line-right))
     ("head" . ,(cursorfree-make-modifier #'cursorfree-line-left))
@@ -1233,7 +1255,8 @@ Otherwise, the full buffer is searched."
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
-    ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))))
+    ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))
+    ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

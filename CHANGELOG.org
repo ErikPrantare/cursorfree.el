@@ -1,11 +1,14 @@
 * NEXT
+- Introduced parallel targets: This type of target contains a list of
+  other targets.  When evaluating an instruction on them, the
+  semantics are that it should be performed on every contained target.
 - New primitive target: "split <number>" will now put the window
   corresponding to <number> onto the stack.  This requires winum to be
   installed.
 - Actions:
   - "wrap" can now act on multiple targets.
   - "everything" can now take an optional window argument to get
-    everything in the buffer the specific window.
+    everything in the buffer of the specified window.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.

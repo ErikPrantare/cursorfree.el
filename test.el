@@ -261,7 +261,19 @@
             :points '(1))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
                     (alist-get "inside" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Expanding (around) point"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "Expanding () point"
+            :points '(12))
+    :command-form '((alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))
+    :buffer-local-p nil)))
 
 (ert-deftest cursorfree--test-outside ()
   "outside."
@@ -313,7 +325,19 @@
             :points '(10))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 6)))
                     (alist-get "outside" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Expanding (around) point"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "Expanding point"
+            :points '(11))
+    :command-form '((alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))
+    :buffer-local-p nil)))
 
 (ert-deftest cursorfree--wrap ()
   "wrap."
@@ -534,5 +558,49 @@
             :points '(26))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 17 21)))
                     (alist-get "break" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-parallel-chuck ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "chucking a parallel target"
+             :points '(10))
+    :after (make-cursorfree--test-buffer-state
+            :string "a target"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 1 9)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 12 20)))
+                    (alist-get "smash" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-parallel-outside ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Getting (the) outside of (a) parallel target"
+             :points '(45))
+    :after (make-cursorfree--test-buffer-state
+            :string "Getting outside of parallel target"
+            :points '(35))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 10 13)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 27 28)))
+                    (alist-get "smash" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-parallel-inside ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Getting (the) outside of (a) parallel target"
+             :points '(45))
+    :after (make-cursorfree--test-buffer-state
+            :string "Getting () outside of () parallel target"
+            :points '(41))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 10 13)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 27 28)))
+                    (alist-get "smash" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 ;;; test.el ends here
