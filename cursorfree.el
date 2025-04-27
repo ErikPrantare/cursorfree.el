@@ -177,17 +177,18 @@ This function may be used as part of a `declare' form as follows:
       (list (lambda (function args)
               `(cursorfree--reverse-argument-order #',function))))
 
-(defun cursorfree--optional-bag-get-index (arglist spec argument)
-  (seq-position
-   (byte-compile-arglist-vars arglist)
-   (let ((test-functions
-          (seq-map (lambda (entry)
-                     (eval `(lambda (%)
-                              (when ,(car entry) ',(cadr entry)))))
-                   spec)))
-     (seq-some (lambda (test-function)
-                 (funcall test-function argument))
-               test-functions))))
+(cl-defun cursorfree--optional-bag-get-match (arglist spec argument)
+  (seq-doseq (entry spec)
+    (when-let ((matched-argument
+                (funcall
+                 (eval `(lambda (%) (when ,(car entry) ',(cadr entry))))
+                 argument)))
+      (cl-return-from cursorfree--optional-bag-get-match
+        (cons (seq-position
+               (byte-compile-arglist-vars arglist)
+               matched-argument)
+              entry))))
+  nil)
 
 (defun cursorfree--optional-bag (function arglist &rest spec)
   `(progn
@@ -229,19 +230,24 @@ The arity of FUNCTION is read from the cdr of `func-arity'.  The
 function is evaluated with the top values of STACK, with the top
 elements applied as the first arguments.  &rest arguments are
 supported."
-  (let ((optional-bag-spec
-         (and (symbolp function)
-              (get function 'cursorfree--optional-bag-spec)))
-        arg-map)
+  (let* ((optional-bag-spec
+         (when (symbolp function)
+           (copy-sequence (get function 'cursorfree--optional-bag-spec))))
+         (optional-bag-p (when optional-bag-spec t))
+         (arg-map '()))
     (when optional-bag-spec
-      (while-let ((index (and (seq-first stack)
-                              (cursorfree--optional-bag-get-index
+      (while-let ((match (and (seq-first stack)
+                              (seq-first optional-bag-spec)
+                              (cursorfree--optional-bag-get-match
                                (get function 'cursorfree--arglist)
                                optional-bag-spec
                                (seq-first stack)))))
-        (push (cons index (pop stack)) arg-map)))
+        (push (cons (car match) (pop stack)) arg-map)
+        ;; Remove matching entry, so we don't match on it again
+        (setq optional-bag-spec
+              (delete (cdr match) optional-bag-spec))))
 
-    (let* ((arity (if optional-bag-spec
+    (let* ((arity (if optional-bag-p
                       (car (func-arity function))
                     (cdr (func-arity function))))
            (args (if (eq arity 'many) stack (take arity stack)))

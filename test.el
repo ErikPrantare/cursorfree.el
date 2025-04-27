@@ -603,4 +603,19 @@
                     (alist-get "inside" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-outside-swap ()
+  (cursorfree--run-test
+    (make-cursorfree--test-parameters
+     :before (make-cursorfree--test-buffer-state
+              :string "Bringing (correct) to (word) position"
+              :points '(20))
+     :after (make-cursorfree--test-buffer-state
+             :string "Bringing (word) to (correct) position"
+             :points '(17))
+     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 11 18)))
+                     (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                     (cursorfree--pusher (cursorfree--make-target (cons 24 28)))
+                     (alist-get "outside" cursorfree-modifiers nil nil #'equal)
+                     (alist-get "swap" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here
