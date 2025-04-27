@@ -441,7 +441,7 @@
                     (cursorfree--pusher (cursorfree--make-target (cons 22 26)))
                     (alist-get "upcase" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest hatty-edit--test-next ()
+(ert-deftest cursorfree--test-next ()
   "next."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -468,7 +468,7 @@
                     (alist-get "next" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest hatty-edit--test-preve ()
+(ert-deftest cursorfree--test-preve ()
   "preve."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -495,7 +495,7 @@
                     (alist-get "preve" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
-(ert-deftest hatty-edit--test-trim ()
+(ert-deftest cursorfree--test-trim ()
   "trim."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -521,5 +521,18 @@
                     (alist-get "line" cursorfree-modifiers nil nil #'equal)
                     (alist-get "trim" cursorfree-modifiers nil nil #'equal)
                     (alist-get "change" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-break ()
+  "break."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Break this line into two"
+             :points '(25))
+    :after (make-cursorfree--test-buffer-state
+            :string "Break this line \ninto two"
+            :points '(26))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 17 21)))
+                    (alist-get "break" cursorfree-actions nil nil #'equal)))))
 
 ;;; test.el ends here

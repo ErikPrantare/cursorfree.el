@@ -827,11 +827,12 @@ follow the thing at TARGET."
 
 (defun cursorfree-target-break (target)
   "Insert newline before TARGET."
-  (save-excursion
-    (let ((region (cursorfree--content-region target)))
-      (goto-char (car region))
-      (newline)
-      (indent-region (car region) (cdr region)))))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (newline)
+        (indent-region (car region) (cdr region))))))
 
 (defun cursorfree-target-help (target)
   "Run `display-local-help' at the start of TARGET.
