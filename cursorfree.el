@@ -1272,6 +1272,9 @@ See `cursorfree--parallel-target' for more information on parallel
 targets."
   (make-cursorfree--parallel-target :targets targets))
 
+(defun cursorfree-end ()
+  (cursorfree--make-target (cons (point-max) (point-max))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1297,7 +1300,8 @@ targets."
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
     ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))
-    ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))))
+    ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))
+    ("end" . ,(cursorfree-make-modifier #'cursorfree-end))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
