@@ -913,8 +913,8 @@ This may, for example, be used for displaying warning from eglot."
 (defun cursorfree-target-unwrap-parentheses (target)
   "Remove parentheses or quotation around TARGET."
   (cursorfree-target-bring
-   (cursorfree-inner-parenthesis-any target)
-   (cursorfree-outer-parenthesis-any target)))
+   (cursorfree-inner-parenthesis-dwim target)
+   (cursorfree-outer-parenthesis-dwim target)))
 
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
