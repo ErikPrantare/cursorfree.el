@@ -907,8 +907,12 @@ This may, for example, be used for displaying warning from eglot."
         (cursorfree-target-pulse region)))))
 
 (defun cursorfree-target-occur (target)
-  "List occurrences of TARGET in the current buffer."
-  (occur (rx (literal (cursorfree--target-get target)))))
+  "List occurrences of TARGET.
+
+If target is associated with a buffer, list the occurrences in that
+buffer.  Otherwise, list the occurrences in the current buffer."
+  (with-current-buffer (window-normalize-buffer (cursorfree--target-buffer target))
+    (occur (rx (literal (cursorfree--target-get target))))))
 
 (defun cursorfree-target-unwrap-parentheses (target)
   "Remove parentheses or quotation around TARGET."
