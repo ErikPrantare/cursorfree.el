@@ -379,6 +379,16 @@ may be invoked equivalently to `make-cursorfree--region-target'."
   "Return region of the content referred to by TARGET."
   (cursorfree--region-target-content-region target))
 
+(defun cursorfree-target-buffer (&optional target)
+  "Get the buffer associated with TARGET.
+
+If TARGET is nil or omitted, default to the target returned by
+`cursorfree-this'.
+
+To override this function for new target types, implement a method for
+`cursorfree--target-buffer'."
+  (cursorfree--target-buffer (or target (cursorfree-this))))
+
 (cl-defgeneric cursorfree--target-buffer (target)
   "Get the buffer associated with TARGET.
 
@@ -388,6 +398,14 @@ Defaults to the current buffer."
 (cl-defmethod cursorfree--target-buffer ((target cursorfree--region-target))
   "Get the buffer associated with `cursorfree--region-target' TARGET."
   (cursorfree--region-target-buffer target))
+
+(cl-defmethod cursorfree--target-buffer ((window window))
+  "Get the buffer of WINDOW."
+  (window-buffer window))
+
+(cl-defmethod cursorfree--target-buffer ((buffer buffer))
+  "Return BUFFER."
+  buffer)
 
 (defun cursorfree--target-window (target)
   "Get the window showing the buffer of TARGET.
@@ -466,6 +484,10 @@ by `hatty-locate-token-region'."
   "Return TARGET."
   target)
 
+(cl-defmethod cursorfree--target-get ((target buffer))
+  "Return TARGET."
+  target)
+
 (cl-defmethod cursorfree--target-get ((target cursorfree--region-target))
   "Return the buffer substring of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
@@ -515,9 +537,11 @@ context-dependent behavior for whatever \"this\" means."
   (with-current-buffer (cursorfree--target-buffer target)
     (insert content)))
 
-(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content window))
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content buffer))
   (cursorfree--target-put (cursorfree--target-window target) content))
 
+(cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content window))
+  (cursorfree--target-put target (window-buffer content)))
 
 ;;;; End of core functions
 
@@ -563,7 +587,13 @@ context-dependent behavior for whatever \"this\" means."
       (set-mark (car region))
       (goto-char (cdr region)))))
 
-(cl-defgeneric cursorfree-target-jump (target)
+;; TODO: Take multiple targets here instead of when transforming to
+;; modifier later.
+(defun cursorfree-target-jump (target)
+  "Go to TARGET."
+  (cursorfree--target-jump target))
+
+(cl-defgeneric cursorfree--target-jump (target)
   "Jump to target.
 
 The meaning of \"jump\" is left ambiguous to allow targets of
@@ -571,10 +601,10 @@ different types to be jumped to.  See the implemented methods for
 examples."
   (error (format "No method for jumping to %s" target)))
 
-(cl-defmethod cursorfree-target-jump ((target cursorfree--region-target))
+(cl-defmethod cursorfree--target-jump ((target cursorfree--region-target))
   (cursorfree-target-jump-beginning target))
 
-(cl-defmethod cursorfree-target-jump ((target window))
+(cl-defmethod cursorfree--target-jump ((target window))
   (select-window target))
 
 (defun cursorfree-target-jump-beginning (target)
