@@ -9,6 +9,8 @@
   - "wrap" can now act on multiple targets.
   - "everything" can now take an optional window argument to get
     everything in the buffer of the specified window.
+  - "occur" can now take an optional parameter to specify in which
+    window to search for the target.
 - Modifiers:
   - New modifier "end": Return a target referring to the last position
     of the buffer.  Useful in conjunction with "past", e.g. "end past
