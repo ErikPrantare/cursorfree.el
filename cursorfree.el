@@ -936,14 +936,18 @@ This may, for example, be used for displaying warning from eglot."
         (display-local-help)
         (cursorfree-target-pulse region)))))
 
-(defun cursorfree-target-occur (target &optional window)
-  "List occurrences of TARGET in the buffer of WINDOW.
+(defun cursorfree-target-occur (target &optional window-or-buffer)
+  "List occurrences of TARGET in WINDOW-OR-BUFFER.
 
-If WINDOW is nil or omitted, look instead in the buffer of TARGET.
-If it has no associated buffer, instead use the current buffer."
-  (declare (cursorfree--optional-bag ((windowp %) window)))
-  (with-current-buffer (window-normalize-buffer
-                        (if window (window-buffer window) (cursorfree--target-buffer target)))
+If WINDOW-OR-BUFFER is a buffer, look for occurrences in that buffer.
+If it is a window, look in the buffer current to that window.  If it
+is nil or omitted, look instead in the buffer of TARGET.  If TARGET
+has no associated buffer, use the current buffer instead."
+  (declare (cursorfree--optional-bag ((or (windowp %) (bufferp %)) window-or-buffer)))
+  (with-current-buffer (cond
+                        ((windowp window-or-buffer) (window-buffer window-or-buffer))
+                        ((bufferp window-or-buffer) window-or-buffer)
+                        (t (window-normalize-buffer (cursorfree--target-buffer target))))
     (occur (rx (literal (cursorfree--target-get target))))))
 
 (defun cursorfree-target-unwrap-parentheses (target)
