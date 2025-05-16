@@ -50,7 +50,13 @@ def cursorfree_nonterminators(m) -> list[str]:
     return " ".join(m.cursorfree_nonterminator_list)
 
 @module.capture(rule=
+                "{user.cursorfree_action}"
+                )
+def cursorfree_terminator(m) -> list[str]:
+    return m[0]
+
+@module.capture(rule=
                 "<user.cursorfree_nonterminators>"
-                "{user.cursorfree_action}")
+                " <user.cursorfree_terminator>")
 def cursorfree_command(m) -> list[str]:
-    return f"(list {m.cursorfree_nonterminators} {m.cursorfree_action})";
+    return f"(list {m.cursorfree_nonterminators} {m.cursorfree_terminator})";
