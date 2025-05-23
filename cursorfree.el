@@ -1212,7 +1212,8 @@ This function respects narrowing."
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
-    (cursorfree--make-target (cons (car (cursorfree--content-region target)) (point)))))
+    (cursorfree-trim
+     (cursorfree--make-target (cons (car (cursorfree--content-region target)) (point))))))
 
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to start after the previous newline."
@@ -1220,15 +1221,31 @@ This function respects narrowing."
   (save-excursion
     (set-buffer (cursorfree--target-buffer target))
     (goto-char (car (cursorfree--content-region target)))
-    (if (search-backward "\n" nil t)
-        (forward-char) ; Jump over the searched for newline
+    (unless (search-backward "\n" nil t)
       (goto-char (point-min)))
-    (cursorfree--make-target (cons (point) (cdr (cursorfree--content-region target))))))
+    (cursorfree-trim
+     (cursorfree--make-target (cons (point) (cdr (cursorfree--content-region target)))))))
 
 (defun cursorfree-line (&optional target)
   "Extend TARGET to fill the full line."
   (setq target (or target (cursorfree-this)))
   (cursorfree-line-left (cursorfree-line-right target)))
+
+(defun cursorfree-block (&optional target)
+  (setq target (or target (cursorfree-this)))
+  (save-excursion
+    (cursorfree--on-content-region target
+      (lambda (region)
+        (goto-char (car region))
+        (unless (re-search-backward "\n[:blank:]*\n" nil t)
+          (goto-char (point-min)))
+        (skip-chars-forward  "\n[:blank:]")
+        (let ((start (point)))
+          (goto-char (cdr region))
+          (unless (re-search-forward "\n[:blank:]*\n" nil t)
+            (goto-char (point-max)))
+          (cursorfree-trim
+           (cursorfree--make-target (cons start (point)))))))))
 
 (defun cursorfree-row (index)
   "Return the line with number INDEX as a target."
@@ -1327,7 +1344,7 @@ targets."
     ("line" . ,(cursorfree-make-modifier #'cursorfree-line))
     ("tail" . ,(cursorfree-make-modifier #'cursorfree-line-right))
     ("head" . ,(cursorfree-make-modifier #'cursorfree-line-left))
-    ("block" . ,(cursorfree-thing-to-modifier 'paragraph))
+    ("block" . ,(cursorfree-make-modifier #'cursorfree-block))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("token" . ,(cursorfree-thing-to-modifier 'hatty-token))

@@ -15,6 +15,8 @@
   - New modifier "end": Return a target referring to the last position
     of the buffer.  Useful in conjunction with "past", e.g. "end past
     chuck" removes everything from point until the end of the buffer.
+  - "line" and "block" are now trimmed, i.e. contain no whitespace on
+    their left or right side.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.
