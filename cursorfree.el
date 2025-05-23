@@ -40,7 +40,6 @@
 
 (require 'hatty)
 (require 'evil)
-(require 'dash)
 (require 'multiple-cursors)
 
 ;;;; Instruction interpreter:
