@@ -511,7 +511,7 @@ by `hatty-locate-token-region'."
     (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--parallel-target) content)
-  (seq-doseq (target (cursorfree--parallel-target targets))
+  (seq-doseq (target (cursorfree--parallel-target-targets target))
     (cursorfree--target-put target content)))
 
 (cl-defstruct (cursorfree--this-target (:include cursorfree--region-target))
