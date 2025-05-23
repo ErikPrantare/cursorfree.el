@@ -643,4 +643,29 @@
                     (alist-get "smash" cursorfree-modifiers nil nil #'equal)
                     (alist-get "pre" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-line ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Simple\nmultiple lines of\ntext"
+             :points '(30))
+    :after (make-cursorfree--test-buffer-state
+            :string "Simple\ntext"
+            :points '(12))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 17 22)))
+                    (alist-get "line" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Multiple\nlines\nhere"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "Multiple\n\nhere"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 15 15)))
+                    (alist-get "line" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here

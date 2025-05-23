@@ -1031,14 +1031,24 @@ effects, and do not add values to the value stack.")
   (setq target (or target (cursorfree-this)))
   (cursorfree-paint-right (cursorfree-paint-left target)))
 
-(defun cursorfree-trim (&optional target)
-  "Shrink TARGET until there is no whitespace to the left or right."
-  (setq target (or target (cursorfree-this)))
+(defun cursorfree--trim-left (target)
   (cursorfree--on-content-region target
     (lambda (region)
       (cursorfree--make-target
        (cons (cursorfree--skip-forward-from (car region) "[:space:]\n")
+             (cdr region))))))
+
+(defun cursorfree--trim-right (target)
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (cursorfree--make-target
+       (cons (car region)
              (cursorfree--skip-backward-from (cdr region) "[:space:]\n"))))))
+
+(defun cursorfree-trim (&optional target)
+  "Shrink TARGET until there is no whitespace to the left or right."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--trim-left (cursorfree--trim-right target)))
 
 (defun cursorfree--inner-parenthesis (region delimiter)
   "Expand REGION to fill the insides of DELIMITER.
@@ -1211,7 +1221,7 @@ This function respects narrowing."
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
-    (cursorfree-trim
+    (cursorfree--trim-right
      (cursorfree--make-target (cons (car (cursorfree--content-region target)) (point))))))
 
 (defun cursorfree-line-left (&optional target)
@@ -1222,7 +1232,7 @@ This function respects narrowing."
     (goto-char (car (cursorfree--content-region target)))
     (unless (search-backward "\n" nil t)
       (goto-char (point-min)))
-    (cursorfree-trim
+    (cursorfree--trim-left
      (cursorfree--make-target (cons (point) (cdr (cursorfree--content-region target)))))))
 
 (defun cursorfree-line (&optional target)
