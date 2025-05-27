@@ -39,6 +39,8 @@ def cursorfree_quoted_window(m) -> list[str]:
                 "| <user.cursorfree_quoted_number>"
                 "| <user.cursorfree_quoted_word>"
                 "| <user.cursorfree_quoted_window>"
+                # Not implemented here, added so that users can add custom modifiers.
+                "| <user.cursorfree_custom_nonterminator>"
                 )
 def cursorfree_nonterminator(m) -> list[str]:
     return m[0]
@@ -51,6 +53,8 @@ def cursorfree_nonterminators(m) -> list[str]:
 
 @module.capture(rule=
                 "{user.cursorfree_action}"
+                # Not implemented here, added so that users can add custom actions.
+                "| <user.cursorfree_custom_terminator>"
                 )
 def cursorfree_terminator(m) -> list[str]:
     return m[0]
@@ -58,5 +62,12 @@ def cursorfree_terminator(m) -> list[str]:
 @module.capture(rule=
                 "<user.cursorfree_nonterminators>"
                 " <user.cursorfree_terminator>")
+def cursorfree_default_command_form(m) -> list[str]:
+    return f"{m.cursorfree_nonterminators} {m.cursorfree_terminator}";
+
+@module.capture(rule=
+                "<user.cursorfree_default_command_form>"
+                # Not implemented here, added so that users can add custom forms.
+                "| <user.cursorfree_custom_command_form>")
 def cursorfree_command(m) -> list[str]:
-    return f"(list {m.cursorfree_nonterminators} {m.cursorfree_terminator})";
+    return f"(list {m[0]})";
