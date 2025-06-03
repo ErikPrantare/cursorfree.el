@@ -17,6 +17,9 @@
     chuck" removes everything from point until the end of the buffer.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
     their left or right side.
+  - "row" now tries to find the correct line modulo 100 from the
+    visible lines.  For example, row 63 will select line 1363 if it is
+    visible.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.
