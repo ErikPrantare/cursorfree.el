@@ -48,7 +48,7 @@ def cursorfree_nonterminator(m) -> list[str]:
 @module.capture(rule=
                 "<user.cursorfree_nonterminator>+"
                 )
-def cursorfree_nonterminators(m) -> list[str]:
+def cursorfree_nonterminators(m) -> str:
     return " ".join(m.cursorfree_nonterminator_list)
 
 @module.capture(rule=
