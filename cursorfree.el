@@ -781,8 +781,9 @@ content region.  Afterwards, the region will be pulsed."
     (goto-char
      (max top-position (min bottom-position current-position)))))
 
-(defun cursorfree-target-crown (target)
+(defun cursorfree-target-crown (&optional target)
   "Scroll window so TARGET is at the top."
+  (setq target (or target (cursorfree-this)))
   (cursorfree--on-content-region target
     (lambda (region)
       (save-excursion
@@ -790,8 +791,9 @@ content region.  Afterwards, the region will be pulsed."
         (recenter 0))
       (cursorfree--clamp-line))))
 
-(defun cursorfree-target-center (target)
+(defun cursorfree-target-center (&optional target)
   "Scroll window so TARGET is in the center."
+  (setq target (or target (cursorfree-this)))
   (cursorfree--on-content-region target
     (lambda (region)
       (save-excursion
@@ -800,8 +802,9 @@ content region.  Afterwards, the region will be pulsed."
       (cursorfree--clamp-line)))
   (cursorfree--clamp-line))
 
-(defun cursorfree-target-bottom (target)
+(defun cursorfree-target-bottom (&optional target)
   "Scroll window so TARGET is at the bottom."
+  (setq target (or target (cursorfree-this)))
   (cursorfree--on-content-region target
     (lambda (region)
       (save-excursion
@@ -810,8 +813,9 @@ content region.  Afterwards, the region will be pulsed."
       (cursorfree--clamp-line)))
   (cursorfree--clamp-line))
 
-(defun cursorfree-target-drink (target)
+(defun cursorfree-target-drink (&optional target)
   "Insert an empty line before TARGET and put point on it."
+  (setq target (or target (cursorfree-this)))
   (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))
@@ -819,8 +823,9 @@ content region.  Afterwards, the region will be pulsed."
       (newline)
       (backward-char))))
 
-(defun cursorfree-target-pour (target)
+(defun cursorfree-target-pour (&optional target)
   "Insert an empty line after TARGET and put point on it."
+  (setq target (or target (cursorfree-this)))
   (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))
@@ -875,11 +880,12 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
               (alist-get major-mode cursorfree-dwim-follow-alist)))
         (funcall follow-action))))
 
-(defun cursorfree-target-pick (target)
+(defun cursorfree-target-pick (&optional target)
   "Try to follow the thing at TARGET.
 
 This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
+  (setq target (or target (cursorfree-this)))
   (with-selected-window (cursorfree--target-window target)
     (let ((region (cursorfree--content-region target)))
       (cursorfree--on-content-region target
@@ -1256,7 +1262,7 @@ This function respects narrowing."
         (user-error "No line module 100 equal to %s" index))
       (goto-char (point-min))
       (forward-line (1- guess))
-      (cursorfree-line (cursorfree--make-target (cons (point) (point))))))))
+      (cursorfree-line (cursorfree--make-target (cons (point) (point)))))))
 
 (defun cursorfree-every-instance (target &optional view)
   "Return a parallel target of every occurrence of TARGET.
