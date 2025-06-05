@@ -390,6 +390,33 @@
                     (cursorfree--pusher 40)
                     (alist-get "wrap" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-past ()
+  "past."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A section will be removed"
+             :points '(26))
+    :after (make-cursorfree--test-buffer-state
+            :string "A be removed"
+            :points '(13))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 3 10)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 11 15)))
+                    (alist-get "past" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "A section starting at point will be removed"
+             :points '(11))
+    :after (make-cursorfree--test-buffer-state
+            :string "A section will be removed"
+            :points '(11))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 23 28)))
+                    (alist-get "past" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
 (ert-deftest cursorfree--test-join ()
   "join."
   (cursorfree--run-test

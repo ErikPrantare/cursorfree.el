@@ -1157,7 +1157,9 @@ parenthesis is intended."
 
 (defun cursorfree-past (target1 &optional target2)
   "Return the smallest target that can fit TARGET1 and TARGET2."
-  (setq target2 (or target2 (cursorfree-this)))
+  (setq target2 (or target2
+                    (with-current-buffer (cursorfree--target-buffer target1)
+                      (cursorfree-this))))
   (cursorfree--targets-hull target1 target2))
 
 (defun cursorfree-current-selection ()
@@ -1345,8 +1347,15 @@ See `cursorfree--parallel-target' for more information on parallel
 targets."
   (make-cursorfree--parallel-target :targets targets))
 
-(defun cursorfree-end ()
-  (cursorfree--make-target (cons (point-max) (point-max))))
+(defun cursorfree-end (&optional window-or-buffer)
+  (declare (cursorfree--optional-bag
+            ((or (bufferp %) (windowp %)) window-or-buffer)))
+  (let ((in-buffer (cond
+                    ((windowp window-or-buffer) (window-buffer window-or-buffer))
+                    ((bufferp window-or-buffer) window-or-buffer)
+                    (t (current-buffer)))))
+    (with-current-buffer in-buffer
+      (cursorfree--make-target (cons (point-max) (point-max))))))
 
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))

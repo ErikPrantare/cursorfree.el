@@ -15,11 +15,15 @@
   - New modifier "end": Return a target referring to the last position
     of the buffer.  Useful in conjunction with "past", e.g. "end past
     chuck" removes everything from point until the end of the buffer.
+    "end" takes an optional buffer or window as argument, to pick the
+    end of the buffer in that buffer or window.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
     their left or right side.
   - "row" now tries to find the correct line modulo 100 from the
     visible lines.  For example, row 63 will select line 1363 if it is
     visible.
+  - "past" now expands from point in the appropriate buffer if one end
+    is left implicit.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.
