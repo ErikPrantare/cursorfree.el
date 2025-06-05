@@ -295,18 +295,6 @@ If invoking FUNCTION causes an error, no cursor is created."
         ;; Finally, do it once with the real cursor
         (funcall function (car targets))))))
 
-(defun cursorfree-make-multi-cursor-action (function)
-  "Translate FUNCTION into an instruction using multiple cursors.
-
-FUNCTION will be applied on each element of the stack.  For each
-target, a new cursor will be created."
-  (lambda (environment)
-    (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree-environment-value-stack e)))
-      (setf (cursorfree-environment-value-stack e) nil)
-      (cursorfree--multiple-cursors-do function values)
-      e)))
-
 (defun cursorfree-make-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
 
@@ -581,7 +569,7 @@ context-dependent behavior for whatever \"this\" means."
 
 (defun cursorfree-target-select (target)
   "Set active region to TARGET."
-  (cursorfree--on-content-region target
+  (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
       (set-mark (car region))
       (goto-char (cdr region)))))
@@ -956,16 +944,16 @@ has no associated buffer, use the current buffer instead."
    (cursorfree-outer-parenthesis-dwim target)))
 
 (defvar cursorfree-actions
-  `(("select" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-select))
+  `(("select" . ,(cursorfree-make-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
     ("chuck" . ,(cursorfree-make-action #'cursorfree-target-chuck))
     ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
     ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
     ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
     ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump))
-    ("pre" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-beginning))
-    ("post" . ,(cursorfree-make-multi-cursor-action #'cursorfree-target-jump-end))
+    ("jump" . ,(cursorfree-make-action #'cursorfree-target-jump))
+    ("pre" . ,(cursorfree-make-action #'cursorfree-target-jump-beginning))
+    ("post" . ,(cursorfree-make-action #'cursorfree-target-jump-end))
     ("change" . ,(cursorfree-make-action #'cursorfree-target-change))
     ("comment" . ,(cursorfree-make-action #'cursorfree-target-comment))
     ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
