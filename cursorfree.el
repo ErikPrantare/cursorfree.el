@@ -1304,13 +1304,19 @@ Otherwise, search the buffer of TARGET."
   "Return the kill ring as a target."
   (make-cursorfree--kill-ring-target))
 
-(cl-defgeneric cursorfree-next (target)
+(defun cursorfree-next (target)
+  (cursorfree--next target))
+
+(defun cursorfree-previous (target)
+  (cursorfree--previous target))
+
+(cl-defgeneric cursorfree--next (target)
   "Get next occurrence of TARGET."
   (save-excursion
     (search-forward (cursorfree--target-get target))
     (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
 
-(cl-defmethod cursorfree-next ((target cursorfree--region-target))
+(cl-defmethod cursorfree--next ((target cursorfree--region-target))
   "Get the next literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (save-excursion
@@ -1318,13 +1324,13 @@ Otherwise, search the buffer of TARGET."
       (search-forward (cursorfree--target-get target))
       (cursorfree--make-target (cons (match-beginning 0) (match-end 0))))))
 
-(cl-defgeneric cursorfree-previous (target)
+(cl-defgeneric cursorfree--previous (target)
   "Get previous occurrence of TARGET."
   (save-excursion
     (search-backward (cursorfree--target-get target))
     (cursorfree--make-target (cons (match-beginning 0) (match-end 0)))))
 
-(cl-defmethod cursorfree-previous ((target cursorfree--region-target))
+(cl-defmethod cursorfree--previous ((target cursorfree--region-target))
   "Get the previous literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree--target-buffer target)
     (save-excursion
