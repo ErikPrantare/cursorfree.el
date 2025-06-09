@@ -1217,8 +1217,8 @@ This function respects narrowing."
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
-    (cursorfree--trim-right
-     (cursorfree--make-target (cons (car (cursorfree--content-region target)) (point))))))
+    (let ((line-right (cursorfree--targets-hull target (cursorfree-this))))
+      (cursorfree--targets-hull target (cursorfree--trim-right line-right)))))
 
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to start after the previous newline."
@@ -1228,8 +1228,8 @@ This function respects narrowing."
     (goto-char (car (cursorfree--content-region target)))
     (unless (search-backward "\n" nil t)
       (goto-char (point-min)))
-    (cursorfree--trim-left
-     (cursorfree--make-target (cons (point) (cdr (cursorfree--content-region target)))))))
+    (let ((line-left (cursorfree--targets-hull target (cursorfree-this))))
+      (cursorfree--targets-hull target (cursorfree--trim-left line-left)))))
 
 (defun cursorfree-line (&optional target)
   "Extend TARGET to fill the full line."
