@@ -17,6 +17,7 @@
     chuck" removes everything from point until the end of the buffer.
     "end" takes an optional buffer or window as argument, to pick the
     end of the buffer in that buffer or window.
+  - New modifier "primary": Return the primary selection as a target.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
     their left or right side.
   - "row" now tries to find the correct line modulo 100 from the

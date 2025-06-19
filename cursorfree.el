@@ -1306,6 +1306,20 @@ Otherwise, search the buffer of TARGET."
   "Return the kill ring as a target."
   (make-cursorfree--kill-ring-target))
 
+(cl-defstruct cursorfree--primary-selection-target)
+
+(cl-defmethod cursorfree--target-get ((_ cursorfree--primary-selection-target))
+  "Return primary selection."
+  (gui-get-primary-selection))
+
+(cl-defmethod cursorfree--target-put ((_ cursorfree--primary-selection-target) content)
+  "Put CONTENT into primary selection."
+  (gui-set-selection nil content))
+
+(defun cursorfree-primary-selection ()
+  "Return the primary selection as a target."
+  (make-cursorfree--primary-selection-target))
+
 (defun cursorfree-next (target)
   (cursorfree--next target))
 
@@ -1380,6 +1394,7 @@ targets."
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
     ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
+    ("primary" . ,(cursorfree-make-modifier #'cursorfree-primary-selection))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
     ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))
     ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))
