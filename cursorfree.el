@@ -493,9 +493,16 @@ by `hatty-locate-token-region'."
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--region-target) (content string))
   "Remove region of TARGET and insert CONTENT."
-  (with-current-buffer (cursorfree--target-buffer target)
-    (cursorfree--region-delete (cursorfree--content-region target))
-    (cursorfree--insert-at (car (cursorfree--content-region target)) content)))
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (insert content)
+        ;; We delete after we insert so that markers occurring
+        ;; directly after TARGET don't end up before the inserted
+        ;; content.  The end marker of the region will be moved but
+        ;; the beginning will not, so we have to compensate here.
+        (delete-region (+ (car region) (length content)) (cdr region))))))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--parallel-target) content)
   (seq-doseq (target (cursorfree--parallel-target-targets target))

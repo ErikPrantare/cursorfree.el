@@ -166,8 +166,19 @@
             :points '(17))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 21 26)))
                     (alist-get "bring" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil)))
+    :buffer-local-p nil))
 
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Point should remain"
+             :points '(13))
+    :after (make-cursorfree--test-buffer-state
+            :string "Point should remain"
+            :points '(13))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 7 13)))
+                    (cursorfree--pusher (cursorfree--make-target (cons 7 13)))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal)))))
 
 (ert-deftest cursorfree--test-move ()
   "move."
