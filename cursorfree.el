@@ -345,7 +345,7 @@ element of the list pushed first."
 (cl-defstruct cursorfree--region-target
   "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
-  content-region buffer)
+  content-region buffer (deletion-region nil))
 
 (cl-defstruct cursorfree--parallel-target
   targets)
@@ -543,16 +543,17 @@ context-dependent behavior for whatever \"this\" means."
 
 (defun cursorfree--deletion-region (target)
   "Return region that should be removed if deleting TARGET."
-  (cursorfree--on-content-region target
-    (lambda (region)
-      (save-excursion
-        (goto-char (cdr region))
-        (cursorfree--ensure-marker-region
-         (if (/= 0 (skip-chars-forward "[:space:]\n"))
-             (cons (car region) (point))
-           (goto-char (car region))
-           (skip-chars-backward "[:space:]\n")
-           (cons (point) (cdr region))))))))
+  (or (cursorfree--region-target-deletion-region target)
+      (cursorfree--on-content-region target
+        (lambda (region)
+          (save-excursion
+            (goto-char (cdr region))
+            (cursorfree--ensure-marker-region
+             (if (/= 0 (skip-chars-forward "[:space:]\n"))
+                 (cons (car region) (point))
+               (goto-char (car region))
+               (skip-chars-backward "[:space:]\n")
+               (cons (point) (cdr region)))))))))
 
 (defun cursorfree--region-delete (region)
   "Delete REGION."
