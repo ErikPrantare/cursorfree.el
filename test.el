@@ -706,4 +706,34 @@
                     (alist-get "line" cursorfree-modifiers nil nil #'equal)
                     (alist-get "change" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-that ()
+  "that."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Change brought that "
+             :points '(21))
+    :after (make-cursorfree--test-buffer-state
+            :string "Change brought that "
+            :points '(21))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 8 15)))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal)
+                    (alist-get "that" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
+
+(ert-deftest cursorfree--test-source ()
+  "source."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Change source thing "
+             :points '(21))
+    :after (make-cursorfree--test-buffer-state
+            :string "Change  thing source"
+            :points '(8))
+    :command-form '((cursorfree--pusher (cursorfree--make-target (cons 8 14)))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal)
+                    (alist-get "source" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here

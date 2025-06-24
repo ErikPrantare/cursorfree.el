@@ -350,6 +350,17 @@ CONTENT-REGION is a cons cell of markers."
 (cl-defstruct cursorfree--parallel-target
   targets)
 
+(defun cursorfree--normalize-target (target)
+  "Turn TARGET into a parallel if it is a non-singleton sequence.
+
+If TARGET is not a sequence or is a sequence with a single element,
+return that element.  Otherwise, return the targets of the sequence as
+a `cursorfree--parallel-target'."
+  (cond
+   ((not (seqp target)) target)
+   ((length= target 1) (seq-first target))
+   (t (make-cursorfree--parallel-target :targets (seq-into target 'list)))))
+
 (cl-defun cursorfree--make-target
     (content-region &key (constructor #'make-cursorfree--region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
@@ -492,17 +503,26 @@ by `hatty-locate-token-region'."
   (cursorfree--target-put target (window-buffer content)))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--region-target) (content string))
-  "Remove region of TARGET and insert CONTENT."
+  "Remove region of TARGET and insert CONTENT.
+
+TARGET will be modified to cover the region containing CONTENT."
   (cursorfree--on-content-region target
     (lambda (region)
       (save-excursion
         (goto-char (car region))
         (insert content)
-        ;; We delete after we insert so that markers occurring
-        ;; directly after TARGET don't end up before the inserted
-        ;; content.  The end marker of the region will be moved but
-        ;; the beginning will not, so we have to compensate here.
-        (delete-region (+ (car region) (length content)) (cdr region))))))
+        ;; We are careful to make sure TARGET still refers to the
+        ;; region with the new content after insertion.  We delete
+        ;; after we insert so that markers occurring directly after
+        ;; TARGET don't end up before the inserted content.
+        (if (= (car region) (cdr region))
+            ;; If the region is empty, we need to manually move the
+            ;; end of the target region.  We do not need to delete the
+            ;; empty target.
+            (move-marker (cdr region) (+ (cdr region) (length content)))
+          ;; Otherwise, the end marker of the region will be moved but
+          ;; the beginning will not, so we have to compensate here.
+          (delete-region (+ (car region) (length content)) (cdr region)))))))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--parallel-target) content)
   (seq-doseq (target (cursorfree--parallel-target-targets target))
@@ -528,8 +548,14 @@ context-dependent behavior for whatever \"this\" means."
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
-  (with-current-buffer (cursorfree--target-buffer target)
-    (insert content)))
+  ;; Insert as if usual region target
+  (cl-call-next-method)
+  ;; Put point after the inserted text, given that point actually was
+  ;; located at the corresponding region.
+  (cursorfree--on-content-region target
+    (lambda (region)
+      (when (= (point) (car region))
+        (goto-char (cdr region))))))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content buffer))
   (cursorfree--target-put (cursorfree--target-window target) content))
@@ -540,6 +566,11 @@ context-dependent behavior for whatever \"this\" means."
 ;;;; End of core functions
 
 ;; TODO: Introduce region-target abstraction layer?
+
+(defvar cursorfree--target-that nil
+  "The target of the last operation.")
+(defvar cursorfree--target-source nil
+  "The source target of the last operation.")
 
 (defun cursorfree--deletion-region (target)
   "Return region that should be removed if deleting TARGET."
@@ -663,10 +694,11 @@ If a window displays the buffer of TARGET, select it."
   "Overwrite TARGETS with SOURCE.
 
 If no targets are given, overwrite `cursorfree-this' instead."
-  (setq targets (or targets (list (cursorfree-this))))
-  (dolist (target targets)
+  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
     (cursorfree--target-put target (cursorfree--target-get source))
-    (cursorfree-target-pulse target)))
+    (cursorfree-target-pulse target)
+    (setq cursorfree--target-that target)
+    (setq cursorfree--target-source source)))
 
 (cl-defgeneric cursorfree--target-move (source target)
   (cursorfree-target-bring source target)
