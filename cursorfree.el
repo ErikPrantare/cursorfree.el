@@ -628,28 +628,46 @@ examples."
   (error (format "No method for jumping to %s" target)))
 
 (cl-defmethod cursorfree--target-jump ((target cursorfree--region-target))
-  (cursorfree-target-jump-beginning target))
-
-(cl-defmethod cursorfree--target-jump ((target window))
-  (select-window target))
-
-(defun cursorfree-target-jump-beginning (target)
   "Move point to beginning of TARGET.
 If a window displays the buffer of TARGET, select it."
   (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
-      (when (cursorfree--target-window target)
-        (select-window (cursorfree--target-window target)))
       (goto-char (car region)))))
 
-(defun cursorfree-target-jump-end (target)
+;; TODO rethink how best to eliminate duplicated code
+;; w.r.t. cursorfree--region-target.  Same for
+;; cursorfree--target-jump-end.
+(cl-defmethod cursorfree--target-jump ((target cursorfree--parallel-target))
+  (cursorfree--on-content-region-cursor-effect target
+    (lambda (region)
+      (goto-char (car region)))))
+
+(cl-defmethod cursorfree--target-jump ((target window))
+  (select-window target))
+
+(cl-defgeneric cursorfree--target-jump-beginning (target)
+  (cursorfree--target-jump target))
+
+(defun cursorfree-target-jump-beginning (target)
+  (cursorfree--target-jump-beginning target))
+
+(cl-defgeneric cursorfree--target-jump-end (target)
+  (cursorfree--target-jump target))
+
+(cl-defmethod cursorfree--target-jump-end ((target cursorfree--region-target))
   "Move point to end of TARGET.
 If a window displays the buffer of TARGET, select it."
   (cursorfree--on-content-region-cursor-effect target
     (lambda (region)
-      (when (cursorfree--target-window target)
-        (select-window (cursorfree--target-window target)))
       (goto-char (cdr region)))))
+
+(cl-defmethod cursorfree--target-jump-end ((target cursorfree--parallel-target))
+  (cursorfree--on-content-region-cursor-effect target
+    (lambda (region)
+      (goto-char (cdr region)))))
+
+(defun cursorfree-target-jump-end (target)
+  (cursorfree--target-jump-end target))
 
 (defun cursorfree-target-indent (target)
   "Indent TARGET."
