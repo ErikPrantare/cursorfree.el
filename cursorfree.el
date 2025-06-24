@@ -890,6 +890,19 @@ content region.  Afterwards, the region will be pulsed."
       (end-of-line)
       (newline))))
 
+(defun cursorfree-target-drop (&optional target)
+  (save-excursion
+    (cursorfree-target-drink target)))
+
+(defun cursorfree-target-float (&optional target)
+  (save-excursion
+    (cursorfree-target-pour target)))
+
+(defun cursorfree-target-puff (&optional target)
+   (save-excursion
+     (cursorfree-target-float target)
+     (cursorfree-target-drop target)))
+
 (defun cursorfree-target-wrap-parentheses (parenthesis &rest targets)
   "Wrap TARGETS with characters specified by PARENTHESIS.
 
@@ -1040,6 +1053,9 @@ has no associated buffer, use the current buffer instead."
     ("help" . ,(cursorfree-make-action #'cursorfree-target-help))
     ("drink" . ,(cursorfree-make-action #'cursorfree-target-drink))
     ("pour" . ,(cursorfree-make-action #'cursorfree-target-pour))
+    ("drop" . ,(cursorfree-make-action #'cursorfree-target-drop))
+    ("float" . ,(cursorfree-make-action #'cursorfree-target-float))
+    ("puff" . ,(cursorfree-make-action #'cursorfree-target-puff))
     ("occur" . ,(cursorfree-make-action #'cursorfree-target-occur)))
   "Alist mapping spoken utterance to action.
 
@@ -1429,6 +1445,12 @@ targets."
     (with-current-buffer in-buffer
       (cursorfree--make-target (cons (point-max) (point-max))))))
 
+(defun cursorfree-that ()
+  cursorfree--target-that)
+
+(defun cursorfree-source ()
+  cursorfree--target-source)
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1456,7 +1478,9 @@ targets."
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
     ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))
     ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))
-    ("end" . ,(cursorfree-make-modifier #'cursorfree-end))))
+    ("end" . ,(cursorfree-make-modifier #'cursorfree-end))
+    ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
+    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
