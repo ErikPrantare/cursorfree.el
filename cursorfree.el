@@ -345,7 +345,7 @@ element of the list pushed first."
 (cl-defstruct cursorfree--region-target
   "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
-  content-region buffer (deletion-region nil))
+  content-region buffer deletion-region)
 
 (cl-defstruct cursorfree--parallel-target
   targets)
@@ -361,17 +361,35 @@ a `cursorfree--parallel-target'."
    ((length= target 1) (seq-first target))
    (t (make-cursorfree--parallel-target :targets (seq-into target 'list)))))
 
-(cl-defun cursorfree--make-target
-    (content-region &key (constructor #'make-cursorfree--region-target))
+(cl-defun cursorfree--make-target (content-region
+                                   &key
+                                   deletion-region
+                                   (constructor #'make-cursorfree--region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
+DELETION-REGION specified the region to remove if this target is
+deleted.  If nil, the region will be guessed.
+
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
-may be invoked equivalently to `make-cursorfree--region-target'."
-  (let* ((region (cursorfree--ensure-marker-region content-region))
-         (buffer (marker-buffer (car region))))
+may be invoked equivalently to `make-cursorfree--region-target', and
+constructs a target inheriting from `cursorfree--region-target'."
+   (let* ((region (cursorfree--ensure-marker-region content-region))
+         (buffer (marker-buffer (car region)))
+         (deletion (cursorfree--ensure-marker-region
+                    (or deletion-region
+                        (save-excursion
+                          (set-buffer buffer)
+                          (goto-char (cdr content-region))
+                          (cursorfree--ensure-marker-region
+                           (if (/= 0 (skip-chars-forward "[:space:]\n"))
+                               (cons (car content-region) (point))
+                             (goto-char (car content-region))
+                             (skip-chars-backward "[:space:]\n")
+                             (cons (point) (cdr content-region)))))))))
     (funcall constructor
              :content-region region
-             :buffer buffer)))
+             :buffer buffer
+             :deletion-region deletion)))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
@@ -543,8 +561,10 @@ for \"this\".")
 The returned target this of type `cursorfree--this-target'.  Generic
 functions can be overloaded on this type to give more
 context-dependent behavior for whatever \"this\" means."
-  (cursorfree--make-target (cons (point) (point))
-                           :constructor #'make-cursorfree--this-target))
+  (cursorfree--make-target
+   (cons (point) (point))
+   :deletion-region (cons (point) (point))
+   :constructor #'make-cursorfree--this-target))
 
 (cl-defmethod cursorfree--target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
@@ -574,17 +594,7 @@ context-dependent behavior for whatever \"this\" means."
 
 (defun cursorfree--deletion-region (target)
   "Return region that should be removed if deleting TARGET."
-  (or (cursorfree--region-target-deletion-region target)
-      (cursorfree--on-content-region target
-        (lambda (region)
-          (save-excursion
-            (goto-char (cdr region))
-            (cursorfree--ensure-marker-region
-             (if (/= 0 (skip-chars-forward "[:space:]\n"))
-                 (cons (car region) (point))
-               (goto-char (car region))
-               (skip-chars-backward "[:space:]\n")
-               (cons (point) (cdr region)))))))))
+  (cursorfree--region-target-deletion-region target))
 
 (defun cursorfree--region-delete (region)
   "Delete REGION."
@@ -1227,6 +1237,11 @@ parenthesis is intended."
        (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--content-region target)))
                                   targets))
              (apply #'max (mapcar (lambda (target) (cdr (cursorfree--content-region target)))
+                                  targets)))
+       :deletion-region
+       (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--deletion-region target)))
+                                  targets))
+             (apply #'max (mapcar (lambda (target) (cdr (cursorfree--deletion-region target)))
                                   targets)))))))
 
 (defun cursorfree-past (target1 &optional target2)

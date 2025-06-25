@@ -40,8 +40,7 @@
             :string ""
             :points nil)
            :type my/test-buffer-state)
-   (buffer-local-p
-    t
+   (from-same-buffer t
     :documentation "Whether evaluating the command is invariant to the
     selected window."))
 
@@ -91,7 +90,7 @@
               (funcall #'cursorfree-evaluate instructions)
               (cursorfree--test-check-state parameters))
 
-            (when (cursorfree--test-parameters-buffer-local-p parameters)
+            (unless (cursorfree--test-parameters-from-same-buffer parameters)
               (cursorfree--setup-test parameters)
               (let ((instructions (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
                 (other-window 1)
@@ -153,8 +152,7 @@
             :points '(37))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 6 10)))
                     (cursorfree--pusher (cursorfree--make-target (cons 19 30)))
-                    (alist-get "bring" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal))))
 
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -166,7 +164,7 @@
             :points '(17))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 21 26)))
                     (alist-get "bring" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil))
+    :from-same-buffer t))
 
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -204,7 +202,7 @@
             :points '(14))
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 20 24)))
                     (alist-get "move" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil)))
+    :from-same-buffer t)))
 
 (ert-deftest cursorfree--test-chuck ()
   "chuck."
@@ -294,7 +292,7 @@
             :points '(12))
     :command-form '((alist-get "inside" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil)))
+    :from-same-buffer t)))
 
 (ert-deftest cursorfree--test-outside ()
   "outside."
@@ -358,7 +356,7 @@
             :points '(11))
     :command-form '((alist-get "outside" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil)))
+    :from-same-buffer t)))
 
 (ert-deftest cursorfree--wrap ()
   "wrap."
@@ -526,7 +524,7 @@
     :command-form '((cursorfree--pusher "word")
                     (alist-get "next" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil))
+    :from-same-buffer t))
 
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -553,7 +551,7 @@
     :command-form '((cursorfree--pusher "test")
                     (alist-get "preve" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal))
-    :buffer-local-p nil))
+    :from-same-buffer t))
 
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -719,7 +717,8 @@
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 8 15)))
                     (alist-get "bring" cursorfree-actions nil nil #'equal)
                     (alist-get "that" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "change" cursorfree-actions nil nil #'equal))
+    :from-same-buffer t)))
 
 (ert-deftest cursorfree--test-source ()
   "source."
@@ -734,6 +733,7 @@
     :command-form '((cursorfree--pusher (cursorfree--make-target (cons 8 14)))
                     (alist-get "bring" cursorfree-actions nil nil #'equal)
                     (alist-get "source" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "change" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "change" cursorfree-actions nil nil #'equal))
+    :from-same-buffer t)))
 
 ;;; test.el ends here
