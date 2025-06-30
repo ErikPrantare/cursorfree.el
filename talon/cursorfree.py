@@ -66,8 +66,6 @@ def cursorfree_default_command_form(m) -> str:
     return f"{m.cursorfree_nonterminators} {m.cursorfree_terminator}";
 
 @module.capture(rule=
-                "<user.cursorfree_default_command_form>"
-                # Not implemented here, added so that users can add custom forms.
-                "| <user.cursorfree_custom_command_form>")
+                "<user.cursorfree_default_command_form>")
 def cursorfree_command(m) -> str:
     return f"(list {m[0]})";
