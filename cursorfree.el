@@ -687,8 +687,8 @@ If a window displays the buffer of TARGET, select it."
 
 (defun cursorfree-target-copy (target)
   "Copy TARGET to kill ring."
-  (cursorfree--target-put (cursorfree-kill-ring)
-                          (cursorfree--target-get target))
+  (cursorfree-target-bring target (cursorfree-kill-ring))
+  (setq cursorfree--target-that target)
   (cursorfree-target-pulse target))
 
 (cl-defgeneric cursorfree-target-delete (target)
