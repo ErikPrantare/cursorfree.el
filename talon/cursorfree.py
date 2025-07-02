@@ -39,6 +39,12 @@ def cursorfree_quoted_window(m) -> str:
                 "| <user.cursorfree_quoted_number>"
                 "| <user.cursorfree_quoted_word>"
                 "| <user.cursorfree_quoted_window>"
+                )
+def cursorfree_builtin_nonterminator(m) -> str:
+    return m[0]
+
+@module.capture(rule=
+                "<user.cursorfree_builtin_nonterminator>"
                 # Not implemented here, added so that users can add custom modifiers.
                 "| <user.cursorfree_custom_nonterminator>"
                 )
