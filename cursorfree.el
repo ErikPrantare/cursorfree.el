@@ -888,7 +888,11 @@ content region.  Afterwards, the region will be pulsed."
     (lambda (region)
       (goto-char (car region))
       (beginning-of-line)
-      (newline)
+      ;; If this function is invoked in the context of a saved
+      ;; excursion, and point is at the beginning of line, not
+      ;; inserting before markers would put the saved point at the
+      ;; new, preceeding, line.
+      (insert-before-markers "\n")
       (backward-char))))
 
 (defun cursorfree-target-pour (&optional target)
@@ -909,9 +913,8 @@ content region.  Afterwards, the region will be pulsed."
     (cursorfree-target-pour target)))
 
 (defun cursorfree-target-puff (&optional target)
-   (save-excursion
-     (cursorfree-target-float target)
-     (cursorfree-target-drop target)))
+   (cursorfree-target-float target)
+   (cursorfree-target-drop target))
 
 (defun cursorfree-target-wrap-parentheses (parenthesis &rest targets)
   "Wrap TARGETS with characters specified by PARENTHESIS.

@@ -736,4 +736,19 @@
                     (alist-get "change" cursorfree-actions nil nil #'equal))
     :from-same-buffer t)))
 
+(ert-deftest cursorfree--test-puff ()
+  "puff."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string ""
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "
+
+"
+            :points '(2))
+    :command-form '((alist-get "this" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "puff" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here
