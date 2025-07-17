@@ -916,7 +916,7 @@ content region.  Afterwards, the region will be pulsed."
    (cursorfree-target-float target)
    (cursorfree-target-drop target))
 
-(defun cursorfree-target-wrap-parentheses (parenthesis &rest targets)
+(defun cursorfree-target-wrap (parenthesis &rest targets)
   "Wrap TARGETS with characters specified by PARENTHESIS.
 
 Insert PARENTHESIS before TARGETS.  If PARENTHESIS is some type of
@@ -936,6 +936,10 @@ Otherwise, insert PARENTHESIS instead."
              (?< ?>)
              (?{ ?})
              (_ parenthesis))))))))
+
+(make-obsolete 'cursorfree-target-wrap-parenthesis
+               'cursorfree-target-wrap
+               "0.2.0")
 
 (defvar cursorfree-dwim-follow-alist
   `((org-mode . org-open-at-point)
