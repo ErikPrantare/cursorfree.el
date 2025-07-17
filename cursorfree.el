@@ -1021,18 +1021,19 @@ This may, for example, be used for displaying warning from eglot."
         (display-local-help)
         (cursorfree-target-pulse region)))))
 
-(defun cursorfree-target-occur (target &optional window-or-buffer)
-  "List occurrences of TARGET in WINDOW-OR-BUFFER.
+(defun cursorfree--resolve-buffer (&rest alternatives)
+  (cursorfree--target-buffer
+   (seq-find #'identity alternatives (current-buffer))))
 
-If WINDOW-OR-BUFFER is a buffer, look for occurrences in that buffer.
-If it is a window, look in the buffer current to that window.  If it
-is nil or omitted, look instead in the buffer of TARGET.  If TARGET
-has no associated buffer, use the current buffer instead."
+(defun cursorfree-target-occur (target &optional window-or-buffer)
+  "List occurrences of TARGET in WINDOW-OR-BUFFER with `occur'.
+
+Occurrences are searched for in the buffer of
+- WINDOW-OR-BUFFER if given, or
+- the buffer associated with TARGET if has one, or
+- the current buffer otherwise."
   (declare (cursorfree--optional-bag ((or (windowp %) (bufferp %)) window-or-buffer)))
-  (with-current-buffer (cond
-                        ((windowp window-or-buffer) (window-buffer window-or-buffer))
-                        ((bufferp window-or-buffer) window-or-buffer)
-                        (t (window-normalize-buffer (cursorfree--target-buffer target))))
+  (with-current-buffer (cursorfree--resolve-buffer window-or-buffer target)
     (occur (rx (literal (cursorfree--target-get target))))))
 
 (defun cursorfree-target-unwrap-parentheses (target)
@@ -1464,10 +1465,7 @@ targets."
 (defun cursorfree-end (&optional window-or-buffer)
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cond
-                    ((windowp window-or-buffer) (window-buffer window-or-buffer))
-                    ((bufferp window-or-buffer) window-or-buffer)
-                    (t (current-buffer)))))
+  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
     (with-current-buffer in-buffer
       (cursorfree--make-target (cons (point-max) (point-max))))))
 
