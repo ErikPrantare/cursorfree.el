@@ -952,8 +952,10 @@ Otherwise, insert PARENTHESIS instead."
     (eww-mode . ,(lambda ()
                    (if (get-text-property (point) 'eww-form)
                        (eww-submit)
-                     (eww-follow-link)))))
-  "Alist for mapping major mode to function for following at point.
+                     (eww-follow-link))))
+    ;; TODO: Bug report for making this mode part of the public API
+    (xref--xref-buffer-mode . xref-goto-xref))
+  "Alist mapping major mode to function for following at point.
 
 Used in `cursorfree-dwim-follow' for determining how to follow
 whatever thing point is located on.")
@@ -962,6 +964,8 @@ whatever thing point is located on.")
   "Try to follow the thing at point.
 If point is at a button, push it.  Otherwise, use the current major
 mode to look up the function in `cursorfree-dwim-follow-alist'."
+  ;; The extra check that the button contains an action was used for
+  ;; eww.  Check if this was fixed in Emacs 30.
   (if (and (button-at (point)) (button-get (button-at (point)) 'action))
       (push-button)
     (if-let ((follow-action
