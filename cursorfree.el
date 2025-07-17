@@ -1475,6 +1475,13 @@ targets."
 (defun cursorfree-source ()
   cursorfree--target-source)
 
+(defun cursorfree-point (&optional window-or-buffer)
+  (declare (cursorfree--optional-bag
+            ((or (bufferp %) (windowp %)) window-or-buffer)))
+  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
+    (with-current-buffer in-buffer
+      (cursorfree-this))))
+
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1504,7 +1511,8 @@ targets."
     ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))
     ("end" . ,(cursorfree-make-modifier #'cursorfree-end))
     ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
-    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))))
+    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))
+    ("point" . ,(cursorfree-make-modifier #'cursorfree-point))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

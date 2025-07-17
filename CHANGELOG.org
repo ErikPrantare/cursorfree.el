@@ -6,7 +6,7 @@
   corresponding to <number> onto the stack.  This requires winum to be
   installed.
 - Actions:
-  - New actions "float", "drop", "puff":  This will insert a newline
+  - New actions "float", "drop", "puff": This will insert a newline
     before, after, and around the line of the target without moving
     point.
   - "wrap" can now act on multiple targets.
@@ -25,6 +25,9 @@
     "end" takes an optional buffer or window as argument, to pick the
     end of the buffer in that buffer or window.
   - New modifier "primary": Return the primary selection as a target.
+  - New modifier "point": Return point as a region.  Can alternatively
+    take a window or buffer as argument to return the corresponding
+    point.
   - "everything" can now take an optional window argument to get
     everything in the buffer of the specified window.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
