@@ -21,17 +21,17 @@ Then, clone this repository and add the following to your init file:
 #+end_src
 
 *** Talon integration
-Set up [[https://github.com/ErikPrantare/talon-list.el][talon-list.el]] and add the following to your init file:
+Set up [[https://github.com/ErikPrantare/phony.el][phony.el]] and add the following to your init file:
 
 #+begin_src elisp
-  (define-talon-list my/colors color
+  (phony-define-list my/colors color
     '(("yellow" . yellow)
       ("red" . red)
       ("blue" .  blue)
       ("pink" . pink)
       ("green" . green)))
 
-  (define-talon-list my/shapes hat_shape
+  (phony-define-list my/shapes hat_shape
     '(("bolt" . bolt)
       ("curve" . curve)
       ("fox" . fox)
@@ -43,10 +43,10 @@ Set up [[https://github.com/ErikPrantare/talon-list.el][talon-list.el]] and add 
       ("cross" . cross)
       ("eye" . eye)))
 
-  (define-talon-list my/actions cursorfree_action
+  (phony-define-list my/actions cursorfree_action
     cursorfree-actions)
 
-  (define-talon-list my/modifiers cursorfree_modifier
+  (phony-define-list my/modifiers cursorfree_modifier
     cursorfree-modifiers)
 #+end_src
 
