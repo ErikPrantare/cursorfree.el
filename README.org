@@ -98,36 +98,36 @@ function in the following table.  Functions that do not act directly
 on the environment will pop the top element of the value stack for its
 first argument, the next one for the second argument, and so on.
 
-|-------------+------------------------------------|
-| Spoken form | Function                           |
-|-------------+------------------------------------|
-| select      | cursorfree-target-select           |
-| copy        | cursorfree-target-copy             |
-| chuck       | cursorfree-target-chuck            |
-| bring       | cursorfree-target-bring            |
-| move        | cursorfree-target-move             |
-| swap        | cursorfree-target-swap             |
-| clone       | cursorfree-target-clone            |
-| jump        | cursorfree-target-jump-beginning   |
-| pre         | cursorfree-target-jump-beginning   |
-| post        | cursorfree-target-jump-end         |
-| change      | cursorfree-target-change           |
-| comment     | cursorfree-target-comment          |
-| uncomment   | cursorfree-target-uncomment        |
-| indent      | cursorfree-target-indent           |
-| narrow      | cursorfree-target-narrow           |
-| wrap        | cursorfree-target-wrap-parentheses |
-| filler      | cursorfree-target-fill             |
-| title       | cursorfree-target-capitalize       |
-| upcase      | cursorfree-target-upcase           |
-| downcase    | cursorfree-target-downcase         |
-| crown       | cursorfree-target-crown            |
-| center      | cursorfree-target-center           |
-| bottom      | cursorfree-target-bottom           |
-| pick        | cursorfree-target-pick             |
-| fuse        | cursorfree-target-fuse             |
-| join        | cursorfree-target-join             |
-|-------------+------------------------------------|
+|-------------+----------------------------------|
+| Spoken form | Function                         |
+|-------------+----------------------------------|
+| select      | cursorfree-target-select         |
+| copy        | cursorfree-target-copy           |
+| chuck       | cursorfree-target-chuck          |
+| bring       | cursorfree-target-bring          |
+| move        | cursorfree-target-move           |
+| swap        | cursorfree-target-swap           |
+| clone       | cursorfree-target-clone          |
+| jump        | cursorfree-target-jump-beginning |
+| pre         | cursorfree-target-jump-beginning |
+| post        | cursorfree-target-jump-end       |
+| change      | cursorfree-target-change         |
+| comment     | cursorfree-target-comment        |
+| uncomment   | cursorfree-target-uncomment      |
+| indent      | cursorfree-target-indent         |
+| narrow      | cursorfree-target-narrow         |
+| wrap        | cursorfree-target-wrap           |
+| filler      | cursorfree-target-fill           |
+| title       | cursorfree-target-capitalize     |
+| upcase      | cursorfree-target-upcase         |
+| downcase    | cursorfree-target-downcase       |
+| crown       | cursorfree-target-crown          |
+| center      | cursorfree-target-center         |
+| bottom      | cursorfree-target-bottom         |
+| pick        | cursorfree-target-pick           |
+| fuse        | cursorfree-target-fuse           |
+| join        | cursorfree-target-join           |
+|-------------+----------------------------------|
 
 *** Modifiers
 A modifier is an instruction producing values for the value stack,

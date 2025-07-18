@@ -937,7 +937,7 @@ Otherwise, insert PARENTHESIS instead."
              (?{ ?})
              (_ parenthesis))))))))
 
-(make-obsolete 'cursorfree-target-wrap-parenthesis
+(make-obsolete 'cursorfree-target-wrap-parentheses
                'cursorfree-target-wrap
                "0.2.0")
 
@@ -1058,7 +1058,7 @@ Occurrences are searched for in the buffer of
     ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
     ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
     ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
-    ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap-parentheses))
+    ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap))
     ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap-parentheses))
     ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
     ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
