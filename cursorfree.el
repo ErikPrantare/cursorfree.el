@@ -429,26 +429,41 @@ If no window shows the buffer of TARGET, return nil."
   (get-buffer-window (cursorfree--target-buffer target)))
 
 (cl-defgeneric cursorfree--on-content-region (target f)
+  "Apply F to the region associated with TARGET."
   (declare (indent defun))
-  (error (format "Type error: %s has no content region" target)))
+  (error (format "Type error: %s has no associated region" target)))
 
 (cl-defmethod cursorfree--on-content-region ((target cursorfree--region-target) f)
-  "Apply F to the content region of TARGET."
+  "Apply F to the content region of TARGET.
+
+If target has an associated window or buffer, they will first be set
+as selected or current respectively."
   (with-selected-window (window-normalize-window (cursorfree--target-window target))
     (with-current-buffer (cursorfree--target-buffer target)
       (let ((region (cursorfree--content-region target)))
         (funcall f region)))))
 
 (cl-defmethod cursorfree--on-content-region ((target cursorfree--parallel-target) f)
+  "Apply F to the content region of each TARGET.
+
+The return values are collected into a parallel target."
   (let ((result '()))
     (seq-doseq (target (cursorfree--parallel-target-targets target))
       (push (cursorfree--on-content-region target f)
             result))
-   ;;HACK: Always wrap the results in a parallel-target.  In this way,
-   ;;if f returns a target, we will automatically promote the result
-   ;;into a parallel target.
+    ;;HACK: Always wrap the results in a parallel-target.  In this way,
+    ;;if f returns a target, we will automatically promote the result
+    ;;into a parallel target.
     (make-cursorfree--parallel-target
      :targets (nreverse result))))
+
+(cl-defmethod cursorfree--on-content-region ((buffer buffer) f)
+  "Apply F to the contents of BUFFER."
+  (cursorfree--on-content-region (cursorfree-everything buffer) f))
+
+(cl-defmethod cursorfree--on-content-region ((window window) f)
+  "Apply F to the contents of the buffer in WINDOW."
+  (cursorfree--on-content-region (cursorfree-everything window) f))
 
 (cl-defgeneric cursorfree--on-content-region-cursor-effect (target f)
   (declare (indent defun))
@@ -1025,16 +1040,20 @@ This may, for example, be used for displaying warning from eglot."
   (cursorfree--target-buffer
    (seq-find #'identity alternatives (current-buffer))))
 
-(defun cursorfree-target-occur (target &optional window-or-buffer)
-  "List occurrences of TARGET in WINDOW-OR-BUFFER with `occur'.
+(defun cursorfree-target-occur (target &optional extent)
+  "List occurrences of TARGET in EXTENT with `occur'.
 
-Occurrences are searched for in the buffer of
-- WINDOW-OR-BUFFER if given, or
-- the buffer associated with TARGET if has one, or
-- the current buffer otherwise."
-  (declare (cursorfree--optional-bag ((or (windowp %) (bufferp %)) window-or-buffer)))
-  (with-current-buffer (cursorfree--resolve-buffer window-or-buffer target)
-    (occur (rx (literal (cursorfree--target-get target))))))
+Occurrences will be searched for in the `cursorfree-target-buffer' of
+EXTENT if given and non-nil, otherwise of TARGET.  If EXTENT is a
+`cursorfree--region-target', the search will also be restricted to
+that region."
+  (cursorfree--on-content-region (or extent
+                                     (cursorfree-target-buffer target))
+    (lambda (search-region)
+      (occur (rx (literal (cursorfree--target-get target)))
+             nil
+             ;; TODO: Generalize to multiple regions
+             (list search-region)))))
 
 (defun cursorfree-target-unwrap-parentheses (target)
   "Remove parentheses or quotation around TARGET."

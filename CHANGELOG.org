@@ -13,6 +13,7 @@
   - "occur" can now take an optional parameter to specify in which
     buffer or window to search for the target.
   - "pick" can now follow alternatives in xref buffers.
+  - The optional argument for "occur" may now be an arbitrary region.
 - Modifiers:
   - New modifiers "that" and "source": "that" refers to the target of
     the last action.  "source" refers to the source of the last
