@@ -2,6 +2,10 @@
 - Introduced parallel targets: This type of target contains a list of
   other targets.  When evaluating an instruction on them, the
   semantics are that it should be performed on every contained target.
+- Support for custom target types: For your custom types, override the
+  generic functions ~cursorfree-target-get~ and/or
+  ~cursorfree-target-put~.  This will allow many actions to work on
+  them as well, particularly the action "bring".
 - New primitive target: "split <number>" will now put the window
   corresponding to <number> onto the stack.  This requires winum to be
   installed.
