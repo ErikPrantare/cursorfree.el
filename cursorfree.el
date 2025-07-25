@@ -482,7 +482,7 @@ The return values are collected into a parallel target."
          (funcall f region))))
    (cursorfree-parallel-target-targets target)))
 
-(defun cursorfree-make-target-from-hat (character &optional color shape)
+(defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a token.
 
 The token is indexed by CHARACTER, COLOR and SHAPE, as specified
