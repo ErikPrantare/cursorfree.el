@@ -26,11 +26,10 @@
 ;;; Commentary:
 
 ;; This package provides a command structure for editing and
-;; navigating text using hatty.el.  A command is created as a sequence
-;; of instructions, functions taking a `cursorfree-environment' as
-;; input and output.  These functions may add or modify the value
-;; stack in the environment, or perform side effects informed by the
-;; contents of the value stack.
+;; navigating text.  A command is created as a sequence of
+;; instructions, functions taking a list of values as input and
+;; output.  This list of values acts as the arguments for each
+;; instruction.
 
 ;; To evaluate a sequence of instructions, use `cursorfree-evaluate'.
 ;; See `cursorfree-actions' and `cursorfree-modifiers' for a list of
@@ -44,122 +43,20 @@
 
 ;;;; Instruction interpreter:
 
-(cl-defstruct cursorfree-environment
-  "Environment for executing cursorfree programs.
-
-The environment is made up of a value stack and an instruction
-stack.  The value stack may be regarded as the the \"memory\" of
-the environment: This is for example where information about the
-targets to be acted upon is stored.
-
-The instruction stack is a sequence of functions, taking as input
-the environment and outputting a transformed environment.
-
-When evaluating an environment (see
-`cursorfree-evaluate-environment'), the top instruction in the
-instruction stack will be evaluated with the current environment
-to yield the next environment (see `cursorfree--step').  This
-will be repeated until there are no instructions left."
-  (instruction-stack nil) (value-stack nil))
-
-(defun cursorfree--make-environment (instructions &optional value-stack)
-  "Create an environment with INSTRUCTIONS and VALUE-STACK.
-
-See `cursorfree-environment' for information about environments."
-  (make-cursorfree-environment
-   :instruction-stack instructions
-   :value-stack value-stack))
-
-(defun cursorfree--clone-environment (environment)
-  "Create a shallow copy of ENVIRONMENT."
-  (make-cursorfree-environment
-   :value-stack (cursorfree-environment-value-stack environment)
-   :instruction-stack (cursorfree-environment-instruction-stack environment)))
-
-(defun cursorfree--push-instruction (environment instruction)
-  "Add INSTRUCTION to the instruction stack ENVIRONMENT."
-  (push instruction (cursorfree-environment-instruction-stack environment)))
-
-(defun cursorfree--push-instructions (environment instructions)
-  "Add INSTRUCTIONS to the instruction stack ENVIRONMENT.
-
-The first instruction in INSTRUCTIONS will end up at the top of
-the instruction stack."
-  (dolist (instruction (reverse instructions))
-    (cursorfree--push-instruction environment instruction)))
-
-(defun cursorfree--pop-instruction (environment)
-  "Remove and return the top instruction in ENVIRONMENT."
-  (pop (cursorfree-environment-instruction-stack environment)))
-
-(defun cursorfree--push-value (environment value)
-  "Add VALUE to the value stack of ENVIRONMENT."
-  (declare (indent defun))
-  (push value (cursorfree-environment-value-stack environment)))
-
-(defun cursorfree--push-value-pure (environment value)
-  "Return environment with VALUE added to ENVIRONMENT."
-  (declare (indent defun))
-  (let ((new-environment (cursorfree--clone-environment environment)))
-    (cursorfree--push-value new-environment value)
-    new-environment))
-
-(defun cursorfree--push-values (environment values)
-  "Add VALUES to the value stack of ENVIRONMENT.
-
-The first value in VALUES will end up at the top of the value
-stack."
-  (declare (indent defun))
-  (dolist (value (reverse values))
-    (cursorfree--push-value environment value)))
-
-(defun cursorfree--pop-value (environment)
-  "Remove and return the top value in ENVIRONMENT."
-  (declare (indent defun))
-  (pop (cursorfree-environment-value-stack environment)))
-
-(defun cursorfree--pop-values (environment n)
-  "Remove and return the top N values in ENVIRONMENT.
-
-The top value of the value stack will end up at the beginning of
-the returned list."
-  (declare (indent defun))
-  (let ((acc nil))
-    (dotimes (i n (reverse acc))
-      (push (cursorfree--pop-value environment) acc))))
-
-(defun cursorfree--peek-value (environment)
-  "Return the top value in ENVIRONMENT."
-  (declare (indent defun))
-  (car (cursorfree-environment-value-stack environment)))
-
-(defun cursorfree--step (environment)
-  "Evaluate the next instruction of ENVIRONMENT.
-
-This will return the top instruction of ENVIRONMENT applied to
-ENVIRONMENT with that instruction removed."
-  (let* ((new-environment (cursorfree--clone-environment environment))
-         (instruction (cursorfree--pop-instruction new-environment)))
-    (funcall instruction new-environment)))
-
-(defun cursorfree-evaluate-environment (environment)
-  "Evaluate ENVIRONMENT and return the final value stack.
-
-This will step through ENVIRONMENT with `cursorfree--step' until
-there are no instructions left, at wich point it returns the
-final stack of values."
-  (declare (indent defun))
-  (while (cursorfree-environment-instruction-stack environment)
-    (setq environment (cursorfree--step environment)))
-  (cursorfree-environment-value-stack environment))
-
 (defun cursorfree-evaluate (instructions)
-  "Evaluate INSTRUCTIONS and return the final value stack.
+  "Apply the composition of INSTRUCTIONS on nil.
 
-This creates an initial environment with empty value stack, upon which
-`cursorfree-evaluate-environment' is invoked."
-  (cursorfree-evaluate-environment
-    (cursorfree--make-environment instructions)))
+For example,
+
+  (cursorfree-evaluate (list #'f #'g #'h))
+
+would be equivalent to
+
+  (h (g (f nil)))"
+  (let ((values '()))
+    (seq-doseq (instruction instructions)
+      (setq values (funcall instruction values)))
+    values))
 
 (defun cursorfree--reverse-argument-order (function)
   "Mark FUNCTION for reverse reading order.
@@ -260,13 +157,8 @@ supported."
 The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The read arguments will
 not remain on the value stack."
-  (lambda (environment)
-    (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree-environment-value-stack e)))
-      (setf (cursorfree-environment-value-stack e)
-            (cursorfree--apply-on-stack function values))
-      (cursorfree--pop-value e) ; Ignore return value
-      e)))
+  (lambda (values)
+    (seq-rest (cursorfree--apply-on-stack function values))))
 
 (defun cursorfree--multiple-cursors-do (function targets)
   "Apply FUNCTION to each target in TARGETS.
@@ -302,27 +194,8 @@ The resulting instruction will read the top elements of the value
 stack to supply arguments for FUNCTION.  The result of invoking
 FUNCTION will be put back on the value stack.  The read arguments
 will not remain on the stack."
-  (lambda (environment)
-    (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree-environment-value-stack e)))
-      (setf (cursorfree-environment-value-stack e)
-            (cursorfree--apply-on-stack function values))
-      e)))
-
-(defun cursorfree-make-flattening-modifier (function)
-  "Translate FUNCTION to an instruction producing multiple values.
-
-The resulting instruction will act as if `cursorfree-make-modifier'
-was used, but assumes that the function returns a list.  Each element
-of the list will be pushed onto the value stack, with the first
-element of the list pushed first."
-  (lambda (environment)
-    (let* ((e (cursorfree--clone-environment environment))
-           (values (cursorfree-environment-value-stack e)))
-      (setf (cursorfree-environment-value-stack e)
-            (cursorfree--apply-on-stack function values))
-      (cursorfree--push-values e (cursorfree--pop-value e))
-      e)))
+  (lambda (values)
+    (cursorfree--apply-on-stack function values)))
 
 (defun cursorfree--ensure-marker-region (region)
   "Return REGION, with the endpoints turned into markers as needed."
@@ -491,10 +364,8 @@ by `hatty-locate-token-region'."
    (hatty-locate-token-region character color shape)))
 
 (defun cursorfree--pusher (value)
-  "Return instruction pushing VALUE to the value stack."
-  (lambda (environment)
-    (cursorfree--push-value-pure environment value)))
-
+  "Return instruction putting VALUE on the value stack."
+  (lambda (values) (cons value values)))
 
 ;;;; Core functions
 
@@ -1393,24 +1264,20 @@ If target VIEW is a region target, only instances inside of it will be
 matched.  If it is a window, search within the buffer of that window.
 Otherwise, search the buffer of TARGET."
   (declare (cursorfree--reverse-argument-order))
-  (setq view
-        (cond
-         ((cursorfree-region-target-p view) view)
-         ((windowp view) (cursorfree-everything view))
-         (t (cursorfree-everything (cursorfree--target-buffer target)))))
-  (list (make-cursorfree-parallel-target
-         :targets
-         (cursorfree-on-content-region view
-           (lambda (view-region)
-             (let ((search-string (cursorfree-target-get target))
-                   (matches '()))
-               (unless (equal search-string "")
-                 (save-excursion
-                   (goto-char (car view-region))
-                   (while (search-forward search-string (cdr view-region) t)
-                     (push (cursorfree-make-target (cons (match-beginning 0) (match-end 0)))
-                           matches))))
-               (nreverse matches)))))))
+  (setq view (or view (cursorfree--target-buffer target)))
+  (make-cursorfree-parallel-target
+   :targets
+   (cursorfree-on-content-region view
+     (lambda (view-region)
+       (let ((search-string (cursorfree-target-get target))
+             (matches '()))
+         (unless (equal search-string "")
+           (save-excursion
+             (goto-char (car view-region))
+             (while (search-forward search-string (cdr view-region) t)
+               (push (cursorfree-make-target (cons (match-beginning 0) (match-end 0)))
+                     matches))))
+         (nreverse matches))))))
 
 (cl-defstruct cursorfree--kill-ring-target)
 
@@ -1529,7 +1396,7 @@ targets."
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
-    ("every instance" . ,(cursorfree-make-flattening-modifier #'cursorfree-every-instance))
+    ("every instance" . ,(cursorfree-make-modifier #'cursorfree-every-instance))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
     ("primary" . ,(cursorfree-make-modifier #'cursorfree-primary-selection))
     ("next" . ,(cursorfree-make-modifier #'cursorfree-next))

@@ -67,17 +67,15 @@ A cursorfree command corresponds to a sequence of /instructions/.
 Only the last instruction may, and must, be an /action/.  Each
 instruction is evaluated in turn until there are no instructions left.
 
-An instruction acts on the /environment/, a structure made up of a
-/value stack/ and /instruction stack/.  The value stack is generally
+An instruction acts on a /value stack/.  The value stack is generally
 made up of /targets/, the structures which actions act upon, but may
-contain other types of objects as well.  The instruction stack
-contains the sequence of instructions yet to be evaluated.
+contain other types of objects as well.
 
 For example, the utterance ~blue bolt gust chuck~, interpreted as
 ~(blue bolt gust) (chuck)~, corresponds to two instructions: The first
 one adds the target indicated by the /token/ with a blue bolt over a
-"g" to the value stack.  The second instruction deletes the text of
-the target that was put on the value stack.
+"g" to the value stack.  The second instruction, an action, deletes
+the text of the target that was put on the value stack.
 
 *** Parametrized instructions
 - ~[color] [shape] <character>~: Add the target indicated by the token

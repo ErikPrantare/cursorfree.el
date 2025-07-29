@@ -43,6 +43,7 @@
     visible.
   - "past" now expands from point in the appropriate buffer if one end
     is left implicit.
+- Removed ~cursorfree-evaluate-environment~.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.
