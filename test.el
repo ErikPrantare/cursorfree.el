@@ -478,10 +478,10 @@
     :after (make-cursorfree--test-buffer-state
             :string "a a a b b b a"
             :points '(11))
-    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 13 14)))
-                    (cursorfree--pusher (cursorfree-make-target (cons 9 10)))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 9 10)))
                     (cursorfree--pusher (cursorfree-make-target (cons 15 16)))
                     (alist-get "past" cursorfree-modifiers nil nil #'equal)
+                    (cursorfree--pusher (cursorfree-make-target (cons 13 14)))
                     (alist-get "every instance" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 

@@ -58,21 +58,6 @@ would be equivalent to
       (setq values (funcall instruction values)))
     values))
 
-(defun cursorfree--reverse-argument-order (function)
-  "Mark FUNCTION for reverse reading order.
-
-This will reverse the order in which `cursorfree--apply' applies
-arguments.
-
-This function may be used as part of a `declare' form as follows:
-
-  (declare (cursorfree--reverse-argument-order))"
-  (put function 'cursorfree--reverse-argument-order t))
-
-(setf (alist-get 'cursorfree--reverse-argument-order defun-declarations-alist)
-      (list (lambda (function args)
-              `(cursorfree--reverse-argument-order #',function))))
-
 (cl-defun cursorfree--optional-bag-get-match (arglist spec argument)
   (seq-doseq (entry spec)
     (when-let ((matched-argument
@@ -94,16 +79,6 @@ This function may be used as part of a `declare' form as follows:
 (setf (alist-get 'cursorfree--optional-bag defun-declarations-alist)
       (list #'cursorfree--optional-bag))
 
-(defun cursorfree--apply (function args)
-  "Call FUNCTION with ARGS as arguments.
-
-If function has been marked with `cursorfree--reverse-argument-order',
-reverse that order of ARGS."
-  (when (and (symbolp function)
-             (get function 'cursorfree--reverse-argument-order))
-    (setq args (reverse args)))
-  (apply function args))
-
 (defun cursorfree--densify-alist (indexed-args)
   (when-let ((max-index (caar (seq-sort-by #'car #'> indexed-args))))
     (let ((argument-list (make-list (1+ max-index) nil)))
@@ -112,9 +87,6 @@ reverse that order of ARGS."
       argument-list)))
 
 (defun cursorfree--get-positional-indices (function args)
-  (when (and (symbolp function)
-             (get function 'cursorfree--reverse-argument-order))
-    (setq args (reverse args)))
   (seq-map-indexed (lambda (arg index) (cons index arg)) args))
 
 (defun cursorfree--apply-on-stack (function stack)
@@ -1263,7 +1235,6 @@ This function respects narrowing."
 If target VIEW is a region target, only instances inside of it will be
 matched.  If it is a window, search within the buffer of that window.
 Otherwise, search the buffer of TARGET."
-  (declare (cursorfree--reverse-argument-order))
   (setq view (or view (cursorfree--target-buffer target)))
   (make-cursorfree-parallel-target
    :targets

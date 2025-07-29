@@ -43,6 +43,8 @@
     visible.
   - "past" now expands from point in the appropriate buffer if one end
     is left implicit.
+  - "every instance" now takes the optional view argument as the last
+    argument.
 - Removed ~cursorfree-evaluate-environment~.
 
 * 0.2.0 [2025-04-14 Mon]
