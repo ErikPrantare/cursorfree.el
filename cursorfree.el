@@ -540,7 +540,7 @@ If a window displays the buffer of TARGET, select it."
 
 (defun cursorfree-target-indent (target)
   "Indent TARGET."
-  (cursorfree-on-content-region-cursor-effect target
+  (cursorfree-on-content-region target
     (lambda (region)
       (indent-region (car region) (cdr region)))))
 
@@ -556,7 +556,10 @@ If a window displays the buffer of TARGET, select it."
 
 (cl-defmethod cursorfree-target-delete ((target cursorfree-region-target))
   (cursorfree--region-delete (cursorfree--deletion-region target))
-  (cursorfree-target-indent (cursorfree-line target)))
+  (cursorfree-on-content-region (cursorfree-line target)
+    (lambda (region)
+      (when (derived-mode-p 'prog-mode)
+        (indent-region (car region) (cdr region))))))
 
 (cl-defmethod cursorfree-target-delete ((targets cursorfree-parallel-target))
   (seq-doseq (target (cursorfree-parallel-target-targets targets))
@@ -1174,29 +1177,46 @@ This function respects narrowing."
        (cons beginning end)))))
 
 (defun cursorfree-line-right (&optional target)
-  "Extend TARGET to include the next newline."
+  "Extend TARGET to the final non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
   (save-excursion
     (set-buffer (cursorfree--target-buffer target))
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
-    (let ((line-right (cursorfree--targets-hull target (cursorfree-this))))
-      (cursorfree--targets-hull target (cursorfree--trim-right line-right)))))
+    (skip-chars-backward "[:space:]\n" (cdr (cursorfree--content-region target)))
+    (cursorfree-make-target
+     (cons (car (cursorfree--content-region target))
+           (point))
+     :deletion-region
+     (cons (car (cursorfree--deletion-region target))
+           (progn
+             (unless (search-forward "\n" nil t)
+               (goto-char (point-max)))
+             (point))))))
 
 (defun cursorfree-line-left (&optional target)
-  "Extend TARGET to start after the previous newline."
+  "Extend TARGET to the first non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
   (save-excursion
     (set-buffer (cursorfree--target-buffer target))
     (goto-char (car (cursorfree--content-region target)))
     (unless (search-backward "\n" nil t)
       (goto-char (point-min)))
-    (let ((line-left (cursorfree--targets-hull target (cursorfree-this))))
-      (cursorfree--targets-hull target (cursorfree--trim-left line-left)))))
+    (skip-chars-forward "[:space:]\n" (car (cursorfree--content-region target)))
+    (cursorfree-make-target
+     (cons (point)
+           (cdr (cursorfree--content-region target)))
+     :deletion-region
+     (cons (progn
+             (if (search-backward "\n" nil t)
+                 (forward-char)
+               (goto-char (point-min)))
+             (point))
+           (cdr (cursorfree--deletion-region target))))))
 
 (defun cursorfree-line (&optional target)
-  "Extend TARGET to fill the full line."
+  "Extend TARGET to cover all non-whitespace characters on its line."
   (setq target (or target (cursorfree-this)))
   (cursorfree-line-left (cursorfree-line-right target)))
 
