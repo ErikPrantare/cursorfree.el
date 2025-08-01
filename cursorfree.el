@@ -1163,18 +1163,25 @@ This function respects narrowing."
       (cursorfree-make-target
        (cons (point-min) (point-max))))))
 
-(defun cursorfree-visible ()
-  "Return a target referring to the visible portion of the buffer."
-  (save-excursion
-    (let (beginning end)
-      (move-to-window-line 0)
-      (beginning-of-visual-line)
-      (setq beginning (point))
-      (move-to-window-line -1)
-      (end-of-visual-line)
-      (setq end (point))
-      (cursorfree-make-target
-       (cons beginning end)))))
+(defun cursorfree-visible (&optional window)
+  "Return a target referring to the visible portion of the buffer.
+
+If WINDOW is not given, use the selected window."
+  (declare (cursorfree--optional-bag
+            ((windowp %) window)))
+  (setq window (or window (selected-window)))
+  (with-selected-window window
+    (with-current-buffer (window-buffer)
+      (save-excursion
+        (let (beginning end)
+          (move-to-window-line 0)
+          (beginning-of-visual-line)
+          (setq beginning (point))
+          (move-to-window-line -1)
+          (end-of-visual-line)
+          (setq end (point))
+          (cursorfree-make-target
+           (cons beginning end)))))))
 
 (defun cursorfree-line-right (&optional target)
   "Extend TARGET to the final non-whitespace character of its line."
@@ -1245,7 +1252,7 @@ This function respects narrowing."
       (when (< guess first-line)
         (setq guess (+ 100 guess)))
       (when (> guess last-line)
-        (user-error "No line module 100 equal to %s" index))
+        (user-error "No line modulo 100 equal to %s" index))
       (goto-char (point-min))
       (forward-line (1- guess))
       (cursorfree-line (cursorfree-make-target (cons (point) (point)))))))
