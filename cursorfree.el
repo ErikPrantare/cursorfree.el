@@ -334,7 +334,7 @@ The token is indexed by CHARACTER, COLOR and SHAPE, as specified
 by `hatty-locate-token'."
   (if-let ((region (hatty-locate-token character color shape)))
       (cursorfree-make-target region)
-    (error "No such hat: color %s, shape %s, character %s" color shape character)))
+    (user-error "No such hat: color %s, shape %s, character %s" color shape character)))
 
 (defun cursorfree--pusher (value)
   "Return instruction putting VALUE on the value stack."
@@ -372,6 +372,13 @@ by `hatty-locate-token'."
 (cl-defgeneric cursorfree-target-put (target content)
   "Put CONTENT into TARGET."
   (error (format "No method for writing %S to target %S" content target)))
+
+(cl-defmethod cursorfree-target-put ((target buffer) (content string))
+  (cursorfree-target-put (cursorfree-this target) content))
+
+(cl-defmethod cursorfree-target-put ((target window) (content string))
+  (with-selected-window target
+    (cursorfree-target-put (window-buffer target) content)))
 
 (cl-defmethod cursorfree-target-put ((target window) (content buffer))
   (set-window-buffer target content))
@@ -414,16 +421,21 @@ denotes the currently selected window.
 Generic functions may be overridden to provide specialized behavior
 for \"this\".")
 
-(defun cursorfree-this ()
-  "Return an empty region located at point.
+(defun cursorfree-this (&optional window-or-buffer)
+  "Return an empty region located at point in WINDOW-OR-BUFFER.
+If WINDOW-OR-BUFFER is omitted or nil, use the current buffer.
 
-The returned target this of type `cursorfree--this-target'.  Generic
+The returned target is of type `cursorfree--this-target'.  Generic
 functions can be overloaded on this type to give more
 context-dependent behavior for whatever \"this\" means."
-  (cursorfree-make-target
-   (cons (point) (point))
-   :deletion-region (cons (point) (point))
-   :constructor #'make-cursorfree--this-target))
+  (declare (cursorfree--optional-bag
+            ((or (bufferp %) (windowp %)) window-or-buffer)))
+  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
+    (with-current-buffer in-buffer
+      (cursorfree-make-target
+       (cons (point) (point))
+       :deletion-region (cons (point) (point))
+       :constructor #'make-cursorfree--this-target))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
@@ -1369,13 +1381,6 @@ targets."
 (defun cursorfree-source ()
   cursorfree--target-source)
 
-(defun cursorfree-point (&optional window-or-buffer)
-  (declare (cursorfree--optional-bag
-            ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
-    (with-current-buffer in-buffer
-      (cursorfree-this))))
-
 (defvar cursorfree-modifiers
   `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
     ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
@@ -1406,8 +1411,7 @@ targets."
     ("beginning" . ,(cursorfree-make-modifier #'cursorfree-beginning))
     ("end" . ,(cursorfree-make-modifier #'cursorfree-end))
     ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
-    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))
-    ("point" . ,(cursorfree-make-modifier #'cursorfree-point))))
+    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

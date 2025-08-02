@@ -9,6 +9,8 @@
 - New primitive target: "split <number>" will now put the window
   corresponding to <number> onto the stack.  This requires winum to be
   installed.
+- Putting text into a window or buffer now inserts it at the
+  corresponding point.
 - Actions:
   - New actions "float", "drop", "puff": This will insert a newline
     before, after, and around the line of the target without moving
@@ -31,9 +33,8 @@
     buffer or window as argument, to pick the beginning or end of the
     buffer in that buffer or window.
   - New modifier "primary": Return the primary selection as a target.
-  - New modifier "point": Return point as a region.  Can alternatively
-    take a window or buffer as argument to return the corresponding
-    point.
+  - "this" now takes an optional window or buffer as argument,
+    denoting where it should be created relative to.
   - "everything" can now take an optional window argument to get
     everything in the buffer of the specified window.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
