@@ -510,11 +510,13 @@ examples."
 
 (cl-defmethod cursorfree--target-jump ((target cursorfree-region-target))
   "Move point to beginning of TARGET.
-If a window displays the buffer of TARGET, select it."
+TARGET has an associated window, select it.  Otherwise, display the
+associated buffer."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))))
-  (cursorfree--target-jump (cursorfree--target-window target)))
+  (cursorfree--target-jump (or (cursorfree--target-window target)
+                               (cursorfree--target-buffer target))))
 
 ;; TODO rethink how best to eliminate duplicated code
 ;; w.r.t. cursorfree-region-target.  Same for
@@ -527,6 +529,9 @@ If a window displays the buffer of TARGET, select it."
 (cl-defmethod cursorfree--target-jump ((target window))
   (select-window target))
 
+(cl-defmethod cursorfree--target-jump ((target buffer))
+  (switch-to-buffer target))
+
 (cl-defgeneric cursorfree--target-jump-beginning (target)
   (cursorfree--target-jump target))
 
@@ -538,11 +543,13 @@ If a window displays the buffer of TARGET, select it."
 
 (cl-defmethod cursorfree--target-jump-end ((target cursorfree-region-target))
   "Move point to end of TARGET.
-If a window displays the buffer of TARGET, select it."
+TARGET has an associated window, select it.  Otherwise, display the
+associated buffer."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))))
-  (cursorfree--target-jump (cursorfree--target-window target)))
+  (cursorfree--target-jump (or (cursorfree--target-window target)
+                               (cursorfree--target-buffer target))))
 
 (cl-defmethod cursorfree--target-jump-end ((target cursorfree-parallel-target))
   (cursorfree-on-content-region-cursor-effect target
