@@ -501,7 +501,8 @@ examples."
 If a window displays the buffer of TARGET, select it."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
-      (goto-char (car region)))))
+      (goto-char (car region))))
+  (cursorfree--target-jump (cursorfree--target-window target)))
 
 ;; TODO rethink how best to eliminate duplicated code
 ;; w.r.t. cursorfree-region-target.  Same for
@@ -528,7 +529,8 @@ If a window displays the buffer of TARGET, select it."
 If a window displays the buffer of TARGET, select it."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
-      (goto-char (cdr region)))))
+      (goto-char (cdr region))))
+  (cursorfree--target-jump (cursorfree--target-window target)))
 
 (cl-defmethod cursorfree--target-jump-end ((target cursorfree-parallel-target))
   (cursorfree-on-content-region-cursor-effect target
