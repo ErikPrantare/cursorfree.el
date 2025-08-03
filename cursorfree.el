@@ -1163,16 +1163,17 @@ parenthesis is intended."
     ;; Make sure target gets created in correct buffer (max and min do
     ;; not return the corresponding marker, but a new integer instead)
     (with-current-buffer (cursorfree--target-buffer (car targets))
-      (cursorfree-make-target
-       (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--content-region target)))
-                                  targets))
-             (apply #'max (mapcar (lambda (target) (cdr (cursorfree--content-region target)))
-                                  targets)))
-       :deletion-region
-       (cons (apply #'min (mapcar (lambda (target) (car (cursorfree--deletion-region target)))
-                                  targets))
-             (apply #'max (mapcar (lambda (target) (cdr (cursorfree--deletion-region target)))
-                                  targets)))))))
+      (let ((content-region
+             (cursorfree--ensure-marker-region
+              (cons (seq-min (seq-map
+                              (lambda (target)
+                                (car (cursorfree--content-region target)))
+                              targets))
+                    (seq-max (seq-map
+                              (lambda (target)
+                                (cdr (cursorfree--content-region target)))
+                              targets))))))
+        (cursorfree-make-target content-region)))))
 
 (defun cursorfree-past (target1 &optional target2)
   "Return the smallest target that can fit TARGET1 and TARGET2."
