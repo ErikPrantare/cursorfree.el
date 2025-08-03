@@ -99,8 +99,8 @@ function is evaluated with the top values of STACK, with the top
 elements applied as the first arguments.  &rest arguments are
 supported."
   (let* ((optional-bag-spec
-         (when (symbolp function)
-           (copy-sequence (get function 'cursorfree--optional-bag-spec))))
+          (when (symbolp function)
+            (copy-sequence (get function 'cursorfree--optional-bag-spec))))
          (optional-bag-p (when optional-bag-spec t))
          (arg-map '()))
     (when optional-bag-spec
@@ -206,10 +206,40 @@ a `cursorfree-parallel-target'."
    ((length= target 1) (seq-first target))
    (t (make-cursorfree-parallel-target :targets (seq-into target 'list)))))
 
+(defun cursorfree--guess-deletion-region (region)
+  "Guess the correct deletion region for REGION."
+  (save-excursion
+    (let (right-candidate
+          left-candidate
+          right-whitespace
+          left-whitespace)
+      (set-buffer (marker-buffer (car region)))
+
+      (goto-char (cdr region))
+      (skip-chars-forward "[:space:]\n")
+      (setq right-candidate (point))
+      (setq right-whitespace (buffer-substring
+                              (cdr region)
+                              right-candidate))
+
+      (goto-char (car region))
+      (skip-chars-backward "[:space:]\n")
+      (setq left-candidate (point))
+      (setq left-whitespace (buffer-substring
+                             (cdr region)
+                             left-candidate))
+
+      (cursorfree--ensure-marker-region
+       (if (and (not (length= right-whitespace 0))
+                (<= (seq-count (lambda (c) (eql c ?\n)) right-whitespace)
+                    (seq-count (lambda (c) (eql c ?\n)) left-whitespace)))
+           (cons (car region) right-candidate)
+         (cons left-candidate (cdr region)))))))
+
 (cl-defun cursorfree-make-target (content-region
-                                   &key
-                                   deletion-region
-                                   (constructor #'make-cursorfree-region-target))
+                                  &key
+                                  deletion-region
+                                  (constructor #'make-cursorfree-region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
 DELETION-REGION specified the region to remove if this target is
@@ -218,15 +248,16 @@ deleted.  If nil, the region will be guessed.
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
 may be invoked equivalently to `make-cursorfree-region-target', and
 constructs a target inheriting from `cursorfree-region-target'."
-   (let* ((region (cursorfree--ensure-marker-region content-region))
+  (let* ((region (cursorfree--ensure-marker-region content-region))
          (buffer (marker-buffer (car region)))
          (deletion (cursorfree--ensure-marker-region
                     (or deletion-region
+                        (cursorfree--guess-deletion-region region)
                         (save-excursion
                           (set-buffer buffer)
                           (goto-char (cdr content-region))
                           (cursorfree--ensure-marker-region
-                           (if (/= 0 (skip-chars-forward "[:space:]\n"))
+                           (if (/= (skip-chars-forward "[:space:]\n"))
                                (cons (car content-region) (point))
                              (goto-char (car content-region))
                              (skip-chars-backward "[:space:]\n")
@@ -796,8 +827,8 @@ content region.  Afterwards, the region will be pulsed."
     (cursorfree-target-pour target)))
 
 (defun cursorfree-target-puff (&optional target)
-   (cursorfree-target-float target)
-   (cursorfree-target-drop target))
+  (cursorfree-target-float target)
+  (cursorfree-target-drop target))
 
 (defun cursorfree-target-wrap (parenthesis &rest targets)
   "Wrap TARGETS with characters specified by PARENTHESIS.
@@ -916,7 +947,7 @@ EXTENT if given and non-nil, otherwise of TARGET.  If EXTENT is a
 `cursorfree-region-target', the search will also be restricted to
 that region."
   (cursorfree-on-content-region (or extent
-                                     (cursorfree-target-buffer target))
+                                    (cursorfree-target-buffer target))
     (lambda (search-region)
       (occur (rx (literal (cursorfree-target-get target)))
              nil

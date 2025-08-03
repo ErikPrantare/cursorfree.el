@@ -228,6 +228,50 @@
     :command-form '((cursorfree--pusher (cursorfree-make-target (cons 6 14)))
                     (cursorfree--pusher (cursorfree-make-target (cons 20 22)))
                     (cursorfree--pusher (cursorfree-make-target (cons 33 36)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Removing word\nin text with newline"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "Removing\nin text with newline"
+            :points '(10))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 9 14)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Removing word\nin text with newline"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "Removing word\ntext with newline"
+            :points '(15))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 15 17)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a\nb\n\nc\nd"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "a\n\nc\nd"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 3 4)))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a\nb\n\nc\nd"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "a\nb\n\nd"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 6 7)))
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
 (ert-deftest cursorfree--test-inside ()
@@ -241,8 +285,11 @@
             :string "()"
             :points '(3))
     :command-form '((cursorfree--pusher (cursorfree-make-target (cons 3 6)))
+
                     (cursorfree--pusher ?\()
+
                     (alist-get "inside" cursorfree-modifiers nil nil #'equal)
+
                     (alist-get "chuck" cursorfree-actions nil nil #'equal))))
 
   (cursorfree--run-test
