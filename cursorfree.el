@@ -977,7 +977,7 @@ region."
              ;; TODO: Generalize to multiple regions
              (list search-region)))))
 
-(defun cursorfree-target-unwrap-parentheses (target)
+(defun cursorfree-target-unwrap (target)
   "Remove parentheses or quotation around TARGET."
   (cursorfree-target-bring
    (cursorfree-inner-parenthesis-dwim target)
@@ -1000,7 +1000,7 @@ region."
     ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
     ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
     ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap))
-    ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap-parentheses))
+    ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap))
     ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
     ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
     ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))
