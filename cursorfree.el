@@ -271,15 +271,16 @@ constructs a target inheriting from `cursorfree-region-target'."
   "Return region of the content referred to by TARGET."
   (cursorfree-region-target-content-region target))
 
-(defun cursorfree-target-buffer (&optional target)
+(defun cursorfree-buffer (&optional target)
   "Get the buffer associated with TARGET.
 
-If TARGET is nil or omitted, default to the target returned by
-`cursorfree-this'.
+If TARGET is nil or omitted, the current buffer is returned instead.
 
 To override this function for new target types, implement a method for
 `cursorfree--target-buffer'."
-  (cursorfree--target-buffer (or target (cursorfree-this))))
+  (if target
+      (cursorfree--target-buffer target)
+    (current-buffer)))
 
 (cl-defgeneric cursorfree--target-buffer (target)
   "Get the buffer associated with TARGET.
@@ -299,10 +300,29 @@ Defaults to the current buffer."
   "Return BUFFER."
   buffer)
 
-(defun cursorfree--target-window (target)
-  "Get the window showing the buffer of TARGET.
-If no window shows the buffer of TARGET, return nil."
-  (get-buffer-window (cursorfree--target-buffer target)))
+(defun cursorfree-window (&optional target)
+  "Get the window associated with TARGET.
+
+If TARGET is nil or omitted, the currently selected window is returned.
+Otherwise, this will return a window displaying the buffer associated
+with TARGET by default.
+
+To override this function for new target types, implement a method for
+`cursorfree--target-window'."
+  (if target
+      (cursorfree--target-window target)
+    (selected-window)))
+
+(cl-defgeneric cursorfree--target-window (target)
+  "Get the window associated with TARGET.
+
+By default, returns a window showing the `cursorfree-buffer' of TARGET,
+or nil if no window is showing that buffer."
+  (get-buffer-window (cursorfree-buffer target)))
+
+(cl-defmethod cursorfree--target-window ((window window))
+  "Return WINDOW."
+  window)
 
 (cl-defgeneric cursorfree-on-content-region (target f)
   "Apply F to the region associated with TARGET."
@@ -314,8 +334,8 @@ If no window shows the buffer of TARGET, return nil."
 
 If target has an associated window or buffer, they will first be set
 as selected or current respectively."
-  (with-selected-window (window-normalize-window (cursorfree--target-window target))
-    (with-current-buffer (cursorfree--target-buffer target)
+  (with-selected-window (window-normalize-window (cursorfree-window target))
+    (with-current-buffer (cursorfree-buffer target)
       (let ((region (cursorfree--content-region target)))
         (funcall f region)))))
 
@@ -396,7 +416,7 @@ by `hatty-locate-token'."
 
 (cl-defmethod cursorfree-target-get ((target cursorfree-region-target))
   "Return the buffer substring of TARGET."
-  (with-current-buffer (cursorfree--target-buffer target)
+  (with-current-buffer (cursorfree-buffer target)
     (buffer-substring-no-properties (car (cursorfree--content-region target))
                                     (cdr (cursorfree--content-region target)))))
 
@@ -461,7 +481,7 @@ functions can be overloaded on this type to give more
 context-dependent behavior for whatever \"this\" means."
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
+  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
     (with-current-buffer in-buffer
       (cursorfree-make-target
        (cons (point) (point))
@@ -480,7 +500,7 @@ context-dependent behavior for whatever \"this\" means."
         (goto-char (cdr region))))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content buffer))
-  (cursorfree-target-put (cursorfree--target-window target) content))
+  (cursorfree-target-put (cursorfree-window target) content))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content window))
   (cursorfree-target-put target (window-buffer content)))
@@ -546,8 +566,8 @@ associated buffer."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))))
-  (cursorfree--target-jump (or (cursorfree--target-window target)
-                               (cursorfree--target-buffer target))))
+  (cursorfree--target-jump (or (cursorfree-window target)
+                               (cursorfree-buffer target))))
 
 ;; TODO rethink how best to eliminate duplicated code
 ;; w.r.t. cursorfree-region-target.  Same for
@@ -579,8 +599,8 @@ associated buffer."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))))
-  (cursorfree--target-jump (or (cursorfree--target-window target)
-                               (cursorfree--target-buffer target))))
+  (cursorfree--target-jump (or (cursorfree-window target)
+                               (cursorfree-buffer target))))
 
 (cl-defmethod cursorfree--target-jump-end ((target cursorfree-parallel-target))
   (cursorfree-on-content-region-cursor-effect target
@@ -892,7 +912,7 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
 This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
   (setq target (or target (cursorfree-this)))
-  (with-selected-window (cursorfree--target-window target)
+  (with-selected-window (cursorfree-window target)
     (let ((region (cursorfree--content-region target)))
       (cursorfree-on-content-region target
         (lambda (region)
@@ -936,18 +956,18 @@ This may, for example, be used for displaying warning from eglot."
         (cursorfree-target-pulse region)))))
 
 (defun cursorfree--resolve-buffer (&rest alternatives)
-  (cursorfree--target-buffer
+  (cursorfree-buffer
    (seq-find #'identity alternatives (current-buffer))))
 
 (defun cursorfree-target-occur (target &optional extent)
   "List occurrences of TARGET in EXTENT with `occur'.
 
-Occurrences will be searched for in the `cursorfree-target-buffer' of
-EXTENT if given and non-nil, otherwise of TARGET.  If EXTENT is a
-`cursorfree-region-target', the search will also be restricted to
-that region."
+Occurrences will be searched for in the `cursorfree-buffer' of EXTENT if
+given and non-nil, otherwise of TARGET.  If EXTENT is a
+`cursorfree-region-target', the search will also be restricted to that
+region."
   (cursorfree-on-content-region (or extent
-                                    (cursorfree-target-buffer target))
+                                    (cursorfree-buffer target))
     (lambda (search-region)
       (occur (rx (literal (cursorfree-target-get target)))
              nil
@@ -1162,7 +1182,7 @@ parenthesis is intended."
   (when targets
     ;; Make sure target gets created in correct buffer (max and min do
     ;; not return the corresponding marker, but a new integer instead)
-    (with-current-buffer (cursorfree--target-buffer (car targets))
+    (with-current-buffer (cursorfree-buffer (car targets))
       (let ((content-region
              (cursorfree--ensure-marker-region
               (cons (seq-min (seq-map
@@ -1178,7 +1198,7 @@ parenthesis is intended."
 (defun cursorfree-past (target1 &optional target2)
   "Return the smallest target that can fit TARGET1 and TARGET2."
   (setq target2 (or target2
-                    (with-current-buffer (cursorfree--target-buffer target1)
+                    (with-current-buffer (cursorfree-buffer target1)
                       (cursorfree-this))))
   (cursorfree--targets-hull target1 target2))
 
@@ -1197,7 +1217,7 @@ The extension is done from the beginning of the target.  See
   (cursorfree-make-modifier
    (lambda (&optional target)
      (setq target (or target (cursorfree-this)))
-     (with-current-buffer (cursorfree--target-buffer target)
+     (with-current-buffer (cursorfree-buffer target)
        (cursorfree-make-target
         (cursorfree--bounds-of-thing-at thing
                                         (car (cursorfree--content-region target))))))))
@@ -1240,7 +1260,7 @@ If WINDOW is not given, use the selected window."
   "Extend TARGET to the final non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
   (save-excursion
-    (set-buffer (cursorfree--target-buffer target))
+    (set-buffer (cursorfree-buffer target))
     (goto-char (cdr (cursorfree--content-region target)))
     (unless (search-forward "\n" nil t)
       (goto-char (point-max)))
@@ -1259,7 +1279,7 @@ If WINDOW is not given, use the selected window."
   "Extend TARGET to the first non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
   (save-excursion
-    (set-buffer (cursorfree--target-buffer target))
+    (set-buffer (cursorfree-buffer target))
     (goto-char (car (cursorfree--content-region target)))
     (unless (search-backward "\n" nil t)
       (goto-char (point-min)))
@@ -1316,7 +1336,7 @@ If WINDOW is not given, use the selected window."
 If target VIEW is a region target, only instances inside of it will be
 matched.  If it is a window, search within the buffer of that window.
 Otherwise, search the buffer of TARGET."
-  (setq view (or view (cursorfree--target-buffer target)))
+  (setq view (or view (cursorfree-buffer target)))
   (make-cursorfree-parallel-target
    :targets
    (cursorfree-on-content-region view
@@ -1373,7 +1393,7 @@ Otherwise, search the buffer of TARGET."
 
 (cl-defmethod cursorfree--next ((target cursorfree-region-target))
   "Get the next literal occurence of contents of TARGET."
-  (with-current-buffer (cursorfree--target-buffer target)
+  (with-current-buffer (cursorfree-buffer target)
     (save-excursion
       (goto-char (cdr (cursorfree--content-region target)))
       (search-forward (cursorfree-target-get target))
@@ -1387,7 +1407,7 @@ Otherwise, search the buffer of TARGET."
 
 (cl-defmethod cursorfree--previous ((target cursorfree-region-target))
   "Get the previous literal occurence of contents of TARGET."
-  (with-current-buffer (cursorfree--target-buffer target)
+  (with-current-buffer (cursorfree-buffer target)
     (save-excursion
       (goto-char (car (cursorfree--content-region target)))
       (search-backward (cursorfree-target-get target))
@@ -1403,14 +1423,14 @@ targets."
 (defun cursorfree-beginning (&optional window-or-buffer)
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
+  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
     (with-current-buffer in-buffer
       (cursorfree-make-target (cons (point-min) (point-min))))))
 
 (defun cursorfree-end (&optional window-or-buffer)
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree--target-buffer window-or-buffer)))
+  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
     (with-current-buffer in-buffer
       (cursorfree-make-target (cons (point-max) (point-max))))))
 
@@ -1450,7 +1470,9 @@ targets."
     ("beginning" . ,(cursorfree-make-modifier #'cursorfree-beginning))
     ("end" . ,(cursorfree-make-modifier #'cursorfree-end))
     ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
-    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))))
+    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))
+    ("buffer" . ,(cursorfree-make-modifier #'cursorfree-buffer))
+    ("split" . ,(cursorfree-make-modifier #'cursorfree-window))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
