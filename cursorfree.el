@@ -637,8 +637,11 @@ associated buffer."
   (seq-doseq (target (cursorfree-parallel-target-targets targets))
     (cursorfree-target-delete target)))
 
-(cl-defmethod cursorfree-target-delete ((target window))
-  (delete-window target))
+(cl-defmethod cursorfree-target-delete ((window window))
+  (delete-window window))
+
+(cl-defmethod cursorfree-target-delete ((buffer buffer))
+  (kill-buffer buffer))
 
 (defun cursorfree-target-chuck (&rest targets)
   "Delete TARGETS and indent the resulting text."
