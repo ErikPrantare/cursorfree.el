@@ -420,6 +420,10 @@ by `hatty-locate-token'."
     (buffer-substring-no-properties (car (cursorfree--content-region target))
                                     (cdr (cursorfree--content-region target)))))
 
+(cl-defmethod cursorfree-target-get ((target cursorfree-parallel-target))
+  "Return the buffer substring of TARGET."
+  (seq-map #'cursorfree-target-get (cursorfree-parallel-target-targets target)))
+
 (cl-defgeneric cursorfree-target-put (target content)
   "Put CONTENT into TARGET."
   (error (format "No method for writing %S to target %S" content target)))
@@ -462,6 +466,14 @@ TARGET will be modified to cover the region containing CONTENT."
 (cl-defmethod cursorfree-target-put ((target cursorfree-parallel-target) content)
   (seq-doseq (target (cursorfree-parallel-target-targets target))
     (cursorfree-target-put target content)))
+
+(cl-defmethod cursorfree-target-put ((target cursorfree-parallel-target) (content list))
+  (if (not (eq (seq-length (cursorfree-parallel-target-targets target))
+               (seq-length content)))
+      (user-error "Mismatching length of put-ed content list and parallel target")
+    (seq-mapn #'cursorfree-target-put
+              (cursorfree-parallel-target-targets target)
+              content)))
 
 (cl-defstruct (cursorfree--this-target (:include cursorfree-region-target))
   "Target indicating the \"the currently active thing\".  The meaning
@@ -673,6 +685,10 @@ If no targets are given, overwrite `cursorfree-this' instead."
   (cursorfree-target-put target source)
   (with-selected-window source
     (previous-buffer)))
+
+(cl-defmethod cursorfree--target-move ((source buffer) (target window))
+  ;; We do not want to kill the buffer if you move instead of bring.
+  (cursorfree-target-bring source target))
 
 (defun cursorfree-target-move (source &rest targets)
   "Overwrite TARGETS with SOURCE, then delete SOURCE.

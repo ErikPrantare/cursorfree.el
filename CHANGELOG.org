@@ -2,6 +2,9 @@
 - Introduced parallel targets: This type of target contains a list of
   other targets.  When evaluating an instruction on them, the
   semantics are that it should be performed on every contained target.
+  They can also be used to bring multiple sources to multiple targets:
+  If the parallel targets match in size, the targets will be brought
+  one-to-one.
 - Support for custom target types: For your custom types, override the
   generic functions ~cursorfree-target-get~ and/or
   ~cursorfree-target-put~.  This will allow many actions to work on
