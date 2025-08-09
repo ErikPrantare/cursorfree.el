@@ -855,7 +855,7 @@ content region.  Afterwards, the region will be pulsed."
     (lambda (region)
       (goto-char (cdr region))
       (end-of-line)
-      (newline))))
+      (newline-and-indent))))
 
 (defun cursorfree-target-drop (&optional target)
   (save-excursion
