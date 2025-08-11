@@ -190,7 +190,7 @@ will not remain on the stack."
 (cl-defstruct cursorfree-region-target
   "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
-  content-region buffer deletion-region)
+  content-region buffer deletion-region pre-insertion-string post-insertion-string)
 
 (cl-defstruct cursorfree-parallel-target
   targets)
@@ -238,7 +238,9 @@ a `cursorfree-parallel-target'."
 
 (cl-defun cursorfree-make-target (content-region
                                   &key
-                                  deletion-region
+                                  (deletion-region nil)
+                                  (post-insertion-string nil)
+                                  (pre-insertion-string nil)
                                   (constructor #'make-cursorfree-region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
@@ -265,7 +267,9 @@ constructs a target inheriting from `cursorfree-region-target'."
     (funcall constructor
              :content-region region
              :buffer buffer
-             :deletion-region deletion)))
+             :deletion-region deletion
+             :pre-insertion-string (or pre-insertion-string "")
+             :post-insertion-string (or post-insertion-string ""))))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
@@ -517,6 +521,20 @@ context-dependent behavior for whatever \"this\" means."
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content window))
   (cursorfree-target-put target (window-buffer content)))
 
+(defun cursorfree--target-put-before (region-target content)
+  (cursorfree-target-put
+   region-target
+   (concat content
+           (cursorfree-region-target-pre-insertion-string region-target)
+           (cursorfree-target-get region-target))))
+
+(defun cursorfree--target-put-after (region-target content)
+  (cursorfree-target-put
+   region-target
+   (concat (cursorfree-target-get region-target)
+           (cursorfree-region-target-post-insertion-string region-target)
+           content)))
+
 ;;;; End of core functions
 
 ;; TODO: Introduce region-target abstraction layer?
@@ -667,35 +685,39 @@ associated buffer."
     ,@body
     (mc/store-current-state-in-overlay cursor)))
 
+(cl-defun cursorfree--target-bring (source target &key putter)
+  (setq putter (or putter #'cursorfree-target-put))
+  (funcall putter target (cursorfree-target-get source))
+  (cursorfree-target-pulse target)
+  (setq cursorfree--target-that target)
+  (setq cursorfree--target-source source))
+
 (defun cursorfree-target-bring (source &rest targets)
   "Overwrite TARGETS with SOURCE.
 
 If no targets are given, overwrite `cursorfree-this' instead."
   (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree-target-put target (cursorfree-target-get source))
-    (cursorfree-target-pulse target)
-    (setq cursorfree--target-that target)
-    (setq cursorfree--target-source source)))
+    (cursorfree--target-bring source target)))
 
-(cl-defgeneric cursorfree--target-move (source target)
-  (cursorfree-target-bring source target)
+(cl-defgeneric cursorfree--target-move (source target &key putter)
+  (setq putter (or putter #'cursorfree-target-put))
+  (cursorfree--target-bring source target :putter putter)
   (cursorfree-target-delete source))
 
-(cl-defmethod cursorfree--target-move ((source window) target)
-  (cursorfree-target-put target source)
+(cl-defmethod cursorfree--target-move ((source window) target &key putter)
+  (cursorfree--target-bring target source :putter putter)
   (with-selected-window source
     (previous-buffer)))
 
-(cl-defmethod cursorfree--target-move ((source buffer) (target window))
+(cl-defmethod cursorfree--target-move ((source buffer) (target window) &key putter)
   ;; We do not want to kill the buffer if you move instead of bring.
-  (cursorfree-target-bring source target))
+  (cursorfree--target-bring source target :putter putter))
 
 (defun cursorfree-target-move (source &rest targets)
   "Overwrite TARGETS with SOURCE, then delete SOURCE.
 
 If no targets are given, overwrite `cursorfree-this' instead."
-  (setq targets (or targets (list (cursorfree-this))))
-  (dolist (target targets)
+  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
     (cursorfree--target-move source target)))
 
 (defun cursorfree-target-swap (target1 target2)
@@ -736,11 +758,17 @@ If no targets are given, overwrite `cursorfree-this' instead."
 ;; TODO: Don't move point
 (defun cursorfree-target-clone (target)
   "Insert another copy of TARGET after itself."
-  (cursorfree-target-put
+  (cursorfree--target-clone target))
+
+(cl-defgeneric cursorfree--target-clone (target)
+  (cursorfree--target-put
    target
    (concat
     (cursorfree-target-get target)
     (cursorfree-target-get target))))
+
+(cl-defgeneric cursorfree--target-clone ((target cursorfree-region-target))
+  (cursorfree--target-put-after target (cursorfree-target-get target)))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
   "Define function with NAME applying FUNCTION on targets.
@@ -1278,41 +1306,50 @@ If WINDOW is not given, use the selected window."
 (defun cursorfree-line-right (&optional target)
   "Extend TARGET to the final non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (save-excursion
-    (set-buffer (cursorfree-buffer target))
-    (goto-char (cdr (cursorfree--content-region target)))
-    (unless (search-forward "\n" nil t)
-      (goto-char (point-max)))
-    (skip-chars-backward "[:space:]\n" (cdr (cursorfree--content-region target)))
-    (cursorfree-make-target
-     (cons (car (cursorfree--content-region target))
-           (point))
-     :deletion-region
-     (cons (car (cursorfree--deletion-region target))
-           (progn
-             (unless (search-forward "\n" nil t)
-               (goto-char (point-max)))
-             (point))))))
+  (let ((target-content-region (cursorfree--content-region target))
+        (target-deletion-region (cursorfree--deletion-region target))
+        space-length
+        content-region
+        deletion-region)
+    (save-excursion
+      (set-buffer (cursorfree-buffer target))
+      (goto-char (cdr target-content-region))
+      (unless (search-forward "\n" nil t)
+        (goto-char (point-max)))
+      (setq deletion-region (cons (car target-deletion-region) (point)))
+      (skip-chars-backward "[:space:]\n" (cdr target-content-region))
+      (setq content-region (cons (car target-content-region) (point)))
+
+      (cursorfree-make-target
+       content-region
+       :deletion-region deletion-region
+       :pre-insertion-string (cursorfree-region-target-pre-insertion-string target)
+       :post-insertion-string (cursorfree-region-target-pre-insertion-string (cursorfree-line-left target))))))
 
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to the first non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (save-excursion
-    (set-buffer (cursorfree-buffer target))
-    (goto-char (car (cursorfree--content-region target)))
-    (unless (search-backward "\n" nil t)
-      (goto-char (point-min)))
-    (skip-chars-forward "[:space:]\n" (car (cursorfree--content-region target)))
-    (cursorfree-make-target
-     (cons (point)
-           (cdr (cursorfree--content-region target)))
-     :deletion-region
-     (cons (progn
-             (if (search-backward "\n" nil t)
-                 (forward-char)
-               (goto-char (point-min)))
-             (point))
-           (cdr (cursorfree--deletion-region target))))))
+  (let ((target-content-region (cursorfree--content-region target))
+        (target-deletion-region (cursorfree--deletion-region target))
+        space-length
+        content-region
+        deletion-region)
+    (save-excursion
+      (set-buffer (cursorfree-buffer target))
+      (goto-char (car (cursorfree--content-region target)))
+      (if (search-backward "\n" nil t)
+          (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
+        (goto-char (point-min))
+        (setq deletion-region (cons (point) (cdr target-deletion-region))))
+      (skip-chars-forward "[:space:]\n" (car target-content-region))
+      (setq content-region (cons (point) (cdr target-content-region)))
+      (setq space-length (abs (- (car deletion-region) (car content-region))))
+
+      (cursorfree-make-target
+       content-region
+       :deletion-region deletion-region
+       :pre-insertion-string (concat "\n" (make-string space-length ?\ ))
+       :post-insertion-string (cursorfree-region-target-post-insertion-string target)))))
 
 (defun cursorfree-line (&optional target)
   "Extend TARGET to cover all non-whitespace characters on its line."
