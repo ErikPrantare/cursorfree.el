@@ -732,10 +732,8 @@ If no targets are given, overwrite `cursorfree-this' instead."
 
 (cl-defmethod cursorfree--target-change ((target cursorfree-region-target))
   "Remove contents of TARGET and put point there."
-  (cursorfree-on-content-region target
-    (lambda (region)
-      (cursorfree--region-delete region)
-      (goto-char (car region)))))
+  (cursorfree-target-jump target)
+  (cursorfree--region-delete (cursorfree--content-region target)))
 
 (cl-defmethod cursorfree--target-change ((target cursorfree-parallel-target))
   "Remove contents of TARGET and put points there."
@@ -745,15 +743,8 @@ If no targets are given, overwrite `cursorfree-this' instead."
 
 (defun cursorfree-target-change (&rest targets)
   "Move point to TARGETS and delete its contents."
-  (let (region-targets other-targets)
-    (dolist (target targets)
-      (if (cursorfree-region-target-p target)
-          (push target region-targets)
-        (push target other-targets)))
-    (cursorfree--multiple-cursors-do #'cursorfree--target-change
-                                     region-targets)
-    (dolist (target other-targets)
-      (cursorfree--target-change target))))
+  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
+    (cursorfree--target-change target)))
 
 ;; TODO: Don't move point
 (defun cursorfree-target-clone (target)
