@@ -1002,6 +1002,11 @@ region."
    (cursorfree-inner-parenthesis-dwim target)
    (cursorfree-outer-parenthesis-dwim target)))
 
+(defun cursorfree-target-rewrap (character target)
+  (let ((expanded-target (cursorfree-inner-parenthesis-dwim target)))
+    (cursorfree-target-unwrap expanded-target)
+    (cursorfree-target-wrap character expanded-target)))
+
 (defvar cursorfree-actions
   `(("select" . ,(cursorfree-make-action #'cursorfree-target-select))
     ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
@@ -1020,6 +1025,7 @@ region."
     ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
     ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap))
     ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap))
+    ("rewrap" . ,(cursorfree-make-action #'cursorfree-target-rewrap))
     ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
     ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
     ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))

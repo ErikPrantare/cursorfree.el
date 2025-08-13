@@ -16,8 +16,10 @@
   corresponding point.
 - Actions:
   - New actions "float", "drop", "puff": This will insert a newline
-    before, after, and around the line of the target without moving
+    before, after, or around the line of the target without moving
     point.
+  - New command "rewrap": Replaces the surrounding parentheses with a
+    new pair.
   - "wrap" can now act on multiple targets.
   - "occur" can now take an optional parameter to specify in which
     buffer or window to search for the target.
