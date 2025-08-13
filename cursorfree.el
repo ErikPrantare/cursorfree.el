@@ -173,12 +173,9 @@ will not remain on the stack."
   "Return REGION, with the endpoints turned into markers as needed."
   (unless (consp region)
     (error "Invalid argument %s in cursorfree--ensure-marker-region" region))
-  (cons (if (markerp (car region))
-            (car region)
-          (move-marker (make-marker) (car region)))
-        (if (markerp (cdr region))
-            (cdr region)
-          (move-marker (make-marker) (cdr region)))))
+  (let ((beginning (copy-marker (car region) nil))
+        (end (copy-marker (cdr region) t)))
+    (cons beginning end)))
 
 (defun cursorfree--bounds-of-thing-at (thing position)
   "Return bounds of THING at POSITION."
@@ -451,21 +448,8 @@ by `hatty-locate-token'."
 TARGET will be modified to cover the region containing CONTENT."
   (cursorfree-on-content-region target
     (lambda (region)
-      (save-excursion
-        (goto-char (car region))
-        (insert content)
-        ;; We are careful to make sure TARGET still refers to the
-        ;; region with the new content after insertion.  We delete
-        ;; after we insert so that markers occurring directly after
-        ;; TARGET don't end up before the inserted content.
-        (if (= (car region) (cdr region))
-            ;; If the region is empty, we need to manually move the
-            ;; end of the target region.  We do not need to delete the
-            ;; empty target.
-            (move-marker (cdr region) (+ (cdr region) (length content)))
-          ;; Otherwise, the end marker of the region will be moved but
-          ;; the beginning will not, so we have to compensate here.
-          (delete-region (+ (car region) (length content)) (cdr region)))))))
+      (replace-region-contents (car region) (cdr region)
+                               (lambda () content)))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree-parallel-target) content)
   (seq-doseq (target (cursorfree-parallel-target-targets target))
@@ -705,7 +689,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
   (cursorfree-target-delete source))
 
 (cl-defmethod cursorfree--target-move ((source window) target &key putter)
-  (cursorfree--target-bring target source :putter putter)
+  (cursorfree--target-bring source target :putter putter)
   (with-selected-window source
     (previous-buffer)))
 
