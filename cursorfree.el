@@ -265,8 +265,8 @@ constructs a target inheriting from `cursorfree-region-target'."
              :content-region region
              :buffer buffer
              :deletion-region deletion
-             :pre-insertion-string (or pre-insertion-string "")
-             :post-insertion-string (or post-insertion-string ""))))
+             :pre-insertion-string (or pre-insertion-string " ")
+             :post-insertion-string (or post-insertion-string " "))))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
