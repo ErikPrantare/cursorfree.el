@@ -706,10 +706,19 @@ If no targets are given, overwrite `cursorfree-this' instead."
 
 (defun cursorfree-target-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."
-  (let ((string1 (cursorfree-target-get target1))
-        (string2 (cursorfree-target-get target2)))
-    (cursorfree-target-put target1 string2)
-    (cursorfree-target-put target2 string1)))
+  (cursorfree--target-swap target1 target2))
+
+(cl-defgeneric cursorfree--target-swap (target1 target2)
+  (let ((content1 (cursorfree-target-get target1))
+        (content2 (cursorfree-target-get target2)))
+    (cursorfree-target-put target1 content2)
+    (cursorfree-target-put target2 content1)))
+
+(cl-defgeneric cursorfree--target-swap ((window1 window) (window2 window))
+  (let ((buffer1 (cursorfree--target-buffer window1))
+        (buffer2 (cursorfree--target-buffer window2)))
+    (cursorfree-target-put window1 buffer2)
+    (cursorfree-target-put window2 buffer1)))
 
 (cl-defgeneric cursorfree--target-change (target)
   "Change TARGET interactively.")
