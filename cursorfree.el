@@ -657,9 +657,42 @@ associated buffer."
 (cl-defmethod cursorfree-target-delete ((buffer buffer))
   (kill-buffer buffer))
 
+(defface cursorfree--deletion-highlight
+  '((t :background "#620f2a"))
+  "Face used to highlight target that will be removed.")
+
+(cl-defgeneric cursorfree--indicate-deletion (target)
+  ;; TODO: Implement multiple regions for pulsing.
+  (ignore))
+
+(cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
+  (with-current-buffer (cursorfree--target-buffer target)
+    (let* ((deletion-region (cursorfree--deletion-region target))
+           (overlay
+            (make-overlay (car deletion-region)
+                          (cdr deletion-region))))
+      (overlay-put overlay 'face 'cursorfree--deletion-highlight)
+      (redisplay t)
+      (sleep-for 0.1)
+      (delete-overlay overlay))))
+
+(cl-defmethod cursorfree--indicate-deletion ((target cursorfree-parallel-target))
+  (let ((overlays '()))
+    (cursorfree-on-content-region target
+      (lambda (region)
+        (let ((overlay
+               (make-overlay (car region) (cdr region))))
+          (overlay-put overlay 'face 'cursorfree--deletion-highlight)
+          (push overlay overlays))))
+    (redisplay)
+    (sleep-for 0.1)
+    (seq-doseq (overlay overlays)
+      (delete-overlay overlay))))
+
 (defun cursorfree-target-chuck (&rest targets)
   "Delete TARGETS and indent the resulting text."
   (dolist (target targets)
+    (cursorfree--indicate-deletion target)
     (cursorfree-target-delete target)))
 
 (defmacro cursorfree--for-each-cursor (&rest body)
@@ -685,6 +718,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
 
 (cl-defgeneric cursorfree--target-move (source target &key putter)
   (setq putter (or putter #'cursorfree-target-put))
+  (cursorfree--indicate-deletion source)
   (cursorfree--target-bring source target :putter putter)
   (cursorfree-target-delete source))
 
