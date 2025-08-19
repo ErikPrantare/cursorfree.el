@@ -427,7 +427,7 @@ by `hatty-locate-token'."
 
 (cl-defgeneric cursorfree-target-put (target content)
   "Put CONTENT into TARGET."
-  (error (format "No method for writing %S to target %S" content target)))
+  (error "No method for writing %S to target %S" content target))
 
 (cl-defmethod cursorfree-target-put ((target buffer) (content string))
   (cursorfree-target-put (cursorfree-this target) content))
@@ -505,14 +505,20 @@ context-dependent behavior for whatever \"this\" means."
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content window))
   (cursorfree-target-put target (window-buffer content)))
 
-(defun cursorfree--target-put-before (region-target content)
+(cl-defgeneric cursorfree--target-put-before (target content)
+  (error "No method for writing %S before target %S" content target))
+
+(cl-defmethod cursorfree--target-put-before (region-target content)
   (cursorfree-target-put
    region-target
    (concat content
            (cursorfree-region-target-pre-insertion-string region-target)
            (cursorfree-target-get region-target))))
 
-(defun cursorfree--target-put-after (region-target content)
+(cl-defgeneric cursorfree--target-put-after (target content)
+  (error "No method for writing %S after target %S" content target))
+
+(cl-defmethod cursorfree--target-put-after (region-target content)
   (cursorfree-target-put
    region-target
    (concat (cursorfree-target-get region-target)
