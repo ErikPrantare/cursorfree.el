@@ -673,10 +673,10 @@ associated buffer."
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
   (with-current-buffer (cursorfree--target-buffer target)
-    (let* ((deletion-region (cursorfree--deletion-region target))
+    (let* ((region (cursorfree--content-region target))
            (overlay
-            (make-overlay (car deletion-region)
-                          (cdr deletion-region))))
+            (make-overlay (car region)
+                          (cdr region))))
       (overlay-put overlay 'face 'cursorfree--deletion-highlight)
       (redisplay t)
       (sleep-for 0.1)
@@ -766,6 +766,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
 (cl-defmethod cursorfree--target-change ((target cursorfree-region-target))
   "Remove contents of TARGET and put point there."
   (cursorfree-target-jump target)
+  (cursorfree--indicate-deletion target)
   (cursorfree--region-delete (cursorfree--content-region target)))
 
 (cl-defmethod cursorfree--target-change ((target cursorfree-parallel-target))
