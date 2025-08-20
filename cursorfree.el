@@ -697,7 +697,7 @@ associated buffer."
 
 (defun cursorfree-target-chuck (&rest targets)
   "Delete TARGETS and indent the resulting text."
-  (dolist (target targets)
+  (let ((target (cursorfree--normalize-target targets)))
     (cursorfree--indicate-deletion target)
     (cursorfree-target-delete target)))
 
