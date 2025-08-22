@@ -811,4 +811,30 @@
                     (alist-get "line" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-block ()
+  "block."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a\nparagraph\nblock\n\nb"
+             :points '(7))
+    :after (make-cursorfree--test-buffer-state
+            :string "b"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 1 2)))
+                    (alist-get "block" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a\nblock with\nadded space next\n \nb"
+             :points '(7))
+    :after (make-cursorfree--test-buffer-state
+            :string "b"
+            :points '(1))
+    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 1 2)))
+                    (alist-get "block" cursorfree-modifiers nil nil #'equal)
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+
 ;;; test.el ends here

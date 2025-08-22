@@ -1393,12 +1393,12 @@ If WINDOW is not given, use the selected window."
     (cursorfree-on-content-region target
       (lambda (region)
         (goto-char (car region))
-        (unless (re-search-backward "\n[:blank:]*\n" nil t)
+        (unless (re-search-backward (rx "\n" (* blank) "\n") nil t)
           (goto-char (point-min)))
         (skip-chars-forward  "\n[:blank:]")
         (let ((start (point)))
           (goto-char (cdr region))
-          (unless (re-search-forward "\n[:blank:]*\n" nil t)
+          (unless (re-search-forward (rx "\n" (* blank) "\n") nil t)
             (goto-char (point-max)))
           (cursorfree-trim
            (cursorfree-make-target (cons start (point)))))))))
