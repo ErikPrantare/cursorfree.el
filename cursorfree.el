@@ -236,8 +236,8 @@ a `cursorfree-parallel-target'."
 (cl-defun cursorfree-make-target (content-region
                                   &key
                                   (deletion-region nil)
-                                  (post-insertion-string nil)
                                   (pre-insertion-string nil)
+                                  (post-insertion-string nil)
                                   (constructor #'make-cursorfree-region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
@@ -1261,17 +1261,27 @@ parenthesis is intended."
     ;; Make sure target gets created in correct buffer (max and min do
     ;; not return the corresponding marker, but a new integer instead)
     (with-current-buffer (cursorfree-buffer (car targets))
-      (let ((content-region
-             (cursorfree--ensure-marker-region
-              (cons (seq-min (seq-map
-                              (lambda (target)
-                                (car (cursorfree--content-region target)))
-                              targets))
-                    (seq-max (seq-map
-                              (lambda (target)
-                                (cdr (cursorfree--content-region target)))
-                              targets))))))
-        (cursorfree-make-target content-region)))))
+      (let ((leftmost (seq-first
+                       (seq-sort-by
+                        (lambda (target)
+                          (car (cursorfree--content-region target)))
+                        #'<
+                        targets)))
+            (rightmost (seq-first
+                        (seq-sort-by
+                         (lambda (target)
+                           (cdr (cursorfree--content-region target)))
+                         #'>
+                         targets)))
+            (content-region
+             (cons (car (cursorfree--content-region leftmost))
+                   (cdr (cursorfree--content-region rightmost)))))
+        (cursorfree-make-target
+         content-region
+         :pre-insertion-string
+         (cursorfree-region-target-pre-insertion-string leftmost)
+         :post-insertion-string
+         (cursorfree-region-target-post-insertion-string rightmost))))))
 
 (defun cursorfree-past (target1 &optional target2)
   "Return the smallest target that can fit TARGET1 and TARGET2."
