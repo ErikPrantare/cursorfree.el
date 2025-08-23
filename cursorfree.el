@@ -248,10 +248,14 @@ a `cursorfree-parallel-target'."
                                   (constructor #'make-cursorfree-region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
+CONTENT-REGION must be a cons-cell (BEGINNING . END) of integers or
+markers.
+
 DELETION-REGION specified the region to remove if this target is
 deleted.  If nil, the deletion region will be guessed.
 
-If BUFFER is specified it will be associated to the new target.
+If BUFFER is specified it will be associated to the new target.  If not,
+but the BEGINNING is a marker with a buffer, use that buffer instead.
 Otherwise, the current buffer will be associated to it.
 
 If WINDOW is specified it will be associated to the new target.
@@ -261,7 +265,10 @@ request.
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
 may be invoked equivalently to `make-cursorfree-region-target', and
 constructs a target inheriting from `cursorfree-region-target'."
-  (with-current-buffer (window-normalize-buffer buffer)
+  (with-current-buffer (window-normalize-buffer
+                        (or buffer
+                            (and (markerp (car content-region))
+                                 (marker-buffer (car content-region)))))
     (let* ((region (cursorfree--ensure-marker-region content-region))
            (buffer (current-buffer))
            (deletion (cursorfree--ensure-marker-region
