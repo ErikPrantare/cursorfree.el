@@ -187,7 +187,12 @@ will not remain on the stack."
 (cl-defstruct cursorfree-region-target
   "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
-  content-region buffer deletion-region pre-insertion-string post-insertion-string)
+  content-region
+  deletion-region
+  buffer
+  window
+  pre-insertion-string
+  post-insertion-string)
 
 (cl-defstruct cursorfree-parallel-target
   targets)
@@ -236,37 +241,48 @@ a `cursorfree-parallel-target'."
 (cl-defun cursorfree-make-target (content-region
                                   &key
                                   (deletion-region nil)
+                                  (buffer nil)
+                                  (window nil)
                                   (pre-insertion-string nil)
                                   (post-insertion-string nil)
                                   (constructor #'make-cursorfree-region-target))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
 DELETION-REGION specified the region to remove if this target is
-deleted.  If nil, the region will be guessed.
+deleted.  If nil, the deletion region will be guessed.
+
+If BUFFER is specified it will be associated to the new target.
+Otherwise, the current buffer will be associated to it.
+
+If WINDOW is specified it will be associated to the new target.
+Otherwise, the associated window will be guessed at the point of
+request.
 
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
 may be invoked equivalently to `make-cursorfree-region-target', and
 constructs a target inheriting from `cursorfree-region-target'."
-  (let* ((region (cursorfree--ensure-marker-region content-region))
-         (buffer (marker-buffer (car region)))
-         (deletion (cursorfree--ensure-marker-region
-                    (or deletion-region
-                        (cursorfree--guess-deletion-region region)
-                        (save-excursion
-                          (set-buffer buffer)
-                          (goto-char (cdr content-region))
-                          (cursorfree--ensure-marker-region
-                           (if (/= (skip-chars-forward "[:space:]\n"))
-                               (cons (car content-region) (point))
-                             (goto-char (car content-region))
-                             (skip-chars-backward "[:space:]\n")
-                             (cons (point) (cdr content-region)))))))))
-    (funcall constructor
-             :content-region region
-             :buffer buffer
-             :deletion-region deletion
-             :pre-insertion-string (or pre-insertion-string " ")
-             :post-insertion-string (or post-insertion-string " "))))
+  (with-current-buffer (window-normalize-buffer buffer)
+    (let* ((region (cursorfree--ensure-marker-region content-region))
+           (buffer (current-buffer))
+           (deletion (cursorfree--ensure-marker-region
+                      (or deletion-region
+                          (cursorfree--guess-deletion-region region)
+                          (save-excursion
+                            (set-buffer buffer)
+                            (goto-char (cdr content-region))
+                            (cursorfree--ensure-marker-region
+                             (if (/= (skip-chars-forward "[:space:]\n"))
+                                 (cons (car content-region) (point))
+                               (goto-char (car content-region))
+                               (skip-chars-backward "[:space:]\n")
+                               (cons (point) (cdr content-region)))))))))
+      (funcall constructor
+               :content-region region
+               :buffer buffer
+               :window window
+               :deletion-region deletion
+               :pre-insertion-string (or pre-insertion-string " ")
+               :post-insertion-string (or post-insertion-string " ")))))
 
 (defun cursorfree--content-region (target)
   "Return region of the content referred to by TARGET."
@@ -320,6 +336,10 @@ To override this function for new target types, implement a method for
 By default, returns a window showing the `cursorfree-buffer' of TARGET,
 or nil if no window is showing that buffer."
   (get-buffer-window (cursorfree-buffer target)))
+
+(cl-defmethod cursorfree--target-window ((target cursorfree-region-target))
+  (or (cursorfree-region-target-window target)
+      (cl-call-next-method)))
 
 (cl-defmethod cursorfree--target-window ((window window))
   "Return WINDOW."
@@ -448,8 +468,12 @@ by `hatty-locate-token'."
 TARGET will be modified to cover the region containing CONTENT."
   (cursorfree-on-content-region target
     (lambda (region)
-      (replace-region-contents (car region) (cdr region)
-                               (lambda () content)))))
+      (replace-region-contents
+       (car region) (cdr region)
+       (lambda () content)))))
+
+(cl-defmethod cursorfree-target-put ((target cursorfree-region-target) (content list))
+  (cursorfree-target-put target (string-join content " ")))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree-parallel-target) content)
   (seq-doseq (target (cursorfree-parallel-target-targets target))
@@ -481,12 +505,17 @@ functions can be overloaded on this type to give more
 context-dependent behavior for whatever \"this\" means."
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
-    (with-current-buffer in-buffer
+  (let ((in-buffer (cursorfree-buffer window-or-buffer))
+        (in-window (cursorfree-window window-or-buffer)))
+    ;; Needs to have the correct window selected to get the correct
+    ;; point, should the same buffer be viewed in multiple windows.
+    (with-selected-window (window-normalize-window in-window)
       (cursorfree-make-target
        (cons (point) (point))
        :deletion-region (cons (point) (point))
-       :constructor #'make-cursorfree--this-target))))
+       :constructor #'make-cursorfree--this-target
+       :buffer in-buffer
+       :window in-window))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
@@ -1261,21 +1290,21 @@ parenthesis is intended."
     ;; Make sure target gets created in correct buffer (max and min do
     ;; not return the corresponding marker, but a new integer instead)
     (with-current-buffer (cursorfree-buffer (car targets))
-      (let ((leftmost (seq-first
-                       (seq-sort-by
-                        (lambda (target)
-                          (car (cursorfree--content-region target)))
-                        #'<
-                        targets)))
-            (rightmost (seq-first
+      (let* ((leftmost (seq-first
                         (seq-sort-by
                          (lambda (target)
-                           (cdr (cursorfree--content-region target)))
-                         #'>
+                           (car (cursorfree--content-region target)))
+                         #'<
                          targets)))
-            (content-region
-             (cons (car (cursorfree--content-region leftmost))
-                   (cdr (cursorfree--content-region rightmost)))))
+             (rightmost (seq-first
+                         (seq-sort-by
+                          (lambda (target)
+                            (cdr (cursorfree--content-region target)))
+                          #'>
+                          targets)))
+             (content-region
+              (cons (car (cursorfree--content-region leftmost))
+                    (cdr (cursorfree--content-region rightmost)))))
         (cursorfree-make-target
          content-region
          :pre-insertion-string
