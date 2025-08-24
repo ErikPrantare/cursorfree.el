@@ -1008,11 +1008,16 @@ If point is at a button, push it.  Otherwise, use the current major
 mode to look up the function in `cursorfree-dwim-follow-alist'."
   ;; The extra check that the button contains an action was used for
   ;; eww.  Check if this was fixed in Emacs 30.
-  (if (and (button-at (point)) (button-get (button-at (point)) 'action))
-      (push-button)
-    (if-let ((follow-action
-              (alist-get major-mode cursorfree-dwim-follow-alist)))
-        (funcall follow-action))))
+  (cond
+   ((and (button-at (point))
+         (button-get (button-at (point)) 'action))
+    (push-button))
+   ((widget-at (point))
+    (widget-apply-action (widget-at (point))))
+   ((alist-get major-mode cursorfree-dwim-follow-alist)
+    (funcall (alist-get major-mode cursorfree-dwim-follow-alist)))
+   (t (user-error "Nothing to follow at %S in %S"
+                  (point) (current-buffer)))))
 
 (defun cursorfree-target-pick (&optional target)
   "Try to follow the thing at TARGET.
@@ -1020,12 +1025,10 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
 This function calls on `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
   (setq target (or target (cursorfree-this)))
-  (with-selected-window (cursorfree-window target)
-    (let ((region (cursorfree--content-region target)))
-      (cursorfree-on-content-region target
-        (lambda (region)
-          (goto-char (car region))
-          (cursorfree-dwim-follow))))))
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (goto-char (car region))
+      (cursorfree-dwim-follow))))
 
 ;; TODO: Errors on invocation?
 (defun cursorfree-target-fuse (target)
