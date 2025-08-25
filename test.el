@@ -31,11 +31,11 @@
   (markers nil))
 
 (cl-defstruct cursorfree--test-parameters
-   command-form
-   (after (make-my/test-buffer-state
-            :string ""
-            :points nil)
-          :type my/test-buffer-state)
+  command-form
+  (after (make-my/test-buffer-state
+          :string ""
+          :points nil)
+         :type my/test-buffer-state)
    (before (make-my/test-buffer-state
             :string ""
             :points nil)
@@ -86,9 +86,14 @@
             (switch-to-buffer test-buffer)
 
             (cursorfree--setup-test parameters)
-            (let ((instructions (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
-              (funcall #'cursorfree-evaluate instructions)
-              (cursorfree--test-check-state parameters))
+            ;; Backwards compatibility with older tests listing
+            ;; instructions instead of providing the elisp form to
+            ;; evaluate.
+            (if (symbolp (car (cursorfree--test-parameters-command-form parameters)))
+                (eval (cursorfree--test-parameters-command-form parameters))
+              (funcall #'cursorfree-evaluate
+                       (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
+            (cursorfree--test-check-state parameters)
 
             (unless (cursorfree--test-parameters-from-same-buffer parameters)
               (cursorfree--setup-test parameters)
@@ -809,7 +814,37 @@
             :points '(5))
     :command-form '((cursorfree--pusher (cursorfree-make-target (cons 1 2)))
                     (alist-get "line" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "chuck" cursorfree-actions nil nil #'equal))))
+
+  ;; Putting a line after arbitrary region puts it on the next line instead.
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a line\nanother one"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "another one\na line"
+            :points '(1))
+    :command-form
+    '(cursorfree--target-move
+      (cursorfree-line (cursorfree-make-target (cons 1 1)))
+      (cursorfree-make-target (cons 9 10))
+      :putter #'cursorfree--put-after)))
+
+  ;; Same but before.
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a line\nanother one"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "another one\na line\n"
+            :points '(1))
+    :command-form
+    '(cursorfree--target-move
+      (cursorfree-line (cursorfree-make-target (cons 9 10)))
+      (cursorfree-make-target (cons 1 1))
+      :putter #'cursorfree--put-before))))
 
 (ert-deftest cursorfree--test-block ()
   "block."

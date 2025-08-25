@@ -187,12 +187,25 @@ will not remain on the stack."
 (cl-defstruct cursorfree-region-target
   "Target referring to CONTENT-REGION inside of BUFFER.
 CONTENT-REGION is a cons cell of markers."
-  content-region
-  deletion-region
-  buffer
-  window
-  pre-insertion-string
-  post-insertion-string)
+  (content-region nil :type (cons marker marker))
+  (deletion-region nil :type (cons marker marker))
+  (buffer nil :type buffer)
+  (window nil :type window)
+  (pre-insertion-string nil :type string)
+  (post-insertion-string nil :type string)
+  (type nil :type symbol))
+
+(cl-generic-define-generalizer cursorfree--region-type-generalizer
+  60
+  (lambda (name &rest _)
+    `(when (cursorfree-region-target-p ,name)
+       (list 'cursorfree--region-type (cursorfree-region-target-type ,name))))
+  (lambda (tag &rest _)
+    (when (eq (car-safe tag) 'cursorfree--region-type)
+      (list tag))))
+
+(cl-defmethod cl-generic-generalizers ((_specializer (head cursorfree--region-type)))
+  (list cursorfree--region-type-generalizer))
 
 (cl-defstruct cursorfree-parallel-target
   targets)
@@ -561,6 +574,15 @@ context-dependent behavior for whatever \"this\" means."
            (cursorfree-region-target-post-insertion-string region-target)
            content)))
 
+(cl-defgeneric cursorfree--put (target source)
+  (cursorfree-target-put target (cursorfree-target-get source)))
+
+(cl-defgeneric cursorfree--put-before (target source)
+  (cursorfree--target-put-before target (cursorfree-target-get source)))
+
+(cl-defgeneric cursorfree--put-after (target source)
+  (cursorfree--target-put-after target (cursorfree-target-get source)))
+
 ;;;; End of core functions
 
 ;; TODO: Introduce region-target abstraction layer?
@@ -744,13 +766,6 @@ associated buffer."
     ,@body
     (mc/store-current-state-in-overlay cursor)))
 
-(cl-defun cursorfree--target-bring (source target &key putter)
-  (setq putter (or putter #'cursorfree-target-put))
-  (funcall putter target (cursorfree-target-get source))
-  (cursorfree-target-pulse target)
-  (setq cursorfree--target-that target)
-  (setq cursorfree--target-source source))
-
 (defun cursorfree-target-bring (source &rest targets)
   "Overwrite TARGETS with SOURCE.
 
@@ -758,8 +773,15 @@ If no targets are given, overwrite `cursorfree-this' instead."
   (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
     (cursorfree--target-bring source target)))
 
+(cl-defun cursorfree--target-bring (source target &key putter)
+  (setq putter (or putter #'cursorfree--put))
+  (funcall putter target source)
+  (cursorfree-target-pulse target)
+  (setq cursorfree--target-that target)
+  (setq cursorfree--target-source source))
+
 (cl-defgeneric cursorfree--target-move (source target &key putter)
-  (setq putter (or putter #'cursorfree-target-put))
+  (setq putter (or putter #'cursorfree--put))
   (cursorfree--indicate-deletion source)
   (cursorfree--target-bring source target :putter putter)
   (cursorfree-target-delete source))
@@ -1434,7 +1456,15 @@ If WINDOW is not given, use the selected window."
 (defun cursorfree-line (&optional target)
   "Extend TARGET to cover all non-whitespace characters on its line."
   (setq target (or target (cursorfree-this)))
-  (cursorfree-line-left (cursorfree-line-right target)))
+  (let ((result (cursorfree-line-left (cursorfree-line-right target))))
+    (setf (cursorfree-region-target-type result) 'line)
+    result))
+
+(cl-defmethod cursorfree--put-before ((target cursorfree-region-target) (source (cursorfree--region-type line)))
+  (cl-call-next-method (cursorfree-line target) source))
+
+(cl-defmethod cursorfree--put-after ((target cursorfree-region-target) (source (cursorfree--region-type line)))
+  (cl-call-next-method (cursorfree-line target) source))
 
 (defun cursorfree-block (&optional target)
   (setq target (or target (cursorfree-this)))
