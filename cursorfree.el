@@ -530,12 +530,13 @@ context-dependent behavior for whatever \"this\" means."
     ;; Needs to have the correct window selected to get the correct
     ;; point, should the same buffer be viewed in multiple windows.
     (with-selected-window (window-normalize-window in-window)
-      (cursorfree-make-target
-       (cons (point) (point))
-       :deletion-region (cons (point) (point))
-       :constructor #'make-cursorfree--this-target
-       :buffer in-buffer
-       :window in-window))))
+      (with-current-buffer in-buffer
+        (cursorfree-make-target
+         (cons (point) (point))
+         :deletion-region (cons (point) (point))
+         :constructor #'make-cursorfree--this-target
+         :buffer in-buffer
+         :window in-window)))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
