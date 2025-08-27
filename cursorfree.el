@@ -1484,6 +1484,13 @@ If WINDOW is not given, use the selected window."
            (cursorfree-make-target (cons start (point)))))))))
 
 (defun cursorfree-row (index)
+  "Return the line on row INDEX."
+  (save-excursion
+    (goto-char (point-min))
+    (forward-line (1- index))
+    (cursorfree-line)))
+
+(defun cursorfree-row-modulo-100 (index)
   "Return the visible line modulo 100 equal to INDEX as a target."
   (save-excursion
     (let* ((first-line (line-number-at-pos (window-start)))
@@ -1493,9 +1500,7 @@ If WINDOW is not given, use the selected window."
         (setq guess (+ 100 guess)))
       (when (> guess last-line)
         (user-error "No line modulo 100 equal to %s" index))
-      (goto-char (point-min))
-      (forward-line (1- guess))
-      (cursorfree-line (cursorfree-make-target (cons (point) (point)))))))
+      (cursorfree-row guess))))
 
 (defun cursorfree-every-instance (target &optional view)
   "Return a parallel target of every occurrence of TARGET.
@@ -1626,7 +1631,7 @@ targets."
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
-    ("row" . ,(cursorfree-make-modifier #'cursorfree-row))
+    ("row" . ,(cursorfree-make-modifier #'cursorfree-row-modulo-100))
     ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
     ("every instance" . ,(cursorfree-make-modifier #'cursorfree-every-instance))
     ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
