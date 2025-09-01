@@ -518,13 +518,35 @@ denotes the currently selected window.
 Generic functions may be overridden to provide specialized behavior
 for \"this\".")
 
+(defun cursorfree--collect-this ()
+  ;; TODO: Handle non-contiguous regions.
+  (let (regions)
+    (mc/for-each-cursor-ordered
+     ;; multiple cursors returns marker without buffer; Extract only
+     ;; the position so that `cursorfree--ensure-marker-region'
+     ;; eventually creates correct markers.
+     (let ((point (marker-position (overlay-get cursor 'point)))
+           (mark (marker-position (overlay-get cursor 'mark))))
+       (push (if (overlay-get cursor 'mark-active)
+                 (cons (min point mark) (max point mark))
+               (cons point point))
+             regions)))
+    regions))
+
 (defun cursorfree-this (&optional window-or-buffer)
   "Return an empty region located at point in WINDOW-OR-BUFFER.
 If WINDOW-OR-BUFFER is omitted or nil, use the current buffer.
 
-The returned target is of type `cursorfree--this-target'.  Generic
-functions can be overloaded on this type to give more
-context-dependent behavior for whatever \"this\" means."
+If region if active, the returned target will span that region instead
+of being empty.
+
+If multiple cursors are active, a `cursorfree-parallel-target' will be
+returned, covering each cursor.
+
+The returned target, if there is only one cursor, is of type
+`cursorfree--this-target'.  Generic functions can be overloaded on this
+type to give more context-dependent behavior for whatever \"this\"
+means."
   (declare (cursorfree--optional-bag
             ((or (bufferp %) (windowp %)) window-or-buffer)))
   (let ((in-buffer (cursorfree-buffer window-or-buffer))
@@ -533,12 +555,16 @@ context-dependent behavior for whatever \"this\" means."
     ;; point, should the same buffer be viewed in multiple windows.
     (with-selected-window (window-normalize-window in-window)
       (with-current-buffer in-buffer
-        (cursorfree-make-target
-         (cons (point) (point))
-         :deletion-region (cons (point) (point))
-         :constructor #'make-cursorfree--this-target
-         :buffer in-buffer
-         :window in-window)))))
+        (let ((regions (cursorfree--collect-this)))
+          (cursorfree--normalize-target
+           (seq-map (lambda (region)
+                      (cursorfree-make-target
+                       region
+                       :deletion-region region
+                       :constructor #'make-cursorfree--this-target
+                       :buffer in-buffer
+                       :window in-window))
+                    regions))))))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
@@ -1361,6 +1387,9 @@ parenthesis is intended."
   ;; TODO: Handle noncontiguous selections?
   (cursorfree-make-target
    (car (region-bounds))))
+
+(make-obsolete #'cursorfree-current-selection #'cursorfree-this
+               "0.3.0")
 
 (defun cursorfree-thing-to-modifier (thing)
   "Translate THING to an instruction extending a target to THING.
