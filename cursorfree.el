@@ -488,9 +488,11 @@ by `hatty-locate-token'."
 TARGET will be modified to cover the region containing CONTENT."
   (cursorfree-on-content-region target
     (lambda (region)
-      (replace-region-contents
-       (car region) (cdr region)
-       (lambda () content)))))
+      (let ((point-inside-target (<= (car region) (point) (cdr region))))
+        (cursorfree--region-delete region)
+        (cursorfree--insert-at (car region) content)
+        (when point-inside-target
+          (goto-char (cdr region)))))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree-region-target) (content list))
   (cursorfree-target-put target (string-join content " ")))
@@ -558,22 +560,24 @@ context-dependent behavior for whatever \"this\" means."
 (cl-defgeneric cursorfree--target-put-before (target content)
   (error "No method for writing %S before target %S" content target))
 
-(cl-defmethod cursorfree--target-put-before (region-target content)
-  (cursorfree-target-put
-   region-target
-   (concat content
-           (cursorfree-region-target-pre-insertion-string region-target)
-           (cursorfree-target-get region-target))))
+(cl-defmethod cursorfree--target-put-before ((target cursorfree-region-target) content)
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (insert content)
+        (insert (cursorfree-region-target-post-insertion-string target))))))
 
 (cl-defgeneric cursorfree--target-put-after (target content)
   (error "No method for writing %S after target %S" content target))
 
-(cl-defmethod cursorfree--target-put-after (region-target content)
-  (cursorfree-target-put
-   region-target
-   (concat (cursorfree-target-get region-target)
-           (cursorfree-region-target-post-insertion-string region-target)
-           content)))
+(cl-defmethod cursorfree--target-put-after ((target cursorfree-region-target) content)
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (cdr region))
+        (insert (cursorfree-region-target-post-insertion-string target))
+        (insert content)))))
 
 (cl-defgeneric cursorfree--put (target source)
   (cursorfree-target-put target (cursorfree-target-get source)))

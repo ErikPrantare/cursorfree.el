@@ -181,7 +181,19 @@
             :points '(13))
     :command-form '((cursorfree--pusher (cursorfree-make-target (cons 7 13)))
                     (cursorfree--pusher (cursorfree-make-target (cons 7 13)))
-                    (alist-get "bring" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "bring" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Point should be after new word"
+             :points '(16))
+    :after (make-cursorfree--test-buffer-state
+            :string "Point should some-long-word after new word"
+            :points '(28))
+    :command-form '(cursorfree-target-bring
+                    "some-long-word"
+                    (cursorfree-make-target (cons 14 16))))))
 
 (ert-deftest cursorfree--test-move ()
   "move."
