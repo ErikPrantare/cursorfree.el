@@ -564,7 +564,7 @@ means."
                        :constructor #'make-cursorfree--this-target
                        :buffer in-buffer
                        :window in-window))
-                    regions))))))))
+                    regions)))))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (content string))
   "Insert CONTENT at point in the buffer of TARGET."
