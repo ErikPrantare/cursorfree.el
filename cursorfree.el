@@ -855,6 +855,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
 (cl-defmethod cursorfree--target-change ((target cursorfree-region-target))
   "Remove contents of TARGET and put point there."
   (cursorfree-target-jump target)
+  (when (region-active-p) (deactivate-mark))
   (cursorfree--indicate-deletion target)
   (cursorfree--region-delete (cursorfree--content-region target)))
 
