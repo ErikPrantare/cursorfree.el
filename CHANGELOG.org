@@ -29,6 +29,10 @@
   - "pick" can now apply widgets.
   - The optional argument for "occur" may now be an arbitrary region.
 - Modifiers:
+  - "this" now returns region if it is active.
+  - "this" now returns a parallel target if multiple cursors are
+    enabled.
+  - "selection" has been deprecated in favour of "this".
   - New modifiers "that" and "source": "that" refers to the target of
     the last action.  "source" refers to the source of the last
     action.  For example, if you said "clip <x> bring", you can then
