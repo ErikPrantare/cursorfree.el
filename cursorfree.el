@@ -426,7 +426,7 @@ The token is indexed by CHARACTER, COLOR and SHAPE, as specified
 by `hatty-locate-token'."
   (if-let ((region (hatty-locate-token character color shape)))
       (cursorfree-make-target region)
-    (user-error "No such hat: color %s, shape %s, character %s" color shape character)))
+    (user-error "No such hat: color %s, shape %s, character %c" color shape character)))
 
 (defun cursorfree--pusher (value)
   "Return instruction putting VALUE on the value stack."
