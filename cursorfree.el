@@ -788,7 +788,8 @@ associated buffer."
   "Delete TARGETS and indent the resulting text."
   (let ((target (cursorfree--normalize-target targets)))
     (cursorfree--indicate-deletion target)
-    (cursorfree-target-delete target)))
+    (cursorfree-target-delete target)
+    (setq cursorfree--target-that target)))
 
 (defmacro cursorfree--for-each-cursor (&rest body)
   "Evaluate BODY for each cursor."
