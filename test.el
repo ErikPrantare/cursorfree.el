@@ -461,7 +461,17 @@
                     (cursorfree--pusher (cursorfree-make-target (cons 11 15)))
                     (cursorfree--pusher (cursorfree-make-target (cons 19 27)))
                     (cursorfree--pusher 40)
-                    (alist-get "wrap" cursorfree-actions nil nil #'equal)))))
+                    (alist-get "wrap" cursorfree-actions nil nil #'equal))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "point should stay inside"
+             :points '(7))
+    :after (make-cursorfree--test-buffer-state
+            :string "point (should) stay inside"
+            :points '(8))
+    :command-form '(cursorfree-target-wrap ?\( (cursorfree-make-target (cons 7 13))))))
 
 (ert-deftest cursorfree--test-past ()
   "past."

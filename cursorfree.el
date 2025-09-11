@@ -1032,7 +1032,9 @@ Otherwise, insert PARENTHESIS instead."
              (?\[ ?\])
              (?< ?>)
              (?{ ?})
-             (_ parenthesis))))))))
+             (_ parenthesis))))
+        (when (= (car region) (point))
+          (forward-char))))))
 
 (make-obsolete 'cursorfree-target-wrap-parentheses
                'cursorfree-target-wrap
