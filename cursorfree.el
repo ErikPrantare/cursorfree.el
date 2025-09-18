@@ -310,6 +310,7 @@ constructs a target inheriting from `cursorfree-region-target'."
 
 (defun cursorfree-buffer (&optional target)
   "Get the buffer associated with TARGET.
+If no buffer is associated with TARGET, return nil.
 
 If TARGET is nil or omitted, the current buffer is returned instead.
 
@@ -320,10 +321,8 @@ To override this function for new target types, implement a method for
     (current-buffer)))
 
 (cl-defgeneric cursorfree--target-buffer (target)
-  "Get the buffer associated with TARGET.
-
-Defaults to the current buffer."
-  (current-buffer))
+  "Get the buffer associated with TARGET."
+  nil)
 
 (cl-defmethod cursorfree--target-buffer ((target cursorfree-region-target))
   "Get the buffer associated with `cursorfree-region-target' TARGET."
@@ -339,10 +338,9 @@ Defaults to the current buffer."
 
 (defun cursorfree-window (&optional target)
   "Get the window associated with TARGET.
-
-If TARGET is nil or omitted, the currently selected window is returned.
-Otherwise, this will return a window displaying the buffer associated
-with TARGET by default.
+If TARGET is nil or omitted, return the currently selected window.
+Otherwise, return a window displaying the buffer associated with TARGET,
+or nil if no window is showing that buffer.
 
 To override this function for new target types, implement a method for
 `cursorfree--target-window'."
@@ -355,7 +353,8 @@ To override this function for new target types, implement a method for
 
 By default, returns a window showing the `cursorfree-buffer' of TARGET,
 or nil if no window is showing that buffer."
-  (get-buffer-window (cursorfree-buffer target)))
+  (when-let ((buffer (cursorfree-buffer target)))
+    (get-buffer-window buffer)))
 
 (cl-defmethod cursorfree--target-window ((target cursorfree-region-target))
   (or (cursorfree-region-target-window target)
