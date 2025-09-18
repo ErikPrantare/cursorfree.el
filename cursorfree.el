@@ -1497,6 +1497,14 @@ If WINDOW is not given, use the selected window."
     (setf (cursorfree-region-target-type result) 'line)
     result))
 
+(defun cursorfree-sentence (&optional target)
+  "Extend TARGET to cover its containing sentence.
+TARGET defaults to the return value of `cursorfree-this'."
+  (cursorfree-on-content-region (or target (cursorfree-this))
+    (lambda (region)
+      (cursorfree-make-target
+        (cursorfree--bounds-of-thing-at 'sentence (car region))))))
+
 (cl-defmethod cursorfree--put-before ((target cursorfree-region-target) (source (cursorfree--region-type line)))
   (cl-call-next-method (cursorfree-line target) source))
 

@@ -63,6 +63,8 @@
     argument.
   - "visible" now takes an optional window argument, selecting which
     window the visible portion should be taken from.
+- New function ~cursorfree-sentence~ for selecting a sentence.
+  Currently has no speech binding.
 - Removed ~cursorfree-evaluate-environment~.
 
 * 0.2.0 [2025-04-14 Mon]
