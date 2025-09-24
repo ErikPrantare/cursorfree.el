@@ -1644,19 +1644,15 @@ See `cursorfree-parallel-target' for more information on parallel
 targets."
   (make-cursorfree-parallel-target :targets targets))
 
-(defun cursorfree-beginning (&optional window-or-buffer)
-  (declare (cursorfree--optional-bag
-            ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
-    (with-current-buffer in-buffer
-      (cursorfree-make-target (cons (point-min) (point-min))))))
+(defun cursorfree-beginning (&optional target)
+  (cursorfree-on-content-region (or target (cursorfree-everything))
+    (lambda (region)
+      (cursorfree-make-target (cons (car region) (car region))))))
 
-(defun cursorfree-end (&optional window-or-buffer)
-  (declare (cursorfree--optional-bag
-            ((or (bufferp %) (windowp %)) window-or-buffer)))
-  (let ((in-buffer (cursorfree-buffer window-or-buffer)))
-    (with-current-buffer in-buffer
-      (cursorfree-make-target (cons (point-max) (point-max))))))
+(defun cursorfree-end (&optional target)
+  (cursorfree-on-content-region (or target (cursorfree-everything))
+    (lambda (region)
+      (cursorfree-make-target (cons (cdr region) (cdr region))))))
 
 (defun cursorfree-that ()
   cursorfree--target-that)

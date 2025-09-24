@@ -894,4 +894,26 @@
                     (alist-get "block" cursorfree-modifiers nil nil #'equal)
                     (alist-get "chuck" cursorfree-actions nil nil #'equal)))))
 
+(ert-deftest cursorfree--test-beginning-end-of ()
+  "cursorfree-beginning, cursorfree-end."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "abcde"
+             :points '(3))
+    :after (make-cursorfree--test-buffer-state
+            :string "abcde"
+            :points '(1))
+    :command-form '(cursorfree-target-jump-end (cursorfree-beginning (cursorfree-everything)))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "abcde"
+             :points '(3))
+    :after (make-cursorfree--test-buffer-state
+            :string "abcde"
+            :points '(6))
+    :command-form '(cursorfree-target-jump-beginning (cursorfree-end (cursorfree-everything))))))
+
 ;;; test.el ends here

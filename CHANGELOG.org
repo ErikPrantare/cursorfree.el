@@ -39,11 +39,11 @@
     remove target "<x>" with "source chuck", or insert from the kill
     ring with "that bring".
   - New modifiers "beginning" and "end": Return a target referring to
-    the first or last position of the buffer.  Useful in conjunction
-    with "past", e.g. "end past chuck" removes everything from point
-    until the end of the buffer.  The modifiers take an optional
-    buffer or window as argument, to pick the beginning or end of the
-    buffer in that buffer or window.
+    an empty region at the beginning or end of the content region of a
+    given target.  Without argument, the returned target is at the
+    beginning or end of the current buffer instead.  Useful in
+    conjunction with "past", e.g. "end past chuck" removes everything
+    from point until the end of the buffer.
   - New modifier "primary": Return the primary selection as a target.
   - "this" now takes an optional window or buffer as argument,
     denoting where it should be created relative to.
