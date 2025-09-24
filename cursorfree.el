@@ -1505,6 +1505,14 @@ TARGET defaults to the return value of `cursorfree-this'."
       (cursorfree-make-target
         (cursorfree--bounds-of-thing-at 'sentence (car region))))))
 
+(defun cursorfree-token (&optional target)
+  "Extend the beginning of TARGET to cover its containing hatty token.
+TARGET defaults to the return value of `cursorfree-this'."
+  (cursorfree-on-content-region (or target (cursorfree-this))
+    (lambda (region)
+      (cursorfree-make-target
+        (cursorfree--bounds-of-thing-at 'hatty-token (car region))))))
+
 (cl-defmethod cursorfree--put-before ((target cursorfree-region-target) (source (cursorfree--region-type line)))
   (cl-call-next-method (cursorfree-line target) source))
 
@@ -1671,7 +1679,7 @@ targets."
     ("block" . ,(cursorfree-make-modifier #'cursorfree-block))
     ("link" . ,(cursorfree-thing-to-modifier 'url))
     ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
-    ("token" . ,(cursorfree-thing-to-modifier 'hatty-token))
+    ("token" . ,(cursorfree-make-modifier #'cursorfree-token))
     ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
