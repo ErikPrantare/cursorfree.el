@@ -1039,7 +1039,7 @@ Otherwise, insert PARENTHESIS instead."
                'cursorfree-target-wrap
                "0.2.0")
 
-(defvar cursorfree-dwim-follow-alist
+(defcustom cursorfree-dwim-follow-alist
   `((org-mode . org-open-at-point)
     (org-agenda-mode . org-agenda-switch-to)
     (Info-mode . Info-try-follow-nearest-node)
@@ -1056,7 +1056,8 @@ Otherwise, insert PARENTHESIS instead."
   "Alist mapping major mode to function for following at point.
 
 Used in `cursorfree-dwim-follow' for determining how to follow
-whatever thing point is located on.")
+whatever thing point is located on."
+  :type '(alist :key-type symbol :value-type function))
 
 (defun cursorfree-dwim-follow ()
   "Try to follow the thing at point.
