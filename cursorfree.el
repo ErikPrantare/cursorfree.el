@@ -336,17 +336,15 @@ To override this function for new target types, implement a method for
   "Return BUFFER."
   buffer)
 
-(defun cursorfree-window (&optional target)
+(defun cursorfree-window (target)
   "Get the window associated with TARGET.
-If TARGET is nil or omitted, return the currently selected window.
-Otherwise, return a window displaying the buffer associated with TARGET,
-or nil if no window is showing that buffer.
+If TARGET is nil or omitted, return nil.  Otherwise, if TARGET has no
+associated window, return a window displaying the buffer associated with
+TARGET, or nil if no window is showing that buffer.
 
 To override this function for new target types, implement a method for
 `cursorfree--target-window'."
-  (if target
-      (cursorfree--target-window target)
-    (selected-window)))
+  (cursorfree--target-window target))
 
 (cl-defgeneric cursorfree--target-window (target)
   "Get the window associated with TARGET.
@@ -364,6 +362,13 @@ or nil if no window is showing that buffer."
   "Return WINDOW."
   window)
 
+(defun cursorfree-window-or-selected (&optional target)
+  "Get the window associated with TARGET.
+If TARGET is nil or omitted, returned the selected window."
+  (if target
+      (cursorfree--target-window target)
+    (selected-window)))
+
 (cl-defgeneric cursorfree-on-content-region (target f)
   "Apply F to the region associated with TARGET."
   (declare (indent defun))
@@ -375,7 +380,7 @@ or nil if no window is showing that buffer."
 If target has an associated window or buffer, they will first be set
 as selected or current respectively."
   (with-selected-window (window-normalize-window (cursorfree-window target))
-    (with-current-buffer (cursorfree-buffer target)
+    (with-current-buffer (window-normalize-buffer (cursorfree-buffer target))
       (let ((region (cursorfree--content-region target)))
         (funcall f region)))))
 
@@ -843,7 +848,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree-target-put target1 content2)
     (cursorfree-target-put target2 content1)))
 
-(cl-defgeneric cursorfree--target-swap ((window1 window) (window2 window))
+(cl-defmethod cursorfree--target-swap ((window1 window) (window2 window))
   (let ((buffer1 (cursorfree--target-buffer window1))
         (buffer2 (cursorfree--target-buffer window2)))
     (cursorfree-target-put window1 buffer2)
@@ -882,7 +887,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
     (cursorfree-target-get target)
     (cursorfree-target-get target))))
 
-(cl-defgeneric cursorfree--target-clone ((target cursorfree-region-target))
+(cl-defmethod cursorfree--target-clone ((target cursorfree-region-target))
   (cursorfree--target-put-after target (cursorfree-target-get target)))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
@@ -1693,7 +1698,7 @@ targets."
     ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
     ("source" . ,(cursorfree-make-modifier #'cursorfree-source))
     ("buffer" . ,(cursorfree-make-modifier #'cursorfree-buffer))
-    ("split" . ,(cursorfree-make-modifier #'cursorfree-window))))
+    ("split" . ,(cursorfree-make-modifier #'cursorfree-window-or-selected))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)
