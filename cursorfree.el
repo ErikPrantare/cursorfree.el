@@ -304,7 +304,7 @@ constructs a target inheriting from `cursorfree-region-target'."
                :pre-insertion-string (or pre-insertion-string " ")
                :post-insertion-string (or post-insertion-string " ")))))
 
-(defun cursorfree--content-region (target)
+(defun cursorfree-content-region (target)
   "Return region of the content referred to by TARGET."
   (cursorfree-region-target-content-region target))
 
@@ -381,7 +381,7 @@ If target has an associated window or buffer, they will first be set
 as selected or current respectively."
   (with-selected-window (window-normalize-window (cursorfree-window target))
     (with-current-buffer (window-normalize-buffer (cursorfree-buffer target))
-      (let ((region (cursorfree--content-region target)))
+      (let ((region (cursorfree-content-region target)))
         (funcall f region)))))
 
 (cl-defmethod cursorfree-on-content-region ((target cursorfree-parallel-target) f)
@@ -462,8 +462,8 @@ by `hatty-locate-token'."
 (cl-defmethod cursorfree-target-get ((target cursorfree-region-target))
   "Return the buffer substring of TARGET."
   (with-current-buffer (cursorfree-buffer target)
-    (buffer-substring-no-properties (car (cursorfree--content-region target))
-                                    (cdr (cursorfree--content-region target)))))
+    (buffer-substring-no-properties (car (cursorfree-content-region target))
+                                    (cdr (cursorfree-content-region target)))))
 
 (cl-defmethod cursorfree-target-get ((target cursorfree-parallel-target))
   "Return the buffer substring of TARGET."
@@ -766,7 +766,7 @@ associated buffer."
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
   (with-current-buffer (cursorfree--target-buffer target)
-    (let* ((region (cursorfree--content-region target))
+    (let* ((region (cursorfree-content-region target))
            (overlay
             (make-overlay (car region)
                           (cdr region))))
@@ -862,7 +862,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
   (cursorfree-target-jump target)
   (when (region-active-p) (deactivate-mark))
   (cursorfree--indicate-deletion target)
-  (cursorfree--region-delete (cursorfree--content-region target)))
+  (cursorfree--region-delete (cursorfree-content-region target)))
 
 (cl-defmethod cursorfree--target-change ((target cursorfree-parallel-target))
   "Remove contents of TARGET and put points there."
@@ -1365,18 +1365,18 @@ parenthesis is intended."
       (let* ((leftmost (seq-first
                         (seq-sort-by
                          (lambda (target)
-                           (car (cursorfree--content-region target)))
+                           (car (cursorfree-content-region target)))
                          #'<
                          targets)))
              (rightmost (seq-first
                          (seq-sort-by
                           (lambda (target)
-                            (cdr (cursorfree--content-region target)))
+                            (cdr (cursorfree-content-region target)))
                           #'>
                           targets)))
              (content-region
-              (cons (car (cursorfree--content-region leftmost))
-                    (cdr (cursorfree--content-region rightmost)))))
+              (cons (car (cursorfree-content-region leftmost))
+                    (cdr (cursorfree-content-region rightmost)))))
         (cursorfree-make-target
          content-region
          :pre-insertion-string
@@ -1412,7 +1412,7 @@ The extension is done from the beginning of the target.  See
      (with-current-buffer (cursorfree-buffer target)
        (cursorfree-make-target
         (cursorfree--bounds-of-thing-at thing
-                                        (car (cursorfree--content-region target))))))))
+                                        (car (cursorfree-content-region target))))))))
 
 (defun cursorfree-everything (&optional window-or-buffer)
   "Return a target referring to the full content of the buffer.
@@ -1451,7 +1451,7 @@ If WINDOW is not given, use the selected window."
 (defun cursorfree-line-right (&optional target)
   "Extend TARGET to the final non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (let ((target-content-region (cursorfree--content-region target))
+  (let ((target-content-region (cursorfree-content-region target))
         (target-deletion-region (cursorfree--deletion-region target))
         space-length
         content-region
@@ -1474,14 +1474,14 @@ If WINDOW is not given, use the selected window."
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to the first non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (let ((target-content-region (cursorfree--content-region target))
+  (let ((target-content-region (cursorfree-content-region target))
         (target-deletion-region (cursorfree--deletion-region target))
         space-length
         content-region
         deletion-region)
     (save-excursion
       (set-buffer (cursorfree-buffer target))
-      (goto-char (car (cursorfree--content-region target)))
+      (goto-char (car (cursorfree-content-region target)))
       (if (search-backward "\n" nil t)
           (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
         (goto-char (point-min))
@@ -1625,7 +1625,7 @@ Otherwise, search the buffer of TARGET."
   "Get the next literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree-buffer target)
     (save-excursion
-      (goto-char (cdr (cursorfree--content-region target)))
+      (goto-char (cdr (cursorfree-content-region target)))
       (search-forward (cursorfree-target-get target))
       (cursorfree-make-target (cons (match-beginning 0) (match-end 0))))))
 
@@ -1639,7 +1639,7 @@ Otherwise, search the buffer of TARGET."
   "Get the previous literal occurence of contents of TARGET."
   (with-current-buffer (cursorfree-buffer target)
     (save-excursion
-      (goto-char (car (cursorfree--content-region target)))
+      (goto-char (car (cursorfree-content-region target)))
       (search-backward (cursorfree-target-get target))
       (cursorfree-make-target (cons (match-beginning 0) (match-end 0))))))
 
