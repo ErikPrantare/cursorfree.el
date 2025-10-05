@@ -24,7 +24,7 @@ Then, clone this repository and add the following to your init file:
 Set up [[https://github.com/ErikPrantare/phony.el][phony.el]] and add the following to your init file:
 
 #+begin_src elisp
-  (phony-define-dictionary my/colors
+  (phony-define-dictionary rule/hatty-color
     :external-name "color"
     '(("yellow" . yellow)
       ("red" . red)
@@ -32,7 +32,7 @@ Set up [[https://github.com/ErikPrantare/phony.el][phony.el]] and add the follow
       ("pink" . pink)
       ("green" . green)))
 
-  (phony-define-dictionary my/shapes
+  (phony-define-dictionary rule/hatty-shape
     :external-name "hat_shape"
     '(("bolt" . bolt)
       ("curve" . curve)

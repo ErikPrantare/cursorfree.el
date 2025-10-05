@@ -43,6 +43,9 @@
 
 ;;;; Instruction interpreter:
 
+(defvar cursorfree--last-evaluation-result nil
+  "The result of the last call to `cursorfree-evaluate'.")
+
 (defun cursorfree-evaluate (instructions)
   "Apply the composition of INSTRUCTIONS on nil.
 
@@ -56,6 +59,7 @@ would be equivalent to
   (let ((values '()))
     (seq-doseq (instruction instructions)
       (setq values (funcall instruction values)))
+    (setq cursorfree--last-evaluation-result values)
     values))
 
 (cl-defun cursorfree--optional-bag-get-match (arglist spec argument)
