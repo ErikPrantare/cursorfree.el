@@ -144,13 +144,9 @@ often but not always by modifying previous targets.
 | trim        | cursorfree-trim                     |
 | past        | cursorfree-past                     |
 | selection   | cursorfree-current-selection        |
-| line        | cursorfree-thing-to-modifier [fn:1] |
 | inside      | cursorfree-inner-parenthesis-dwim   |
 | outside     | cursorfree-outer-parenthesis-dwim   |
 |-------------+-------------------------------------|
-
-[fn:1] Uses the builtin ~thingatpt~ Emacs package to select the new
-bounds.
 
 *** NOTE
 The above tables are probably outdated.  For the complete and

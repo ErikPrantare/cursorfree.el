@@ -1404,19 +1404,20 @@ parenthesis is intended."
 (make-obsolete #'cursorfree-current-selection #'cursorfree-this
                "0.3.0")
 
-(defun cursorfree-thing-to-modifier (thing)
-  "Translate THING to an instruction extending a target to THING.
+(defun cursorfree--expand-to-thing (thing &optional target)
+  "Extend the beginning of TARGET to cover containing THING.
 
 The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
-`thing-at-point' functionalities."
-  (cursorfree-make-modifier
-   (lambda (&optional target)
-     (setq target (or target (cursorfree-this)))
-     (with-current-buffer (cursorfree-buffer target)
-       (cursorfree-make-target
-        (cursorfree--bounds-of-thing-at thing
-                                        (car (cursorfree-content-region target))))))))
+`thing-at-point' functionalities.
+
+TARGET defaults to `cursorfree-this' if nil or omitted"
+  (setq target (or target (cursorfree-this)))
+  (with-current-buffer (cursorfree-buffer target)
+    (cursorfree-make-target
+     (cursorfree--bounds-of-thing-at
+      thing
+      (car (cursorfree-content-region target))))))
 
 (defun cursorfree-everything (&optional window-or-buffer)
   "Return a target referring to the full content of the buffer.
@@ -1683,10 +1684,10 @@ targets."
     ("tail" . ,(cursorfree-make-modifier #'cursorfree-line-right))
     ("head" . ,(cursorfree-make-modifier #'cursorfree-line-left))
     ("block" . ,(cursorfree-make-modifier #'cursorfree-block))
-    ("link" . ,(cursorfree-thing-to-modifier 'url))
+    ;; ("link" . ,(cursorfree-thing-to-modifier 'url))
     ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
     ("token" . ,(cursorfree-make-modifier #'cursorfree-token))
-    ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
+    ;; ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
     ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
     ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
     ("row" . ,(cursorfree-make-modifier #'cursorfree-row-modulo-100))
