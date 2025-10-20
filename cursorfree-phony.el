@@ -124,7 +124,7 @@
   (declare (phony-rule
             :export nil
             :contributes-to 'rule/cursorfree-constant
-            "that"))
+            "source"))
   cursorfree--target-source)
 
 (defun rule/cursorfree-its ()
