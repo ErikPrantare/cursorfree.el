@@ -1543,8 +1543,11 @@ TARGET defaults to the return value of `cursorfree-this'."
           (goto-char (cdr region))
           (unless (re-search-forward (rx "\n" (* blank) "\n") nil t)
             (goto-char (point-max)))
-          (cursorfree-trim
-           (cursorfree-make-target (cons start (point)))))))))
+          (let ((result (cursorfree-trim
+                         (cursorfree-make-target (cons start (point))))))
+            (oset result post-insertion-string "\n\n")
+            (oset result pre-insertion-string "\n\n")
+            result))))))
 
 (defun cursorfree-row (index)
   "Return the line on row INDEX."
