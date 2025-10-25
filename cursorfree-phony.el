@@ -366,6 +366,24 @@
   #'cursorfree-target-puff)
 
 
+(defun rule/cursorfree-phony-outside (&optional delimiter)
+  (declare (phony-rule
+            :export nil
+            :contributes-to 'rule/cursorfree-modifier
+            "outside"
+            (? (delimiter rule/any-alphanumeric-key))))
+  (lambda (&optional target)
+    (cursorfree-outer-parenthesis-dwim target delimiter)))
+
+(defun rule/cursorfree-phony-inside (&optional delimiter)
+  (declare (phony-rule
+            :export nil
+            :contributes-to 'rule/cursorfree-modifier
+            "inside"
+            (? (delimiter rule/any-alphanumeric-key))))
+  (lambda (&optional target)
+    (cursorfree-inner-parenthesis-dwim target delimiter)))
+
 (defmacro rule/cursorfree--define-simple-modifier (name utterance function)
   (declare (indent defun))
   `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple")) ()
@@ -388,10 +406,6 @@
   #'cursorfree-past)
 (rule/cursorfree--define-simple-modifier selection "selection"
   #'cursorfree-current-selection)
-(rule/cursorfree--define-simple-modifier inside "inside"
-  #'cursorfree-inner-parenthesis-dwim)
-(rule/cursorfree--define-simple-modifier outside "outside"
-  #'cursorfree-outer-parenthesis-dwim)
 (rule/cursorfree--define-simple-modifier line "line"
   #'cursorfree-line)
 (rule/cursorfree--define-simple-modifier tail "tail"
