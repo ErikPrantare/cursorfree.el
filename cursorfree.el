@@ -232,7 +232,8 @@ a `cursorfree-parallel-target'."
           left-candidate
           right-whitespace
           left-whitespace)
-      (set-buffer (marker-buffer (car region)))
+      (when (markerp (car region))
+        (set-buffer (marker-buffer (car region))))
 
       (goto-char (cdr region))
       (skip-chars-forward "[:space:]\n")
