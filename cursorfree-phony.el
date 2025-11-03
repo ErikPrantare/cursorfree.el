@@ -173,10 +173,10 @@
   (declare (phony-rule
             :export nil
             :contributes-to 'rule/cursorfree-compound-constant
-            (from rule/cursorfree-constant)
+            (? (from rule/cursorfree-constant))
             "past"
             (to rule/cursorfree-constant)))
-  (cursorfree-past from to))
+  (cursorfree-past (or from (cursorfree-this)) to))
 
 (defun rule/cursorfree-row (index)
   (declare (phony-rule
