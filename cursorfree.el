@@ -1148,11 +1148,13 @@ This may, for example, be used for displaying warning from eglot."
   "List occurrences of TARGET in EXTENT with `occur'.
 
 Occurrences will be searched for in the `cursorfree-buffer' of EXTENT if
-given and non-nil, otherwise of TARGET.  If EXTENT is a
-`cursorfree-region-target', the search will also be restricted to that
-region."
+it is given and non-nil.  Otherwise, the `cursorfree-buffer' of TARGET
+is used.  If that returns nil, the current buffer is used instead.  If
+EXTENT is a `cursorfree-region-target', the search will be restricted to
+its region."
   (cursorfree-on-content-region (or extent
-                                    (cursorfree-buffer target))
+                                    (cursorfree-buffer target)
+                                    (current-buffer))
     (lambda (search-region)
       (occur (rx (literal (cursorfree-target-get target)))
              nil
