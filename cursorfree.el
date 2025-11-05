@@ -197,7 +197,9 @@ CONTENT-REGION is a cons cell of markers."
   (window nil :type window)
   (pre-insertion-string nil :type string)
   (post-insertion-string nil :type string)
-  (type nil :type symbol))
+  (type nil :type symbol)
+  ;; :type plist
+  (properties nil :type list))
 
 (cl-generic-define-generalizer cursorfree--region-type-generalizer
   60
@@ -263,7 +265,8 @@ a `cursorfree-parallel-target'."
                                   (window nil)
                                   (pre-insertion-string nil)
                                   (post-insertion-string nil)
-                                  (constructor #'make-cursorfree-region-target))
+                                  (constructor #'make-cursorfree-region-target)
+                                  (properties nil))
   "Return a target spanning CONTENT-REGION in the current buffer.
 
 CONTENT-REGION must be a cons-cell (BEGINNING . END) of integers or
@@ -282,7 +285,10 @@ request.
 
 CONSTRUCTOR specifies the constructor to use.  It is assumed that it
 may be invoked equivalently to `make-cursorfree-region-target', and
-constructs a target inheriting from `cursorfree-region-target'."
+constructs a target inheriting from `cursorfree-region-target'.
+
+PROPERTIES is a plist of additional properties to associate to the
+target."
   (with-current-buffer (window-normalize-buffer
                         (or buffer
                             (and (markerp (car content-region))
@@ -307,7 +313,8 @@ constructs a target inheriting from `cursorfree-region-target'."
                :window window
                :deletion-region deletion
                :pre-insertion-string (or pre-insertion-string " ")
-               :post-insertion-string (or post-insertion-string " ")))))
+               :post-insertion-string (or post-insertion-string " ")
+               :properties properties))))
 
 (defun cursorfree-content-region (target)
   "Return region of the content referred to by TARGET."
