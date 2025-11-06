@@ -1314,7 +1314,7 @@ left and right."
       (cons (car expanded) (cadr expanded)))))
 
 (defun cursorfree--parenthesis-expansion-impl (target parenthesis expansion-function)
-  "Common interface for expanding to inner and outer parentheses"
+  "Common interface for expanding to inner or outer parentheses."
   (setq target (or target (cursorfree-this)))
   (cursorfree-on-content-region target
     (lambda (region)
