@@ -42,7 +42,8 @@
            :type my/test-buffer-state)
    (from-same-buffer t
     :documentation "Whether evaluating the command is invariant to the
-    selected window."))
+    selected window.")
+   (setup #'ignore))
 
 (defun cursorfree--multiple-cursor-points ()
   (let ((points (list (point))))
@@ -52,24 +53,19 @@
 
 (defun cursorfree--setup-test (parameters)
   (delete-region (point-min) (point-max))
-  (insert (cursorfree--test-buffer-state-string
-           (cursorfree--test-parameters-before parameters)))
-  (goto-char (seq-first (cursorfree--test-buffer-state-points
-                         (cursorfree--test-parameters-before parameters))))
+  (funcall (oref parameters setup))
+  (insert (oref (oref parameters before) string))
+  (goto-char (seq-first (oref (oref parameters before) points)))
   (multiple-cursors-mode 0)
-  (seq-doseq (point (seq-rest (cursorfree--test-buffer-state-points
-                               (cursorfree--test-parameters-before parameters))))
+  (seq-doseq (point (seq-rest (oref (oref parameters before) points)))
     (mc/create-fake-cursor-at-point)
     (goto-char point)))
 
 (defun cursorfree--test-check-state (parameters)
-  (should (equal (buffer-string)
-                     (cursorfree--test-buffer-state-string
-                      (cursorfree--test-parameters-after parameters))))
+  (should (equal (buffer-string) (oref (oref parameters after) string)))
   ;; We do not test the order (for now)
   (should (equal (seq-sort #'< (cursorfree--multiple-cursor-points))
-                 (seq-sort #'< (cursorfree--test-buffer-state-points
-                                (cursorfree--test-parameters-after parameters))))))
+                 (seq-sort #'< (oref (oref parameters after) points)))))
 
 (defun cursorfree--run-test (parameters)
   (save-window-excursion
@@ -915,5 +911,70 @@
             :string "abcde"
             :points '(6))
     :command-form '(cursorfree-target-jump-beginning (cursorfree-end (cursorfree-everything))))))
+
+(ert-deftest cursorfree--test-outside-escaped-delimiter ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a(hello ?\\) oop)b"
+             :points '(4))
+    :after (make-cursorfree--test-buffer-state
+            :string "ab"
+            :points '(2))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
+
+(ert-deftest cursorfree--test-outside-delimiter-in-string ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a(hello \" ) \" oop)b"
+             :points '(4))
+    :after (make-cursorfree--test-buffer-state
+            :string "ab"
+            :points '(2))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
+
+(ert-deftest cursorfree--test-outside-delimiter-in-comment ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "a(hello \n;;)\n oop)b"
+             :points '(4))
+    :after (make-cursorfree--test-buffer-state
+            :string "ab"
+            :points '(2))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
+
+(ert-deftest cursorfree--test-outside-in-string ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \"(a b c)\")"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello \"\")"
+            :points '(9))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
+
+(ert-deftest cursorfree--test-outside-in-comment ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \n ;; (a b c)\n)"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello \n ;;\n)"
+            :points '(12))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
 
 ;;; test.el ends here
