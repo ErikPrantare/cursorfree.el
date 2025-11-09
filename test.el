@@ -975,6 +975,17 @@
             :points '(12))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))
+
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \n ;; \"a b c\"\n)"
+             :points '(15))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello \n ;;\n)"
+            :points '(12))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
     :setup (lambda () (emacs-lisp-mode)))))
 
 ;;; test.el ends here
