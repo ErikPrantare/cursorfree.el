@@ -1,4 +1,4 @@
-* NEXT
+* NEXT (Remember: Check for out of date grammar assumptions)
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ to activate
   them.
 - Introduced parallel targets: This type of target contains a list of

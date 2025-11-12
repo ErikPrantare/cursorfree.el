@@ -74,37 +74,6 @@ would be equivalent to
     (setq cursorfree--last-evaluation-result values)
     values))
 
-(cl-defun cursorfree--optional-bag-get-match (arglist spec argument)
-  (seq-doseq (entry spec)
-    (when-let ((matched-argument
-                (funcall
-                 (eval `(lambda (%) (when ,(car entry) ',(cadr entry))))
-                 argument)))
-      (cl-return-from cursorfree--optional-bag-get-match
-        (cons (seq-position
-               (byte-compile-arglist-vars arglist)
-               matched-argument)
-              entry))))
-  nil)
-
-(defun cursorfree--optional-bag (function arglist &rest spec)
-  `(progn
-     (put #',function 'cursorfree--arglist ',arglist)
-     (put #',function 'cursorfree--optional-bag-spec ',spec)))
-
-(setf (alist-get 'cursorfree--optional-bag defun-declarations-alist)
-      (list #'cursorfree--optional-bag))
-
-(defun cursorfree--densify-alist (indexed-args)
-  (when-let ((max-index (caar (seq-sort-by #'car #'> indexed-args))))
-    (let ((argument-list (make-list (1+ max-index) nil)))
-      (dolist (indexed-arg indexed-args)
-        (setf (seq-elt argument-list (car indexed-arg)) (cdr indexed-arg)))
-      argument-list)))
-
-(defun cursorfree--get-positional-indices (function args)
-  (seq-map-indexed (lambda (arg index) (cons index arg)) args))
-
 (defun cursorfree--apply-on-stack (function stack)
   "Apply FUNCTION to the top elements of STACK.
 Returns the unapplied elements of STACK with the return value of
@@ -114,30 +83,10 @@ The arity of FUNCTION is read from the cdr of `func-arity'.  The
 function is evaluated with the top values of STACK, with the top
 elements applied as the first arguments.  &rest arguments are
 supported."
-  (let* ((optional-bag-spec
-          (when (symbolp function)
-            (copy-sequence (get function 'cursorfree--optional-bag-spec))))
-         (optional-bag-p (when optional-bag-spec t))
-         (arg-map '()))
-    (when optional-bag-spec
-      (while-let ((match (and (seq-first stack)
-                              (seq-first optional-bag-spec)
-                              (cursorfree--optional-bag-get-match
-                               (get function 'cursorfree--arglist)
-                               optional-bag-spec
-                               (seq-first stack)))))
-        (push (cons (car match) (pop stack)) arg-map)
-        ;; Remove matching entry, so we don't match on it again
-        (setq optional-bag-spec
-              (delete (cdr match) optional-bag-spec))))
-
-    (let* ((arity (if optional-bag-p
-                      (car (func-arity function))
-                    (cdr (func-arity function))))
-           (args (if (eq arity 'many) stack (take arity stack)))
-           (tail (if (eq arity 'many) '() (nthcdr arity stack))))
-      (setq arg-map (append arg-map (cursorfree--get-positional-indices function args)))
-      (cons (apply function (cursorfree--densify-alist arg-map)) tail))))
+  (let* ((arity (cdr (func-arity function)))
+         (args (if (eq arity 'many) stack (take arity stack)))
+         (tail (if (eq arity 'many) '() (nthcdr arity stack))))
+    (cons (apply function args) tail)))
 
 (defun cursorfree-make-action (function)
   "Translate FUNCTION into an instruction not producing any value.
@@ -575,8 +524,6 @@ The returned target, if there is only one cursor, is of type
 `cursorfree--this-target'.  Generic functions can be overloaded on this
 type to give more context-dependent behavior for whatever \"this\"
 means."
-  (declare (cursorfree--optional-bag
-            ((or (bufferp %) (windowp %)) window-or-buffer)))
   (let ((in-buffer (cursorfree-buffer window-or-buffer))
         (in-window (cursorfree-window window-or-buffer)))
     ;; Needs to have the correct window selected to get the correct
@@ -1353,11 +1300,6 @@ TARGET defaults to the target returned by `cursorfree-this'.
 If PARENTHESIS is given, expand target until it reaches corresponding
 matching parentheses on both sides.  Otherwise, try to guess which
 parenthesis is intended."
-  (declare (cursorfree--optional-bag
-            ((characterp %) parenthesis)
-            ((or (cursorfree-region-target-p %)
-                 (cursorfree-parallel-target-p %))
-             target)))
   (cursorfree--parenthesis-expansion-impl
    target
    parenthesis
@@ -1371,11 +1313,6 @@ TARGET defaults to the target returned by `cursorfree-this'.
 If PARENTHESIS is given, expand target until it reaches corresponding
 matching parentheses on both sides.  Otherwise, try to guess which
 parenthesis is intended."
-  (declare (cursorfree--optional-bag
-            ((characterp %) parenthesis)
-            ((or (cursorfree-region-target-p %)
-                 (cursorfree-parallel-target-p %))
-             target)))
   (cursorfree--parenthesis-expansion-impl
    target
    parenthesis
@@ -1444,8 +1381,6 @@ TARGET defaults to `cursorfree-this' if nil or omitted"
   "Return a target referring to the full content of the buffer.
 
 This function respects narrowing."
-  (declare (cursorfree--optional-bag
-            ((or (bufferp %) (windowp %)) window-or-buffer)))
   (let ((in-buffer (cond
                     ((windowp window-or-buffer) (window-buffer window-or-buffer))
                     ((bufferp window-or-buffer) window-or-buffer)
@@ -1458,8 +1393,6 @@ This function respects narrowing."
   "Return a target referring to the visible portion of the buffer.
 
 If WINDOW is not given, use the selected window."
-  (declare (cursorfree--optional-bag
-            ((windowp %) window)))
   (setq window (or window (selected-window)))
   (with-selected-window window
     (with-current-buffer (window-buffer)
