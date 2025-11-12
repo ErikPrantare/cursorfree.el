@@ -158,21 +158,8 @@ CONTENT-REGION is a cons cell of markers."
   (window nil :type window)
   (pre-insertion-string nil :type string)
   (post-insertion-string nil :type string)
-  (type nil :type symbol)
   ;; :type plist
   (properties nil :type list))
-
-(cl-generic-define-generalizer cursorfree--region-type-generalizer
-  60
-  (lambda (name &rest _)
-    `(when (cursorfree-region-target-p ,name)
-       (list 'cursorfree--region-type (cursorfree-region-target-type ,name))))
-  (lambda (tag &rest _)
-    (when (eq (car-safe tag) 'cursorfree--region-type)
-      (list tag))))
-
-(cl-defmethod cl-generic-generalizers ((_specializer (head cursorfree--region-type)))
-  (list cursorfree--region-type-generalizer))
 
 (cl-defstruct cursorfree-parallel-target
   targets)
@@ -1458,9 +1445,7 @@ If WINDOW is not given, use the selected window."
 (defun cursorfree-line (&optional target)
   "Extend TARGET to cover all non-whitespace characters on its line."
   (setq target (or target (cursorfree-this)))
-  (let ((result (cursorfree-line-left (cursorfree-line-right target))))
-    (setf (cursorfree-region-target-type result) 'line)
-    result))
+  (cursorfree-line-left (cursorfree-line-right target)))
 
 (defun cursorfree-sentence (&optional target)
   "Extend TARGET to cover its containing sentence.
@@ -1477,12 +1462,6 @@ TARGET defaults to the return value of `cursorfree-this'."
     (lambda (region)
       (cursorfree-make-target
         (cursorfree--bounds-of-thing-at 'hatty-token (car region))))))
-
-(cl-defmethod cursorfree--put-before ((target cursorfree-region-target) (source (cursorfree--region-type line)))
-  (cl-call-next-method (cursorfree-line target) source))
-
-(cl-defmethod cursorfree--put-after ((target cursorfree-region-target) (source (cursorfree--region-type line)))
-  (cl-call-next-method (cursorfree-line target) source))
 
 (defun cursorfree-block (&optional target)
   (setq target (or target (cursorfree-this)))
