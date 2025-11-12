@@ -1,4 +1,6 @@
 * NEXT
+- Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ to activate
+  them.
 - Introduced parallel targets: This type of target contains a list of
   other targets.  When evaluating an instruction on them, the
   semantics are that it should be performed on every contained target.
