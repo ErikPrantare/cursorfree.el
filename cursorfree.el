@@ -41,6 +41,18 @@
 (require 'evil)
 (require 'multiple-cursors)
 
+(defgroup cursorfree nil
+  "Functions for text and session manipulation."
+  :group 'convenience
+  :prefix "cursorfree-"
+  :link '(emaccs-commentary-link :tag "Commentary" "cursorfree.el"))
+
+(defcustom cursorfree-highlight-deletions-p t
+  "Whether to highlight text about to be deleted.
+This is useful as visual feedback that the action just performed was the
+one intended.  To turn this off, set this option to nil."
+  :group 'cursorfree)
+
 ;;;; Instruction interpreter:
 
 (defvar cursorfree--last-evaluation-result nil
@@ -768,7 +780,7 @@ associated buffer."
 (cl-defmethod cursorfree-target-delete ((buffer buffer))
   (kill-buffer buffer))
 
-(defface cursorfree--deletion-highlight
+(defface cursorfree-deletion-highlight-face
   '((t :background "#620f2a"))
   "Face used to highlight target that will be removed.")
 
@@ -777,28 +789,27 @@ associated buffer."
   (ignore))
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
-  (with-current-buffer (cursorfree--target-buffer target)
-    (let* ((region (cursorfree-content-region target))
-           (overlay
-            (make-overlay (car region)
-                          (cdr region))))
-      (overlay-put overlay 'face 'cursorfree--deletion-highlight)
-      (redisplay t)
-      (sleep-for 0.1)
-      (delete-overlay overlay))))
+  (when cursorfree-highlight-deletions-p
+    (with-current-buffer (cursorfree--target-buffer target)
+      (let* ((region (cursorfree-content-region target))
+             (overlay (make-overlay (car region) (cdr region))))
+        (overlay-put overlay 'face 'cursorfree-deletion-highlight-face)
+        (redisplay t)
+        (sleep-for 0.1)
+        (delete-overlay overlay)))))
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-parallel-target))
-  (let ((overlays '()))
-    (cursorfree-on-content-region target
-      (lambda (region)
-        (let ((overlay
-               (make-overlay (car region) (cdr region))))
-          (overlay-put overlay 'face 'cursorfree--deletion-highlight)
-          (push overlay overlays))))
-    (redisplay)
-    (sleep-for 0.1)
-    (seq-doseq (overlay overlays)
-      (delete-overlay overlay))))
+  (when cursorfree-highlight-deletions-p
+    (let ((overlays '()))
+      (cursorfree-on-content-region target
+        (lambda (region)
+          (let ((overlay (make-overlay (car region) (cdr region))))
+            (overlay-put overlay 'face 'cursorfree-deletion-highlight-face)
+            (push overlay overlays))))
+      (redisplay)
+      (sleep-for 0.1)
+      (seq-doseq (overlay overlays)
+        (delete-overlay overlay)))))
 
 (defun cursorfree-target-chuck (&rest targets)
   "Delete TARGETS and indent the resulting text."

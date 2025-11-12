@@ -68,39 +68,40 @@
                  (seq-sort #'< (oref (oref parameters after) points)))))
 
 (defun cursorfree--run-test (parameters)
-  (save-window-excursion
-    ;; Side windows cannot become the only window
-    (select-window (get-window-with-predicate
-                    (lambda (window)
-                      (not (window-parameter window 'window-side)))))
-    (delete-other-windows)
-    (split-window-horizontally)
-    (let ((test-buffer (generate-new-buffer "*Test contents*"))
-          (alternative-buffer (generate-new-buffer "*Focused buffer*")))
-      (unwind-protect
-          (progn
-            (switch-to-buffer test-buffer)
+  (let ((cursorfree-highlight-deletions-p nil))
+    (save-window-excursion
+      ;; Side windows cannot become the only window
+      (select-window (get-window-with-predicate
+                      (lambda (window)
+                        (not (window-parameter window 'window-side)))))
+      (delete-other-windows)
+      (split-window-horizontally)
+      (let ((test-buffer (generate-new-buffer "*Test contents*"))
+            (alternative-buffer (generate-new-buffer "*Focused buffer*")))
+        (unwind-protect
+            (progn
+              (switch-to-buffer test-buffer)
 
-            (cursorfree--setup-test parameters)
-            ;; Backwards compatibility with older tests listing
-            ;; instructions instead of providing the elisp form to
-            ;; evaluate.
-            (if (symbolp (car (cursorfree--test-parameters-command-form parameters)))
-                (eval (cursorfree--test-parameters-command-form parameters))
-              (funcall #'cursorfree-evaluate
-                       (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
-            (cursorfree--test-check-state parameters)
-
-            (unless (cursorfree--test-parameters-from-same-buffer parameters)
               (cursorfree--setup-test parameters)
-              (let ((instructions (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
-                (other-window 1)
-                (switch-to-buffer alternative-buffer)
-                (funcall #'cursorfree-evaluate instructions)
-                (select-window (get-buffer-window test-buffer))
-                (cursorfree--test-check-state parameters))))
-        (kill-buffer test-buffer)
-        (kill-buffer alternative-buffer)))))
+              ;; Backwards compatibility with older tests listing
+              ;; instructions instead of providing the elisp form to
+              ;; evaluate.
+              (if (symbolp (car (cursorfree--test-parameters-command-form parameters)))
+                  (eval (cursorfree--test-parameters-command-form parameters))
+                (funcall #'cursorfree-evaluate
+                         (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
+              (cursorfree--test-check-state parameters)
+
+              (unless (cursorfree--test-parameters-from-same-buffer parameters)
+                (cursorfree--setup-test parameters)
+                (let ((instructions (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
+                  (other-window 1)
+                  (switch-to-buffer alternative-buffer)
+                  (funcall #'cursorfree-evaluate instructions)
+                  (select-window (get-buffer-window test-buffer))
+                  (cursorfree--test-check-state parameters))))
+          (kill-buffer test-buffer)
+          (kill-buffer alternative-buffer))))))
 
 (ert-deftest cursorfree--test-pre ()
   "jump/pre."

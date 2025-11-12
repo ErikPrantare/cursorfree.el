@@ -15,7 +15,9 @@
 - Putting text into a window or buffer now inserts it at the
   corresponding point.
 - Text to be removed is now momentarily highlighted in red before
-  removed.
+  removed.  This can be turned off by setting
+  ~cursorfree-highlight-deletions-p~ to nil.  The highlight face can
+  be customized by customizing ~cursorfree-deletion-highlight-face~.
 - Actions:
   - New actions "float", "drop", "puff": This will insert a newline
     before, after, or around the line of the target without moving
