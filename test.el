@@ -963,6 +963,30 @@
             :points '(9))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \"'a b c'\")"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello \"\")"
+            :points '(9))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \"\\\"a b c\\\"\")"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello)"
+            :points '(7))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-in-comment ()
@@ -976,8 +1000,9 @@
             :points '(12))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim))
-    :setup (lambda () (emacs-lisp-mode)))
+    :setup (lambda () (emacs-lisp-mode))))
 
+  (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
              :string "(hello \n ;; \"a b c\"\n)"
