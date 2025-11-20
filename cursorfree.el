@@ -761,7 +761,7 @@ Try to fix up affected indentation."
 
 (cl-defmethod cursorfree-target-delete ((parallel cursorfree-parallel-target))
   "Delete each element of PARALLEL."
-  (seq-doseq (target (cursorfree-parallel-target-targets parental))
+  (seq-doseq (target (cursorfree-parallel-target-targets parallel))
     (cursorfree-target-delete target)))
 
 (cl-defmethod cursorfree-target-delete ((window window))
