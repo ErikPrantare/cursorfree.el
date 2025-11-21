@@ -1136,13 +1136,12 @@ follow the thing at TARGET."
       (goto-char (car region))
       (cursorfree-dwim-follow))))
 
-;; TODO: Errors on invocation?
 (defun cursorfree-target-fuse (target)
   "Remove all whitespace within TARGET."
   (cursorfree-on-content-region target
     (lambda (region)
       (save-excursion
-        (replace-regexp (rx (or whitespace "\n")) ""
+        (replace-regexp (rx (not graphic)) ""
                         nil (car region) (cdr region))))))
 
 (defun cursorfree-target-join (target)
