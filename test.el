@@ -529,10 +529,8 @@
     :after (make-cursorfree--test-buffer-state
             :string "aaabbbcccddd"
             :points '(11))
-    :command-form '((cursorfree--pusher (cursorfree-make-target (cons 1 4)))
-                    (cursorfree--pusher (cursorfree-make-target (cons 13 16)))
-                    (alist-get "past" cursorfree-modifiers nil nil #'equal)
-                    (alist-get "fuse" cursorfree-actions nil nil #'equal)))))
+    :command-form '(cursorfree-target-fuse
+                    (cursorfree-make-target (cons 1 16))))))
 
 (ert-deftest cursorfree--every-instance ()
   "every instance."
@@ -941,7 +939,19 @@
             :points '(1))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim nil ?\())
-    :setup (lambda () (emacs-lisp-mode)))))
+    :setup (lambda () (emacs-lisp-mode))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "'\"'abc\"  \"abc'\"'"
+             :points '(9))
+    :after (make-cursorfree--test-buffer-state
+            :string ""
+            :points '(1))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim nil ?'))
+    :setup (lambda () (python-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-comment ()
   (cursorfree--run-test
