@@ -31,9 +31,14 @@
   :contributes-to '(rule/cursorfree--initial-instruction
                     rule/cursorfree--noninitial-instruction))
 
-(phony-define-open-rule rule/cursorfree-modifier
-  :contributes-to '(rule/cursorfree--instruction)
-  :transformation #'cursorfree-make-modifier)
+(phony-define-open-rule rule/cursorfree-modifier)
+
+(defun rule/cursorfree--modifier-instruction (modifier)
+  (declare (phony-rule
+            :export nil
+            :contributes-to 'rule/cursorfree--instruction
+            (modifier rule/cursorfree-modifier)))
+  (cursorfree-make-modifier modifier))
 
 (defun rule/cursorfree-target (initial rest)
   (declare (phony-rule
@@ -168,6 +173,17 @@
             (? (shape rule/cursorfree-shape))
             (char rule/any-alphanumeric-key)))
   (cursorfree--make-target-from-hat char color shape))
+
+(defun rule/cursorfree--zeroary-modifier (modifier)
+  "Return MODIFIER invoked with zero arguments.
+
+This rule exists to allow `rule/cursorfree-range' to work with
+modifiers which may take the place of a constant."
+  (declare (phony-rule
+            :export nil
+            :contributes-to 'rule/cursorfree-constant
+            (modifier rule/cursorfree-modifier)))
+  (funcall modifier))
 
 (defun rule/cursorfree-range (from to)
   (declare (phony-rule
