@@ -59,7 +59,7 @@
 
 ;; Two constant levels.  This stratification means that compound
 ;; constants cannot refer to other compound constants, as recursion is
-;; not allowed.  Without this stratification, constance would not be
+;; not allowed.  Without this stratification, constants would not be
 ;; able to refer to other constants at all.
 (phony-define-open-rule rule/cursorfree-compound-constant)
 
@@ -141,14 +141,14 @@
             "itself"))
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
-(phony-define-dictionary rule/hatty-color
+(phony-define-dictionary rule/cursorfree-color
   '(("squash" . yellow)
     ("red" . red)
     ("blue" .  blue)
     ("pink" . pink)
     ("green" . green)))
 
-(phony-define-dictionary rule/hatty-shape
+(phony-define-dictionary rule/cursorfree-shape
   '(("bolt" . bolt)
     ("curve" . curve)
     ("fox" . fox)
@@ -164,8 +164,8 @@
   (declare (phony-rule
             :export nil
             :contributes-to 'rule/cursorfree-constant
-            (? (color rule/hatty-color))
-            (? (shape rule/hatty-shape))
+            (? (color rule/cursorfree-color))
+            (? (shape rule/cursorfree-shape))
             (char rule/any-alphanumeric-key)))
   (cursorfree--make-target-from-hat char color shape))
 
@@ -234,12 +234,12 @@
             (to rule/cursorfree-target)))
   (cursorfree-target-swap from to))
 
-(phony-define-open-rule rule/wrapper)
+(phony-define-open-rule rule/cursorfree-wrapper)
 
 (defun rule/character-wrapper (character)
   (declare (phony-rule
             :export nil
-            :contributes-to 'rule/wrapper
+            :contributes-to 'rule/cursorfree-wrapper
             (character rule/symbol-key)))
   (apply-partially #'cursorfree-target-wrap character))
 
@@ -248,7 +248,7 @@
             "wrap"
             (? (target rule/cursorfree-target))
             "with"
-            (wrapper rule/wrapper)))
+            (wrapper rule/cursorfree-wrapper)))
   (setq target (or target (cursorfree-this)))
   (funcall wrapper target)
   (setq cursorfree--target-that target))
