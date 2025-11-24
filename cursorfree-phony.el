@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(phony-module cursorfree "cursorfree")
+
 (phony-define-open-rule rule/cursorfree--initial-instruction)
 (phony-define-open-rule rule/cursorfree--noninitial-instruction)
 
