@@ -434,6 +434,8 @@ modifiers which may take the place of a constant."
   #'cursorfree-block)
 (rule/cursorfree--define-simple-modifier token "token"
   #'cursorfree-token)
+(rule/cursorfree--define-simple-modifier comment "comment"
+  #'cursorfree-comment)
 (rule/cursorfree--define-simple-modifier everything "everything"
   #'cursorfree-everything)
 (rule/cursorfree--define-simple-modifier visible "visible"

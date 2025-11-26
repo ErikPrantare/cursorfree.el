@@ -1641,6 +1641,53 @@ Otherwise, search the buffer of TARGET."
   "Return the primary selection as a target."
   (make-cursorfree--primary-selection-target))
 
+(defun cursorfree--bounds-of-nonsyntactic-region-at-point (&optional type)
+  "Return region of comment or string literal at point.
+
+If TYPE is 'comment, this function looks for a containing comment.  If
+TYPE is 'string, this function looks for a string li troll instead.
+If TYPE is omitted, nil or 'any, either one is looked for.  If TYPE is
+anything else, an error is signalled.
+
+If point is not in a comment or string, nil is returned."
+  (unless type (setq type 'any))
+  (unless (memq type '(comment string any))
+    (error "Argument COMMENT-OR-STRING must be either 'comment, 'string or 'any"))
+  (save-excursion
+    (let ((state (syntax-ppss (point))))
+      (and (cond ((eq type 'string) (seq-elt state 3))
+                 ((eq type 'comment) (seq-elt state 4))
+                 ((eq type 'any) (or (seq-elt state 3)
+                                     (seq-elt state 4))))
+           (cons (seq-elt state 8)      ; Start of comment or string
+                 (progn
+                   ;; Move point to after end of comment or string
+                   (parse-partial-sexp (point)
+                                       (point-max)
+                                       nil
+                                       nil
+                                       state
+                                       'syntax-table)
+                   (point)))))))
+
+(defun cursorfree--bounds-of-comment-at-point ()
+  "Return bounds of the comment at point.
+
+If there is no comment at point, this function returns nil."
+  (cursorfree--bounds-of-nonsyntactic-region-at-point 'comment))
+
+(put 'cursorfree--comment
+     'bounds-of-thing-at-point
+     #'cursorfree--bounds-of-comment-at-point)
+
+(defun cursorfree-comment (&optional target)
+  "Return target extended to contain the comment at its beginning.
+
+If there is no comment at the beginning of target, nil is returned."
+  (cursorfree--expand-to-thing
+   'cursorfree--comment
+   (or target (cursorfree-this))))
+
 (defun cursorfree-next (target)
   "Return next occurrence of the content of TARGET."
   (cursorfree--next target))
