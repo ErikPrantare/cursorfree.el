@@ -1688,6 +1688,18 @@ If there is no comment at the beginning of target, nil is returned."
    'cursorfree--comment
    (or target (cursorfree-this))))
 
+(defun cursorfree--bounds-of-string-literal-at-point ()
+  (cursorfree--bounds-of-nonsyntactic-region-at-point 'string))
+
+(put 'cursorfree--string-literal
+     'bounds-of-thing-at-point
+     #'cursorfree--bounds-of-string-literal-at-point)
+
+(defun cursorfree-string-literal (&optional target)
+  (cursorfree--expand-to-thing
+   'cursorfree--string-literal
+   (or target (cursorfree-this))))
+
 (defun cursorfree-next (target)
   "Return next occurrence of the content of TARGET."
   (cursorfree--next target))

@@ -56,6 +56,8 @@
     instead return the target's associated buffer or window.
   - New modifier "comment": Expand target (or "this" if no target is
     given) to cover a code comment.
+  - New modifier "string": Expand target (or "this" if no target is
+    given) to cover a string literal.
   - "everything" can now take an optional window argument to get
     everything in the buffer of the specified window.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
