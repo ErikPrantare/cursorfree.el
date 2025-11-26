@@ -1449,11 +1449,10 @@ The extension is done from the beginning of the target.  See
 
 TARGET defaults to `cursorfree-this' if nil or omitted"
   (setq target (or target (cursorfree-this)))
-  (with-current-buffer (cursorfree-buffer target)
-    (cursorfree-make-target
-     (cursorfree--bounds-of-thing-at
-      thing
-      (car (cursorfree-content-region target))))))
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (cursorfree-make-target
+       (cursorfree--bounds-of-thing-at thing (car region))))))
 
 (defun cursorfree-everything (&optional window-or-buffer)
   "Return a target referring to the full content of WINDOW-OR-BUFFER.
