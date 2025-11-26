@@ -944,10 +944,10 @@
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
-             :string "'\"'abc\"  \"abc'\"'"
-             :points '(9))
+             :string "'\"abc' 'def\"'"
+             :points '(4))
     :after (make-cursorfree--test-buffer-state
-            :string ""
+            :string "'def\"'"
             :points '(1))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim nil ?'))
@@ -983,6 +983,30 @@
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
              :string "(hello \"'a b c'\")"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello)"
+            :points '(7))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \"'a b c'\")"
+             :points '(12))
+    :after (make-cursorfree--test-buffer-state
+            :string "(hello \"\")"
+            :points '(9))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (python-mode))))
+
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(hello \"[(a b c]\")"
              :points '(12))
     :after (make-cursorfree--test-buffer-state
             :string "(hello \"\")"
@@ -1026,6 +1050,24 @@
             :points '(12))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-outer-parenthesis-dwim))
+    :setup (lambda () (emacs-lisp-mode)))))
+
+(ert-deftest cursorfree--test-outside-fail ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "()     ()"
+             :points '(5))
+    :after (make-cursorfree--test-buffer-state
+            :string "success"
+            :points '(8))
+    :command-form '(progn
+                     (if (not (cursorfree-outer-parenthesis-dwim))
+                         (progn
+                           (delete-region (point-min) (point-max))
+                           (insert "success"))
+                       (delete-region (point-min) (point-max))
+                       (insert "fail")))
     :setup (lambda () (emacs-lisp-mode)))))
 
 ;;; test.el ends here
