@@ -1,4 +1,4 @@
-;;; cursorfree.el --- Edit and navigate through hats -*- lexical-binding: t; -*-
+;;; cursorfree.el --- Complex editing through voice  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024, 2025  Erik Präntare
 
@@ -25,15 +25,11 @@
 
 ;;; Commentary:
 
-;; This package provides a command structure for editing and
-;; navigating text.  A command is created as a sequence of
-;; instructions, functions taking a list of values as input and
-;; output.  This list of values acts as the arguments for each
-;; instruction.
-
-;; To evaluate a sequence of instructions, use `cursorfree-evaluate'.
-;; See `cursorfree-actions' and `cursorfree-modifiers' for a list of
-;; predefined instructions.
+;; This package provides functionality for making complex editing
+;; commands possible.  The functionality was made to leverage the
+;; expressive power of voice control.  This package also comes with a
+;; grammar, defined using the package "phony", that can be hooked up
+;; to a voice control engine to control Emacs.
 
 ;;; Code:
 
@@ -1202,49 +1198,6 @@ parentheses will be put on the left and right side."
     (cursorfree-target-unwrap expanded-target)
     (cursorfree-target-wrap character expanded-target)))
 
-(defvar cursorfree-actions
-  `(("select" . ,(cursorfree-make-action #'cursorfree-target-select))
-    ("copy" . ,(cursorfree-make-action #'cursorfree-target-copy))
-    ("chuck" . ,(cursorfree-make-action #'cursorfree-target-chuck))
-    ("bring" . ,(cursorfree-make-action #'cursorfree-target-bring))
-    ("move" . ,(cursorfree-make-action #'cursorfree-target-move))
-    ("swap" . ,(cursorfree-make-action #'cursorfree-target-swap))
-    ("clone" . ,(cursorfree-make-action #'cursorfree-target-clone))
-    ("jump" . ,(cursorfree-make-action #'cursorfree-target-jump))
-    ("pre" . ,(cursorfree-make-action #'cursorfree-target-jump-beginning))
-    ("post" . ,(cursorfree-make-action #'cursorfree-target-jump-end))
-    ("change" . ,(cursorfree-make-action #'cursorfree-target-change))
-    ("comment" . ,(cursorfree-make-action #'cursorfree-target-comment))
-    ("uncomment" . ,(cursorfree-make-action #'cursorfree-target-uncomment))
-    ("indent" . ,(cursorfree-make-action #'cursorfree-target-indent))
-    ("narrow" . ,(cursorfree-make-action #'cursorfree-target-narrow))
-    ("wrap" . ,(cursorfree-make-action #'cursorfree-target-wrap))
-    ("unwrap" . ,(cursorfree-make-action #'cursorfree-target-unwrap))
-    ("rewrap" . ,(cursorfree-make-action #'cursorfree-target-rewrap))
-    ("filler" . ,(cursorfree-make-action #'cursorfree-target-fill))
-    ("title" . ,(cursorfree-make-action #'cursorfree-target-capitalize))
-    ("upcase" . ,(cursorfree-make-action #'cursorfree-target-upcase))
-    ("downcase" . ,(cursorfree-make-action #'cursorfree-target-downcase))
-    ("crown" . ,(cursorfree-make-action #'cursorfree-target-crown))
-    ("center" . ,(cursorfree-make-action #'cursorfree-target-center))
-    ("bottom" . ,(cursorfree-make-action #'cursorfree-target-bottom))
-    ("pick" . ,(cursorfree-make-action #'cursorfree-target-pick))
-    ("fuse" . ,(cursorfree-make-action #'cursorfree-target-fuse))
-    ("join" . ,(cursorfree-make-action #'cursorfree-target-join))
-    ("break" . ,(cursorfree-make-action #'cursorfree-target-break))
-    ("flash" . ,(cursorfree-make-action #'cursorfree-target-pulse))
-    ("help" . ,(cursorfree-make-action #'cursorfree-target-help))
-    ("drink" . ,(cursorfree-make-action #'cursorfree-target-drink))
-    ("pour" . ,(cursorfree-make-action #'cursorfree-target-pour))
-    ("drop" . ,(cursorfree-make-action #'cursorfree-target-drop))
-    ("float" . ,(cursorfree-make-action #'cursorfree-target-float))
-    ("puff" . ,(cursorfree-make-action #'cursorfree-target-puff))
-    ("occur" . ,(cursorfree-make-action #'cursorfree-target-occur)))
-  "Alist mapping spoken utterance to action.
-
-An action is an instruction that is only evaluated for its
-effects, and do not add values to the value stack.")
-
 (defun cursorfree--skip-forward-from (position string)
   "Move point forward from POSITION until reaching char in STRING."
   (save-excursion
@@ -1879,40 +1832,6 @@ this returns the target of that."
 For example, if `cursorfree-target-bring' was the previous operation,
 this returns the source of that."
   cursorfree--target-source)
-
-(defvar cursorfree-modifiers
-  `(("paint" . ,(cursorfree-make-modifier #'cursorfree-paint))
-    ("leftpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-left))
-    ("rightpaint" . ,(cursorfree-make-modifier #'cursorfree-paint-right))
-    ("trim" . ,(cursorfree-make-modifier #'cursorfree-trim))
-    ("past" . ,(cursorfree-make-modifier #'cursorfree-past))
-    ("selection" . ,(cursorfree-make-modifier #'cursorfree-current-selection))
-    ("inside" . ,(cursorfree-make-modifier #'cursorfree-inside))
-    ("outside" . ,(cursorfree-make-modifier #'cursorfree-outside))
-    ("line" . ,(cursorfree-make-modifier #'cursorfree-line))
-    ("tail" . ,(cursorfree-make-modifier #'cursorfree-line-right))
-    ("head" . ,(cursorfree-make-modifier #'cursorfree-line-left))
-    ("block" . ,(cursorfree-make-modifier #'cursorfree-block))
-    ;; ("link" . ,(cursorfree-thing-to-modifier 'url))
-    ;; ("word" . ,(cursorfree-thing-to-modifier 'word))
-    ("token" . ,(cursorfree-make-modifier #'cursorfree-token))
-    ;; ("sentence" . ,(cursorfree-thing-to-modifier 'sentence))
-    ("everything" . ,(cursorfree-make-modifier #'cursorfree-everything))
-    ("visible" . ,(cursorfree-make-modifier #'cursorfree-visible))
-    ("row" . ,(cursorfree-make-modifier #'cursorfree-row-modulo-100))
-    ("this" . ,(cursorfree-make-modifier #'cursorfree-this))
-    ("every instance" . ,(cursorfree-make-modifier #'cursorfree-every-instance))
-    ("clip" . ,(cursorfree-make-modifier #'cursorfree-kill-ring))
-    ("primary" . ,(cursorfree-make-modifier #'cursorfree-primary-selection))
-    ("next" . ,(cursorfree-make-modifier #'cursorfree-next))
-    ("preve" . ,(cursorfree-make-modifier #'cursorfree-previous))
-    ("smash" . ,(cursorfree-make-modifier #'cursorfree-make-parallel))
-    ("beginning" . ,(cursorfree-make-modifier #'cursorfree-beginning))
-    ("end" . ,(cursorfree-make-modifier #'cursorfree-end))
-    ("that" . ,(cursorfree-make-modifier #'cursorfree-that))
-    ("source" . ,(cursorfree-make-modifier #'cursorfree-source))
-    ("buffer" . ,(cursorfree-make-modifier #'cursorfree-buffer))
-    ("split" . ,(cursorfree-make-modifier #'cursorfree-window-or-selected))))
 
 ;;; cursorfree.el ends soon
 (provide 'cursorfree)

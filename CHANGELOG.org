@@ -1,6 +1,8 @@
 * NEXT (Remember: Check for out of date grammar assumptions)
-- Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ to activate
-  them.
+- Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say
+  "phony enable cursorfree" to activate them.  Alternatively, do ~M-x
+  phony-enable-module RET~.
+- Old grammar has been removed.
 - Introduced parallel targets: This type of target contains a list of
   other targets.  When evaluating an instruction on them, the
   semantics are that it should be performed on every contained target.
