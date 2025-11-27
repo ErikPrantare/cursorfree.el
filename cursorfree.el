@@ -38,7 +38,6 @@
 ;;; Code:
 
 (require 'hatty)
-(require 'evil)
 (require 'multiple-cursors)
 
 (defgroup cursorfree nil
@@ -1191,15 +1190,15 @@ its region."
 (defun cursorfree-target-unwrap (target)
   "Remove parentheses or quotation around TARGET."
   (cursorfree-target-bring
-   (cursorfree-inner-parenthesis-dwim target)
-   (cursorfree-outer-parenthesis-dwim target)))
+   (cursorfree-inside target)
+   (cursorfree-outside target)))
 
 (defun cursorfree-target-rewrap (character target)
   "Replace parentheses or quotations around TARGET with CHARACTER.
 
 If CHARACTER is a parenthesis of some kind, the corresponding
 parentheses will be put on the left and right side."
-  (let ((expanded-target (cursorfree-inner-parenthesis-dwim target)))
+  (let ((expanded-target (cursorfree-inside target)))
     (cursorfree-target-unwrap expanded-target)
     (cursorfree-target-wrap character expanded-target)))
 
@@ -1304,97 +1303,186 @@ effects, and do not add values to the value stack.")
   (setq target (or target (cursorfree-this)))
   (cursorfree--trim-left (cursorfree--trim-right target)))
 
-(defun cursorfree--inner-parenthesis (region delimiter)
-  "Expand REGION to fill the insides of DELIMITER.
+(defun cursorfree--bounds-outside-parentheses-at-point-impl (left right)
+  "Return the region of the parentheses containing point.
 
-This function will match parentheses and quotation marks to the
-left and right."
-  (save-excursion
-    ;; evil-inner-double-quote uses the location of point for the
-    ;; expansion.  Put point at the beginning of the region.
-    (goto-char (car region))
-    (let ((expanded
-           (funcall
-            (cl-case delimiter
-              (?\( #'evil-inner-paren)
-              (?\[ #'evil-inner-bracket)
-              (?< #'evil-inner-angle)
-              (?{ #'evil-inner-curly)
-              (?\" #'evil-inner-double-quote)
-              (?\' #'evil-inner-single-quote)
-              (?\` #'evil-inner-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+LEFT and RIGHT are characters denoting the left and right
+parenthesis.
 
-(defun cursorfree--outer-parenthesis (region delimiter)
-  "Expand REGION to contain the closest DELIMITER.
+This function does not take certain edge cases into account, such as
+parenthesis spanning disjoint string literals.
 
-This function will match parentheses and quotation marks to the
-left and right."
-  (save-excursion
-    ;; evil-outer-double-quote uses the location of point for the
-    ;; expansion.  Put point at the beginning of the region.
-    (goto-char (car region))
-    (let ((expanded
-           (funcall
-            (cl-case delimiter
-              (?\( #'evil-a-paren)
-              (?\[ #'evil-a-bracket)
-              (?< #'evil-an-angle)
-              (?{ #'evil-a-curly)
-              (?\" #'evil-a-double-quote)
-              (?\' #'evil-a-single-quote)
-              (?\` #'evil-a-back-quote)))))
-      (cons (car expanded) (cadr expanded)))))
+If no bound is found, nil is returned."
+  (let ((old-syntax (syntax-table)))
+    (with-syntax-table (copy-syntax-table old-syntax)
+      ;; To avoid accidentally recognizing other parentheses, mark
+      ;; them as whitespace in the new syntax table.
+      (map-char-table
+       (lambda (k v)
+         (when (or (= (syntax-class-to-char (car v)) ?\()
+                   (= (syntax-class-to-char (car v)) ?\)))
+           (set-char-table-range (syntax-table) k (string-to-syntax " "))))
+       old-syntax)
+      (modify-syntax-entry left (string ?\( right))
+      (modify-syntax-entry right (string ?\) left))
+      (save-excursion
+        (condition-case nil
+            (cons (progn
+                    (backward-up-list)
+                    (point))
+                  (progn
+                    (forward-list)
+                    (point)))
+          (error nil))))))
 
-(defun cursorfree--parenthesis-expansion-impl (target parenthesis expansion-function)
-  "Expand TARGET with EXPANSION-FUNCTION for PARENTHESIS.
+(defun cursorfree--bounds-outside-parentheses-at-point (left right)
+  "Return the region of the parentheses containing point.
 
-If PARENTHESIS is nil, different parentheses and quotations are tried.
-The expansion with the tightest bounds is returned."
-  (setq target (or target (cursorfree-this)))
-  (cursorfree-on-content-region target
+LEFT and RIGHT are characters denoting the left and right
+parenthesis.
+
+If no bound is found, nil is returned."
+  (if-let* ((nonsyntactic-region
+             (cursorfree--bounds-of-nonsyntactic-region-at-point)))
+      (or (with-restriction (car nonsyntactic-region) (cdr nonsyntactic-region)
+            (cursorfree--bounds-outside-parentheses-at-point-impl left right))
+          (save-excursion
+            (goto-char (car nonsyntactic-region))
+            (cursorfree--bounds-outside-parentheses-at-point-impl left right)))
+    (cursorfree--bounds-outside-parentheses-at-point-impl left right)))
+
+(defun cursorfree--bounds-outside-quote-at-point-impl (quote)
+  "Return the region of the quoth containing point.
+
+QUOTE is a character denoting which quote to look for.
+
+This function does not take certain edge cases into account, such as
+quotations occurring inside of comments.
+
+If no bound is found, nil is returned."
+  (condition-case nil
+      (save-excursion
+        (while (not (or (eq (char-after) quote)
+                        (bobp)))
+          (backward-up-list nil t))
+        (and (eq (char-after) quote)
+             (cons (point)
+                   (progn (forward-sexp) (point)))))
+    (error nil)))
+
+(defun cursorfree--bounds-outside-quote-at-point (quote)
+  "Return the region of the quote containing point.
+
+QUOTE is a character denoting which quote to look for.
+
+If no bound is found, nil is returned."
+  (if-let* ((nonsyntactic-region
+             (cursorfree--bounds-of-nonsyntactic-region-at-point)))
+      (or (let ((current-syntax (syntax-table))
+                (region-string (buffer-substring-no-properties
+                                (car nonsyntactic-region)
+                                (cdr nonsyntactic-region)))
+                ;; Position relative to start of nonsyntactic region
+                (position (1+ (- (point) (car nonsyntactic-region)))))
+            (with-temp-buffer
+              (insert region-string)
+              (goto-char position)
+              (set-syntax-table (copy-syntax-table current-syntax))
+              ;; Do not treat comment chars in nonsyntactic region as
+              ;; comment chars (e.g., ;; inside a string).
+              (map-char-table
+               (lambda (k v)
+                 (when (or (= (syntax-class-to-char (car v)) ?<)
+                           (= (syntax-class-to-char (car v)) ?>))
+                   (set-char-table-range (syntax-table) k (string-to-syntax " "))))
+               current-syntax)
+              (and-let* ((region (cursorfree--bounds-outside-quote-at-point-impl quote)))
+                (cons (+ (car nonsyntactic-region) (1- (car region)))
+                      (+ (car nonsyntactic-region) (1- (cdr region)))))))
+          (cursorfree--bounds-outside-quote-at-point-impl quote))
+    (cursorfree--bounds-outside-quote-at-point-impl quote)))
+
+(defun cursorfree--bounds-outside-character-at-point (character)
+  "Return smallest region containing point with CHARACTER on both sides.
+If no such region exists, return nil."
+  (cl-block nil
+    (let (start end)
+      (save-excursion
+        (skip-chars-backward (string ?^ character))
+        (when (bobp)
+          (cl-return nil))
+        (setq start (1- (point)))
+        (skip-chars-forward (string ?^ character))
+        (when (eobp)
+          (cl-return nil))
+        (setq end (1+ (point)))
+        (cons start end)))))
+
+(defun cursorfree--bounds-outside-any-at-point ()
+  "Return region of closest quotation or parentheses containing point.
+If no such region exists, return nil."
+  (cl-block nil
+    (save-excursion
+      (let ((point-before (point)))
+        (while t
+          (skip-syntax-backward "^\"\(")
+          (when (bobp) (cl-return nil))
+          (when-let ((bounds (cursorfree--bounds-outside-at-point (char-before))))
+            (when (and (<= (car bounds) point-before (cdr bounds))
+                       (eq (point) (1+ (car bounds))))
+              (cl-return bounds)))
+          (condition-case nil
+              (if (cursorfree--nonsyntactic-p)
+                  (backward-char)
+                (backward-sexp))
+            (error (cl-return nil))))))))
+
+(defun cursorfree--bounds-outside-at-point (&optional delimiter)
+  "Return region with DELIMITER containing point.
+
+DELIMITER is a character denoting either a quotation, parenthesis, or
+other character.  If omitted, the closest delimiters that are deemed
+parentheses or quotes by the current syntax are chosen."
+  (if (null delimiter)
+      (cursorfree--bounds-outside-any-at-point)
+    (pcase (char-syntax delimiter)
+      (?\( (cursorfree--bounds-outside-parentheses-at-point
+            delimiter
+            (cdr (char-table-range (syntax-table) delimiter))))
+      (?\) (cursorfree--bounds-outside-parentheses-at-point
+            (cdr (char-table-range (syntax-table) delimiter))
+            delimiter))
+      (?\" (cursorfree--bounds-outside-quote-at-point delimiter))
+      (_ (cursorfree--bounds-outside-character-at-point delimiter)))))
+
+(defun cursorfree-outside (&optional target delimiter)
+  "Expand TARGET to contain enclosing DELIMITER.
+
+TARGET defaults to the target returned by `cursorfree-this'.
+
+If DELIMITER is given, target is expanded until it reaches corresponding
+matching delimiter on both sides.  Otherwise, try to guess which
+delimiter is intended."
+  (cursorfree--expand-bounds
+   (or target (cursorfree-this))
+   (lambda ()
+     (cursorfree--bounds-outside-at-point delimiter))))
+
+(defun cursorfree-inside (&optional target delimiter)
+  "Expand TARGET until  enclosing DELIMITER.
+
+TARGET defaults to the target returned by `cursorfree-this'.
+
+If DELIMITER is given, target is expanded until it reaches corresponding
+matching delimiter on both sides.  Otherwise, try to guess which
+delimiter is intended."
+  (cursorfree-on-content-region
+    (cursorfree-outside target delimiter)
     (lambda (region)
-      (thread-last
-        (ensure-list (or parenthesis '(?< ?{ ?\( ?\[ ?\" ?\' ?\`)))
-        (seq-keep (lambda (parenthesis)
-                    (condition-case nil
-                        (funcall expansion-function region parenthesis)
-                      (error nil))))
-        ;; Filter out whenever the evil-inner-*-quote messes up the
-        ;; region (it selects the next region if not currently in a
-        ;; quote)
-        (seq-filter (lambda (expanded)
-                      (<= (car expanded) (car region))))
-        ;; Pick the result with the tightest bounds
-        (seq-sort-by #'car #'>)
-        car
-        cursorfree-make-target))))
-
-(defun cursorfree-inner-parenthesis-dwim (&optional target parenthesis)
-  "Expand TARGET to fill the insides of PARENTHESIS.
-
-TARGET defaults to the target returned by `cursorfree-this'.
-
-If PARENTHESIS is given, expand target until it reaches corresponding
-matching parentheses on both sides.  Otherwise, try to guess which
-parenthesis is intended."
-  (cursorfree--parenthesis-expansion-impl
-   target
-   parenthesis
-   #'cursorfree--inner-parenthesis))
-
-(defun cursorfree-outer-parenthesis-dwim (&optional target parenthesis)
-  "Expand TARGET to contain enclosing PARENTHESIS.
-
-TARGET defaults to the target returned by `cursorfree-this'.
-
-If PARENTHESIS is given, expand target until it reaches corresponding
-matching parentheses on both sides.  Otherwise, try to guess which
-parenthesis is intended."
-  (cursorfree--parenthesis-expansion-impl
-   target
-   parenthesis
-   #'cursorfree--outer-parenthesis))
+      (cursorfree-make-target
+       (cons
+        (1+ (car region))
+        (1- (cdr region)))))))
 
 (defun cursorfree--targets-hull (&rest targets)
   "Return the smallest target that can fit all TARGETS."
@@ -1440,6 +1528,21 @@ parenthesis is intended."
 (make-obsolete #'cursorfree-current-selection #'cursorfree-this
                "0.3.0")
 
+(defun cursorfree--expand-bounds (target bounds-function)
+  "Expand the beginning of TARGET using BOUNDS-FUNCTION.
+
+BOUNDS-FUNCTION is a function that takes no arguments and returns a
+region (BEG . END).  BOUNDS-FUNCTION is invoked with point at the
+beginning of TARGET to get the content region of the returned target.
+
+This function returns nil if BOUNDS-FUNCTION returns nil."
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (and-let* ((bounds (funcall bounds-function)))
+          (cursorfree-make-target bounds))))))
+
 (defun cursorfree--expand-to-thing (thing &optional target)
   "Extend the beginning of TARGET to cover containing THING.
 
@@ -1448,11 +1551,10 @@ The extension is done from the beginning of the target.  See
 `thing-at-point' functionalities.
 
 TARGET defaults to `cursorfree-this' if nil or omitted"
-  (setq target (or target (cursorfree-this)))
-  (cursorfree-on-content-region target
-    (lambda (region)
-      (cursorfree-make-target
-       (cursorfree--bounds-of-thing-at thing (car region))))))
+  (cursorfree--expand-bounds
+   (or target (cursorfree-this))
+   (lambda ()
+     (bounds-of-thing-at-point thing))))
 
 (defun cursorfree-everything (&optional window-or-buffer)
   "Return a target referring to the full content of WINDOW-OR-BUFFER.
@@ -1641,6 +1743,11 @@ Otherwise, search the buffer of TARGET."
   "Return the primary selection as a target."
   (make-cursorfree--primary-selection-target))
 
+(defun cursorfree--nonsyntactic-p ()
+  "Return non-nil if point is inside a comment or string literal."
+  (let ((state (syntax-ppss (point))))
+    (or (seq-elt state 3) (seq-elt state 4))))
+
 (defun cursorfree--bounds-of-nonsyntactic-region-at-point (&optional type)
   "Return region of comment or string literal at point.
 
@@ -1780,8 +1887,8 @@ this returns the source of that."
     ("trim" . ,(cursorfree-make-modifier #'cursorfree-trim))
     ("past" . ,(cursorfree-make-modifier #'cursorfree-past))
     ("selection" . ,(cursorfree-make-modifier #'cursorfree-current-selection))
-    ("inside" . ,(cursorfree-make-modifier #'cursorfree-inner-parenthesis-dwim))
-    ("outside" . ,(cursorfree-make-modifier #'cursorfree-outer-parenthesis-dwim))
+    ("inside" . ,(cursorfree-make-modifier #'cursorfree-inside))
+    ("outside" . ,(cursorfree-make-modifier #'cursorfree-outside))
     ("line" . ,(cursorfree-make-modifier #'cursorfree-line))
     ("tail" . ,(cursorfree-make-modifier #'cursorfree-line-right))
     ("head" . ,(cursorfree-make-modifier #'cursorfree-line-left))

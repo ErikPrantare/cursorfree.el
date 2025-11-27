@@ -300,7 +300,7 @@
             :points '(3))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-inner-parenthesis-dwim
+      (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
        ?\())))
 
@@ -314,7 +314,7 @@
             :points '(13))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-inner-parenthesis-dwim
+      (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
        ?\[))))
 
@@ -328,7 +328,7 @@
             :points '(13))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-inner-parenthesis-dwim
+      (cursorfree-inside
        (cursorfree-make-target (cons 3 6))))))
 
   (cursorfree--run-test
@@ -341,7 +341,7 @@
             :points '(1))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-inner-parenthesis-dwim
+      (cursorfree-inside
        (cursorfree-make-target (cons 3 6))))))
 
   (cursorfree--run-test
@@ -354,7 +354,7 @@
             :points '(12))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-inner-parenthesis-dwim))
+      (cursorfree-inside))
     :from-same-buffer t)))
 
 (ert-deftest cursorfree--test-outside ()
@@ -369,7 +369,7 @@
             :points '(1))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-outer-parenthesis-dwim
+      (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
        ?\())))
 
@@ -383,7 +383,7 @@
             :points '(10))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-outer-parenthesis-dwim
+      (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
        ?\[))))
 
@@ -397,7 +397,7 @@
             :points '(10))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-outer-parenthesis-dwim
+      (cursorfree-outside
        (cursorfree-make-target (cons 3 6))))))
 
   (cursorfree--run-test
@@ -410,7 +410,7 @@
             :points '(10))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-outer-parenthesis-dwim
+      (cursorfree-outside
        (cursorfree-make-target (cons 3 6))))))
 
   (cursorfree--run-test
@@ -423,7 +423,7 @@
             :points '(11))
     :command-form
     '(cursorfree-target-chuck
-      (cursorfree-outer-parenthesis-dwim))
+      (cursorfree-outside))
     :from-same-buffer t)))
 
 (ert-deftest cursorfree--wrap ()
@@ -735,9 +735,9 @@
              :points '(17))
      :command-form
      '(cursorfree-target-swap
-       (cursorfree-outer-parenthesis-dwim
+       (cursorfree-outside
         (cursorfree-make-target (cons 11 18)))
-       (cursorfree-outer-parenthesis-dwim
+       (cursorfree-outside
         (cursorfree-make-target (cons 24 28)))))))
 
 (ert-deftest cursorfree--test-parallel-pre ()
@@ -913,7 +913,7 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-string ()
@@ -926,7 +926,7 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -938,7 +938,7 @@
             :string ""
             :points '(1))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim nil ?\())
+                    (cursorfree-outside nil ?\())
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -950,7 +950,7 @@
             :string "'def\"'"
             :points '(1))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim nil ?'))
+                    (cursorfree-outside nil ?'))
     :setup (lambda () (python-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-comment ()
@@ -963,7 +963,7 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-in-string ()
@@ -976,7 +976,7 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -988,7 +988,7 @@
             :string "(hello)"
             :points '(7))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -1000,7 +1000,7 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (python-mode))))
 
   (cursorfree--run-test
@@ -1012,7 +1012,7 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -1024,7 +1024,7 @@
             :string "(hello)"
             :points '(7))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-in-comment ()
@@ -1037,7 +1037,7 @@
             :string "(hello \n ;;\n)"
             :points '(12))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode))))
 
   (cursorfree--run-test
@@ -1049,7 +1049,7 @@
             :string "(hello \n ;;\n)"
             :points '(12))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-outer-parenthesis-dwim))
+                    (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-fail ()
@@ -1062,7 +1062,7 @@
             :string "success"
             :points '(8))
     :command-form '(progn
-                     (if (not (cursorfree-outer-parenthesis-dwim))
+                     (if (not (cursorfree-outside))
                          (progn
                            (delete-region (point-min) (point-max))
                            (insert "success"))

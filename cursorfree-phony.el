@@ -303,7 +303,7 @@ modifiers which may take the place of a constant."
   (declare (indent defun))
   (let ((options (butlast arguments))
         (function (car (last arguments))))
-    `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple")) (target)
+    `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple-modifier")) (target)
        (declare (phony-rule
                  ,utterance
                  ,(if (plist-get options :optional-argument)
@@ -391,7 +391,7 @@ modifiers which may take the place of a constant."
             "outside"
             (? (delimiter rule/any-alphanumeric-key))))
   (lambda (&optional target)
-    (cursorfree-outer-parenthesis-dwim target delimiter)))
+    (cursorfree-outside target delimiter)))
 
 (defun rule/cursorfree-phony-inside (&optional delimiter)
   (declare (phony-rule
@@ -400,7 +400,7 @@ modifiers which may take the place of a constant."
             "inside"
             (? (delimiter rule/any-alphanumeric-key))))
   (lambda (&optional target)
-    (cursorfree-inner-parenthesis-dwim target delimiter)))
+    (cursorfree-inside target delimiter)))
 
 (defmacro rule/cursorfree--define-simple-modifier (name utterance function)
   (declare (indent defun))
