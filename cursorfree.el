@@ -195,7 +195,7 @@ a `cursorfree-parallel-target'."
       (setq left-whitespace (buffer-substring
                              (cdr region)
                              left-candidate))
-
+      ;; FIXME: "\na(", removing the "a" removes the newline.
       (cursorfree--ensure-marker-region
        (if (and (not (length= right-whitespace 0))
                 (<= (seq-count (lambda (c) (eql c ?\n)) right-whitespace)
@@ -1377,18 +1377,15 @@ If no such region exists, return nil."
   (cl-block nil
     (save-excursion
       (let ((point-before (point)))
-        (while t
+        (while (cursorfree--nonsyntactic-p)
           (skip-syntax-backward "^\"\(")
           (when (bobp) (cl-return nil))
           (when-let ((bounds (cursorfree--bounds-outside-at-point (char-before))))
             (when (and (<= (car bounds) point-before (cdr bounds))
                        (eq (point) (1+ (car bounds))))
               (cl-return bounds)))
-          (condition-case nil
-              (if (cursorfree--nonsyntactic-p)
-                  (backward-char)
-                (backward-sexp))
-            (error (cl-return nil))))))))
+          (backward-char))))
+    (bounds-of-thing-at-point 'list)))
 
 (defun cursorfree--bounds-outside-at-point (&optional delimiter)
   "Return region with DELIMITER containing point.

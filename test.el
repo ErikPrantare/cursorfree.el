@@ -421,6 +421,19 @@
       (cursorfree-outside))
     :from-same-buffer t)))
 
+(ert-deftest cursorfree--test-outside-end-of-expression ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "((aaa bbb))"
+             :points '(11))
+    :after (make-cursorfree--test-buffer-state
+            :string ""
+            :points '(1))
+    :command-form
+    '(cursorfree-target-chuck
+      (cursorfree-outside)))))
+
 (ert-deftest cursorfree--wrap ()
   "wrap."
   (cursorfree--run-test
@@ -471,7 +484,9 @@
     :after (make-cursorfree--test-buffer-state
             :string "point (should) stay inside"
             :points '(8))
-    :command-form '(cursorfree-target-wrap ?\( (cursorfree-make-target (cons 7 13))))))
+    :command-form '(cursorfree-target-wrap
+                    ?\(
+                    (cursorfree-make-target (cons 7 13))))))
 
 (ert-deftest cursorfree--test-past ()
   "past."
