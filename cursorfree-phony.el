@@ -437,7 +437,7 @@ modifiers which may take the place of a constant."
 (rule/cursorfree--define-simple-modifier comment "comment"
   #'cursorfree-comment)
 (rule/cursorfree--define-simple-modifier string "string"
-  #'cursorfree-string)
+  #'cursorfree-string-literal)
 (rule/cursorfree--define-simple-modifier everything "everything"
   #'cursorfree-everything)
 (rule/cursorfree--define-simple-modifier visible "visible"
