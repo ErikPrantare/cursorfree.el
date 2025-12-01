@@ -541,8 +541,16 @@ The returned target, if there is only one cursor, is of type
 `cursorfree--this-target'.  Generic functions can be overloaded on this
 type to give more context-dependent behavior for whatever \"this\"
 means."
-  (let ((in-buffer (cursorfree-buffer window-or-buffer))
-        (in-window (cursorfree-window window-or-buffer)))
+  (let ((in-buffer (if window-or-buffer
+                       (cursorfree-buffer window-or-buffer)
+                     (current-buffer)))
+        ;; FIXME: Might be problematic if the argument is a buffer.
+        ;; Say that this function is evaluated from lisp: The given
+        ;; buffer might be viewed in another window, providing another
+        ;; position for point then in the current excursion.
+        (in-window (if window-or-buffer
+                       (cursorfree-window window-or-buffer)
+                     (selected-window))))
     ;; Needs to have the correct window selected to get the correct
     ;; point, should the same buffer be viewed in multiple windows.
     (with-selected-window (window-normalize-window in-window)
@@ -1019,8 +1027,10 @@ content region.  Afterwards, the region will be pulsed."
   (cursorfree--clamp-line))
 
 (defun cursorfree-target-drink (&optional target)
-  "Insert an empty line before TARGET and put point on it."
-  (setq target (or target (cursorfree-this)))
+  "Insert an empty line before TARGET and put point on it.
+
+TARGET defaults to `cursorfree-this'."
+  (unless target (setq target (cursorfree-this)))
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))
@@ -1033,8 +1043,10 @@ content region.  Afterwards, the region will be pulsed."
       (backward-char))))
 
 (defun cursorfree-target-pour (&optional target)
-  "Insert an empty line after TARGET and put point on it."
-  (setq target (or target (cursorfree-this)))
+  "Insert an empty line after TARGET and put point on it.
+
+TARGET defaults to `cursorfree-this'."
+  (unless target (setq target (cursorfree-this)))
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))
@@ -1042,17 +1054,26 @@ content region.  Afterwards, the region will be pulsed."
       (newline-and-indent))))
 
 (defun cursorfree-target-drop (&optional target)
-  "Insert an empty line before the line of TARGET."
+  "Insert an empty line before the line of TARGET.
+
+TARGET defaults to `cursorfree-this'."
+  (unless target (setq target (cursorfree-this)))
   (save-excursion
     (cursorfree-target-drink target)))
 
 (defun cursorfree-target-float (&optional target)
-  "Insert an empty line after the line of TARGET."
+  "Insert an empty line after the line of TARGET.
+
+TARGET defaults to `cursorfree-this'."
+  (unless target (setq target (cursorfree-this)))
   (save-excursion
     (cursorfree-target-pour target)))
 
 (defun cursorfree-target-puff (&optional target)
-  "Insert an empty line before and after the line of TARGET."
+  "Insert an empty line before and after the line of TARGET.
+
+TARGET defaults to `cursorfree-this'."
+  (unless target (setq target (cursorfree-this)))
   (cursorfree-target-float target)
   (cursorfree-target-drop target))
 
