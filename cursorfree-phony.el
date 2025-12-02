@@ -288,13 +288,15 @@ modifiers which may take the place of a constant."
   (cursorfree-target-rewrap character target)
   (setq cursorfree--target-that target))
 
-(defun rule/cursorfree-occur (target &optional extent)
+(defun rule/cursorfree-occur (target &optional extent context-lines)
   (declare (phony-rule
             "hunt"
             (target rule/cursorfree-target)
             (? "in"
-               (extent rule/cursorfree-target))))
-  (cursorfree-target-occur target extent))
+               (extent rule/cursorfree-target))
+            (? "context"
+               (context-lines rule/number))))
+  (cursorfree-target-occur target extent context-lines))
 
 (defmacro rule/cursorfree--define-simple-action (name utterance &rest arguments)
   "

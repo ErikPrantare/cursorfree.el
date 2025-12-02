@@ -31,6 +31,8 @@
   - "wrap" can now act on multiple targets.
   - "occur" can now take an optional parameter to specify in which
     buffer or window to search for the target.
+  - "occur" can now take an optional parameter to specify the amount
+    of context lines.
   - "pick" can now follow alternatives in xref buffers.
   - "pick" can now apply widgets.
   - The optional argument for "occur" may now be an arbitrary region.

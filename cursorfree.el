@@ -1187,20 +1187,22 @@ This may, for example, be used for displaying warning from eglot."
         (display-local-help)
         (cursorfree-target-pulse region)))))
 
-(defun cursorfree-target-occur (target &optional extent)
+(defun cursorfree-target-occur (target &optional extent context-lines)
   "List occurrences of TARGET in EXTENT with `occur'.
 
 Occurrences will be searched for in the `cursorfree-buffer' of EXTENT if
 it is given and non-nil.  Otherwise, the `cursorfree-buffer' of TARGET
 is used.  If that returns nil, the current buffer is used instead.  If
 EXTENT is a `cursorfree-region-target', the search will be restricted to
-its region."
+its region.
+
+If CONTEXT-LINES is given, that many lines will be used as context."
   (cursorfree-on-content-region (or extent
                                     (cursorfree-buffer target)
                                     (current-buffer))
     (lambda (search-region)
       (occur (rx (literal (cursorfree-target-get target)))
-             nil
+             context-lines
              ;; TODO: Generalize to multiple regions
              (list search-region)))))
 
