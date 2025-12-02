@@ -258,6 +258,7 @@ modifiers which may take the place of a constant."
   (declare (phony-rule
             :export nil
             :contributes-to 'rule/cursorfree-wrapper
+            (? "car")
             (character rule/symbol-key)))
   (apply-partially #'cursorfree-target-wrap character))
 
