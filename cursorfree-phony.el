@@ -171,6 +171,11 @@
   (declare (phony-rule
             :export nil
             :contributes-to 'rule/cursorfree-constant
+            :when (lambda ()
+                    (seq-some
+                     (lambda (window)
+                       (buffer-local-value 'hatty-mode (window-buffer window)))
+                     (window-list-1 nil nil t)))
             (? (color rule/cursorfree-color))
             (? (shape rule/cursorfree-shape))
             (char rule/any-alphanumeric-key)))
