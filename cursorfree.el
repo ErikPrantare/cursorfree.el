@@ -785,7 +785,7 @@ Try to fix up affected indentation."
 This can be turned off with `cursorfree-highlight-deletions-p'.  The
 highlight color can be customized with
 `cursorfree-deletion-highlight-face'."
-  ;; TODO: Implement multiple regions for pulsing.
+  ;; TODO: Implement multiple regions for pulsing.  See pulse-faces in Emacs 31.
   (ignore))
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
