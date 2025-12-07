@@ -541,6 +541,14 @@ The returned target, if there is only one cursor, is of type
 `cursorfree--this-target'.  Generic functions can be overloaded on this
 type to give more context-dependent behavior for whatever \"this\"
 means."
+  ;; TODO: Move away from "this" as inheriting from region-target.
+  ;; Pro: It would more easily allow this to be a parallel, in the
+  ;; context of multiple cursors.
+  ;; Con: User-defined procedures would need to take special account
+  ;; of "this".
+  ;; Reconciliation: Two different "this" types?
+  ;; The reasoning for including "this" as its own type should be
+  ;; documented more thoroughly.
   (let ((in-buffer (if window-or-buffer
                        (cursorfree-buffer window-or-buffer)
                      (current-buffer)))
