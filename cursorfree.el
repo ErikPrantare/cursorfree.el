@@ -1626,7 +1626,7 @@ TARGET defaults to the return value of `cursorfree-this'."
   (cursorfree-on-content-region (or target (cursorfree-this))
     (lambda (region)
       (cursorfree-make-target
-        (cursorfree--bounds-of-thing-at 'sentence (car region))))))
+       (cursorfree--bounds-of-thing-at 'sentence (car region))))))
 
 (defun cursorfree-token (&optional target)
   "Extend the beginning of TARGET to cover its containing hatty token.
@@ -1634,7 +1634,7 @@ TARGET defaults to the return value of `cursorfree-this'."
   (cursorfree-on-content-region (or target (cursorfree-this))
     (lambda (region)
       (cursorfree-make-target
-        (cursorfree--bounds-of-thing-at 'hatty-token (car region))))))
+       (cursorfree--bounds-of-thing-at 'hatty-token (car region))))))
 
 (defun cursorfree-block (&optional target)
   "Extend TARGET to the smallest region with empty lines on both sides."
