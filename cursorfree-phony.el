@@ -26,18 +26,18 @@
 
 (phony-module cursorfree "cursorfree")
 
-(phony-define-open-rule rule/cursorfree--initial-instruction)
-(phony-define-open-rule rule/cursorfree--noninitial-instruction)
+(phony-define-open-rule cursorfree--initial-instruction)
+(phony-define-open-rule cursorfree--noninitial-instruction)
 
-(phony-define-open-rule rule/cursorfree--instruction
-  :contributes-to (rule/cursorfree--initial-instruction
-                   rule/cursorfree--noninitial-instruction))
+(phony-define-open-rule cursorfree--instruction
+  :contributes-to (cursorfree--initial-instruction
+                   cursorfree--noninitial-instruction))
 
-(phony-define-open-rule rule/cursorfree-modifier)
+(phony-define-open-rule cursorfree-modifier)
 
 (phony-defun cursorfree--modifier-instruction ((modifier cursorfree-modifier))
   :export nil
-  :contributes-to rule/cursorfree--instruction
+  :contributes-to cursorfree--instruction
   (cursorfree-make-modifier modifier))
 
 (phony-defun cursorfree-target
@@ -61,69 +61,69 @@
 ;; constants cannot refer to other compound constants, as recursion is
 ;; not allowed.  Without this stratification, constants would not be
 ;; able to refer to other constants at all.
-(phony-define-open-rule rule/cursorfree-compound-constant)
+(phony-define-open-rule cursorfree-compound-constant)
 
-(phony-define-open-rule rule/cursorfree-constant
-  :contributes-to rule/cursorfree-compound-constant)
+(phony-define-open-rule cursorfree-constant
+  :contributes-to cursorfree-compound-constant)
 
 (phony-defun cursorfree--initial-constant ((target cursorfree-compound-constant))
   :export nil
-  :contributes-to rule/cursorfree--initial-instruction
+  :contributes-to cursorfree--initial-instruction
   (cursorfree--pusher target))
 
 (phony-defun cursorfree--noninitial-constant ("and" (target cursorfree-compound-constant))
   :export nil
-  :contributes-to rule/cursorfree--noninitial-instruction
+  :contributes-to cursorfree--noninitial-instruction
   (cursorfree--pusher target))
 
 (phony-defun cursorfree-window ("split" (n digit))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (winum-get-window-by-number n))
 
 (phony-defun cursorfree-word ("word" (word word))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   word)
 
 (phony-defun cursorfree-number ("numb" (n number))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   n)
 
 (phony-defun cursorfree-character ("car" (c any-alphanumeric-key))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   c)
 
 (phony-defun cursorfree-that "that"
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   cursorfree--target-that)
 
 (phony-defun cursorfree-source "source"
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   cursorfree--target-source)
 
 (phony-defun cursorfree-its "its"
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
 (phony-defun cursorfree-itself "itself"
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
-(phony-define-dictionary rule/cursorfree-color
+(phony-define-dictionary cursorfree-color
   '(("squash" . yellow)
     ("red" . red)
     ("blue" .  blue)
     ("pink" . pink)
     ("green" . green)))
 
-(phony-define-dictionary rule/cursorfree-shape
+(phony-define-dictionary cursorfree-shape
   '(("bolt" . bolt)
     ("curve" . curve)
     ("fox" . fox)
@@ -140,7 +140,7 @@
      (? (shape cursorfree-shape))
      (char any-alphanumeric-key))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   :when (lambda ()
           (seq-some
            (lambda (window)
@@ -151,29 +151,29 @@
 (phony-defun cursorfree--zeroary-modifier ((modifier cursorfree-modifier))
   "Return MODIFIER invoked with zero arguments.
 
-This rule exists to allow `rule/cursorfree-range' to work with
-modifiers which may take the place of a constant."
+This rule exists to allow `cursorfree-range' to work with modifiers
+which may take the place of a constant."
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (funcall modifier))
 
 (phony-defun cursorfree-range ((? (from cursorfree-constant)) "past" (to cursorfree-constant))
   :export nil
-  :contributes-to rule/cursorfree-compound-constant
+  :contributes-to cursorfree-compound-constant
   (cursorfree-past (or from (cursorfree-this)) to))
 
 (phony-defun cursorfree-row ("row" (index number))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (cursorfree-row-modulo-100 index))
 
 (phony-defun cursorfree-long-row ("long row" (index number))
   :export nil
-  :contributes-to rule/cursorfree-constant
+  :contributes-to cursorfree-constant
   (cursorfree-row index))
 
 
-(phony-define-dictionary rule/cursorfree-destination-modifiers
+(phony-define-dictionary cursorfree-destination-modifiers
   `(("to" . cursorfree--put)
     ("after" . cursorfree--put-after)
     ("before" . cursorfree--put-before)))
@@ -200,11 +200,11 @@ modifiers which may take the place of a constant."
 (phony-defun cursorfree-swap ("swap" (from cursorfree-target) "with" (to cursorfree-target))
   (cursorfree-target-swap from to))
 
-(phony-define-open-rule rule/cursorfree-wrapper)
+(phony-define-open-rule cursorfree-wrapper)
 
 (phony-defun character-wrapper ((? "car") (character symbol-key))
   :export nil
-  :contributes-to rule/cursorfree-wrapper
+  :contributes-to cursorfree-wrapper
   (apply-partially #'cursorfree-target-wrap character))
 
 (phony-defun cursorfree-wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
@@ -228,7 +228,7 @@ modifiers which may take the place of a constant."
      (? "context" (context-lines number)))
   (cursorfree-target-occur target extent context-lines))
 
-(defmacro rule/cursorfree--define-simple-action (name utterance &rest arguments)
+(defmacro cursorfree--define-simple-action (name utterance &rest arguments)
   "
 
 \(fn NAME UTTERANCE [OPTIONS...] FUNCTION)"
@@ -239,8 +239,8 @@ modifiers which may take the place of a constant."
        (declare (phony-rule
                  ,utterance
                  ,(if (plist-get options :optional-argument)
-                      '(? (target rule/cursorfree-target))
-                    '(target rule/cursorfree-target))))
+                      '(? (target cursorfree-target))
+                    '(target cursorfree-target))))
        (if target
            (funcall ,function
                     ,(if (plist-get options :use-target-content)
@@ -248,87 +248,87 @@ modifiers which may take the place of a constant."
                        'target))
          (funcall ,function)))))
 
-(rule/cursorfree--define-simple-action take "take"
+(cursorfree--define-simple-action take "take"
   #'cursorfree-target-select)
-(rule/cursorfree--define-simple-action copy "copy"
+(cursorfree--define-simple-action copy "copy"
   #'cursorfree-target-copy)
-(rule/cursorfree--define-simple-action chuck "chuck"
+(cursorfree--define-simple-action chuck "chuck"
   #'cursorfree-target-chuck)
-(rule/cursorfree--define-simple-action bring "bring"
+(cursorfree--define-simple-action bring "bring"
   #'cursorfree-target-bring)
-(rule/cursorfree--define-simple-action move "move"
+(cursorfree--define-simple-action move "move"
   #'cursorfree-target-move)
-(rule/cursorfree--define-simple-action clone "clone"
+(cursorfree--define-simple-action clone "clone"
   #'cursorfree-target-clone)
-(rule/cursorfree--define-simple-action jump "jump"
+(cursorfree--define-simple-action jump "jump"
   #'cursorfree-target-jump)
-(rule/cursorfree--define-simple-action pre "pre"
+(cursorfree--define-simple-action pre "pre"
   #'cursorfree-target-jump-beginning)
-(rule/cursorfree--define-simple-action post "post"
+(cursorfree--define-simple-action post "post"
   #'cursorfree-target-jump-end)
-(rule/cursorfree--define-simple-action comment "comment"
+(cursorfree--define-simple-action comment "comment"
   #'cursorfree-target-comment)
-(rule/cursorfree--define-simple-action uncomment "uncomment"
+(cursorfree--define-simple-action uncomment "uncomment"
   #'cursorfree-target-uncomment)
-(rule/cursorfree--define-simple-action indent "indent"
+(cursorfree--define-simple-action indent "indent"
   #'cursorfree-target-indent)
-(rule/cursorfree--define-simple-action narrow "narrow"
+(cursorfree--define-simple-action narrow "narrow"
   #'cursorfree-target-narrow)
-(rule/cursorfree--define-simple-action title "title"
+(cursorfree--define-simple-action title "title"
   #'cursorfree-target-capitalize)
-(rule/cursorfree--define-simple-action upcase "upcase"
+(cursorfree--define-simple-action upcase "upcase"
   #'cursorfree-target-upcase)
-(rule/cursorfree--define-simple-action downcase "downcase"
+(cursorfree--define-simple-action downcase "downcase"
   #'cursorfree-target-downcase)
-(rule/cursorfree--define-simple-action crown "crown"
+(cursorfree--define-simple-action crown "crown"
   :optional-argument t
   #'cursorfree-target-crown)
-(rule/cursorfree--define-simple-action center "center"
+(cursorfree--define-simple-action center "center"
   :optional-argument t
   #'cursorfree-target-center)
-(rule/cursorfree--define-simple-action bottom "bottom"
+(cursorfree--define-simple-action bottom "bottom"
   :optional-argument t
   #'cursorfree-target-bottom)
-(rule/cursorfree--define-simple-action pick "pick"
+(cursorfree--define-simple-action pick "pick"
   :optional-argument t
   #'cursorfree-target-pick)
-(rule/cursorfree--define-simple-action fuse "fuse"
+(cursorfree--define-simple-action fuse "fuse"
   #'cursorfree-target-fuse)
-(rule/cursorfree--define-simple-action fill "filler"
+(cursorfree--define-simple-action fill "filler"
   #'cursorfree-target-fill)
-(rule/cursorfree--define-simple-action join "join"
+(cursorfree--define-simple-action join "join"
   #'cursorfree-target-join)
-(rule/cursorfree--define-simple-action break "break"
+(cursorfree--define-simple-action break "break"
   #'cursorfree-target-break)
-(rule/cursorfree--define-simple-action flash "flash"
+(cursorfree--define-simple-action flash "flash"
   #'cursorfree-target-pulse)
-(rule/cursorfree--define-simple-action help "help"
+(cursorfree--define-simple-action help "help"
   #'cursorfree-target-help)
-(rule/cursorfree--define-simple-action drink "drink"
+(cursorfree--define-simple-action drink "drink"
   #'cursorfree-target-drink)
-(rule/cursorfree--define-simple-action pour "pour"
+(cursorfree--define-simple-action pour "pour"
   #'cursorfree-target-pour)
-(rule/cursorfree--define-simple-action drop "drop"
+(cursorfree--define-simple-action drop "drop"
   #'cursorfree-target-drop)
-(rule/cursorfree--define-simple-action float "float"
+(cursorfree--define-simple-action float "float"
   #'cursorfree-target-float)
-(rule/cursorfree--define-simple-action puff "puff"
+(cursorfree--define-simple-action puff "puff"
   #'cursorfree-target-puff)
 
 
 (phony-defun cursorfree-phony-outside ("outside" (? (delimiter any-alphanumeric-key)))
   :export nil
-  :contributes-to rule/cursorfree-modifier
+  :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-outside target delimiter)))
 
 (phony-defun cursorfree-phony-inside ("inside" (? (delimiter any-alphanumeric-key)))
   :export nil
-  :contributes-to rule/cursorfree-modifier
+  :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-inside target delimiter)))
 
-(defmacro rule/cursorfree--define-simple-modifier (name utterance function)
+(defmacro cursorfree--define-simple-modifier (name utterance function)
   (declare (indent defun))
   `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple")) ()
      (declare (phony-rule
@@ -337,56 +337,56 @@ modifiers which may take the place of a constant."
                ,utterance))
      (apply-partially ,function)))
 
-(rule/cursorfree--define-simple-modifier paint "paint"
+(cursorfree--define-simple-modifier paint "paint"
   #'cursorfree-paint)
-(rule/cursorfree--define-simple-modifier leftpaint "leftpaint"
+(cursorfree--define-simple-modifier leftpaint "leftpaint"
   #'cursorfree-paint-left)
-(rule/cursorfree--define-simple-modifier rightpaint "rightpaint"
+(cursorfree--define-simple-modifier rightpaint "rightpaint"
   #'cursorfree-paint-right)
-(rule/cursorfree--define-simple-modifier trim "trim"
+(cursorfree--define-simple-modifier trim "trim"
   #'cursorfree-trim)
 ;; Sunset standalone "past"?
-(rule/cursorfree--define-simple-modifier past "past"
+(cursorfree--define-simple-modifier past "past"
   #'cursorfree-past)
-(rule/cursorfree--define-simple-modifier selection "selection"
+(cursorfree--define-simple-modifier selection "selection"
   #'cursorfree-current-selection)
-(rule/cursorfree--define-simple-modifier line "line"
+(cursorfree--define-simple-modifier line "line"
   #'cursorfree-line)
-(rule/cursorfree--define-simple-modifier tail "tail"
+(cursorfree--define-simple-modifier tail "tail"
   #'cursorfree-line-right)
-(rule/cursorfree--define-simple-modifier head "head"
+(cursorfree--define-simple-modifier head "head"
   #'cursorfree-line-left)
-(rule/cursorfree--define-simple-modifier block "block"
+(cursorfree--define-simple-modifier block "block"
   #'cursorfree-block)
-(rule/cursorfree--define-simple-modifier token "token"
+(cursorfree--define-simple-modifier token "token"
   #'cursorfree-token)
-(rule/cursorfree--define-simple-modifier comment "comment"
+(cursorfree--define-simple-modifier comment "comment"
   #'cursorfree-comment)
-(rule/cursorfree--define-simple-modifier string "string"
+(cursorfree--define-simple-modifier string "string"
   #'cursorfree-string-literal)
-(rule/cursorfree--define-simple-modifier everything "everything"
+(cursorfree--define-simple-modifier everything "everything"
   #'cursorfree-everything)
-(rule/cursorfree--define-simple-modifier visible "visible"
+(cursorfree--define-simple-modifier visible "visible"
   #'cursorfree-visible)
-(rule/cursorfree--define-simple-modifier this "this"
+(cursorfree--define-simple-modifier this "this"
   #'cursorfree-this)
-(rule/cursorfree--define-simple-modifier every-instance "every instance"
+(cursorfree--define-simple-modifier every-instance "every instance"
   #'cursorfree-every-instance)
-(rule/cursorfree--define-simple-modifier clip "clip"
+(cursorfree--define-simple-modifier clip "clip"
   #'cursorfree-kill-ring)
-(rule/cursorfree--define-simple-modifier primary "primary"
+(cursorfree--define-simple-modifier primary "primary"
   #'cursorfree-primary-selection)
-(rule/cursorfree--define-simple-modifier next "next"
+(cursorfree--define-simple-modifier next "next"
   #'cursorfree-next)
-(rule/cursorfree--define-simple-modifier preve "preve"
+(cursorfree--define-simple-modifier preve "preve"
   #'cursorfree-previous)
-(rule/cursorfree--define-simple-modifier beginning "beginning"
+(cursorfree--define-simple-modifier beginning "beginning"
   #'cursorfree-beginning)
-(rule/cursorfree--define-simple-modifier end "end"
+(cursorfree--define-simple-modifier end "end"
   #'cursorfree-end)
-(rule/cursorfree--define-simple-modifier buffer "buffer"
+(cursorfree--define-simple-modifier buffer "buffer"
   #'cursorfree-buffer)
-(rule/cursorfree--define-simple-modifier split "split"
+(cursorfree--define-simple-modifier split "split"
   #'cursorfree-window-or-selected)
 
 ;; TODO add sentence, link.  Or wait until I move scopes here as well.
