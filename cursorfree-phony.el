@@ -35,33 +35,26 @@
 
 (phony-define-open-rule rule/cursorfree-modifier)
 
-(defun rule/cursorfree--modifier-instruction (modifier)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree--instruction
-            (modifier rule/cursorfree-modifier)))
+(phony-defun cursorfree--modifier-instruction ((modifier cursorfree-modifier))
+  :export nil
+  :contributes-to rule/cursorfree--instruction
   (cursorfree-make-modifier modifier))
 
-(defun rule/cursorfree-target (initial rest)
-  (declare (phony-rule
-            :export nil
-            (initial rule/cursorfree--initial-instruction)
-            (* (rest rule/cursorfree--noninitial-instruction))))
+(phony-defun cursorfree-target
+    ((initial cursorfree--initial-instruction)
+     (* (rest cursorfree--noninitial-instruction)))
+  :export nil
   (let ((target (cursorfree--normalize-target
                  (cursorfree-evaluate (cons initial rest)))))
     (setq my/cursorfree-it target)
     target))
 
-(defun rule/cursorfree-content (target)
-  (declare (phony-rule
-            :export nil
-            (target rule/cursorfree-target)))
+(phony-defun cursorfree-content ((target cursorfree-target))
+  :export nil
   (cursorfree-target-get target))
 
-(defun rule/cursorfree-region (target)
-  (declare (phony-rule
-            :export nil
-            (target rule/cursorfree-target)))
+(phony-defun cursorfree-region ((target cursorfree-target))
+  :export nil
   (cursorfree-content-region target))
 
 ;; Two constant levels.  This stratification means that compound
@@ -73,79 +66,54 @@
 (phony-define-open-rule rule/cursorfree-constant
   :contributes-to rule/cursorfree-compound-constant)
 
-(defun rule/cursorfree--initial-constant (target)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree--initial-instruction
-            (target rule/cursorfree-compound-constant)))
+(phony-defun cursorfree--initial-constant ((target cursorfree-compound-constant))
+  :export nil
+  :contributes-to rule/cursorfree--initial-instruction
   (cursorfree--pusher target))
 
-(defun rule/cursorfree--noninitial-constant (target)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree--noninitial-instruction
-            "and"
-            (target rule/cursorfree-compound-constant)))
+(phony-defun cursorfree--noninitial-constant ("and" (target cursorfree-compound-constant))
+  :export nil
+  :contributes-to rule/cursorfree--noninitial-instruction
   (cursorfree--pusher target))
 
-(defun rule/cursorfree-window (n)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "split"
-            (n rule/digit)))
+(phony-defun cursorfree-window ("split" (n digit))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (winum-get-window-by-number n))
 
-(defun rule/cursorfree-word (word)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "word"
-            (word rule/word)))
+(phony-defun cursorfree-word ("word" (word word))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   word)
 
-(defun rule/cursorfree-number (n)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "numb"
-            (n rule/number)))
+(phony-defun cursorfree-number ("numb" (n number))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   n)
 
-(defun rule/cursorfree-character (c)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "car"
-            (c rule/any-alphanumeric-key)))
+(phony-defun cursorfree-character ("car" (c any-alphanumeric-key))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   c)
 
-(defun rule/cursorfree-that ()
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "that"))
+(phony-defun cursorfree-that "that"
+  :export nil
+  :contributes-to rule/cursorfree-constant
   cursorfree--target-that)
 
-(defun rule/cursorfree-source ()
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "source"))
+(phony-defun cursorfree-source "source"
+  :export nil
+  :contributes-to rule/cursorfree-constant
   cursorfree--target-source)
 
-(defun rule/cursorfree-its ()
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "its"))
+(phony-defun cursorfree-its "its"
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
-(defun rule/cursorfree-itself ()
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "itself"))
+(phony-defun cursorfree-itself "itself"
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
 (phony-define-dictionary rule/cursorfree-color
@@ -167,54 +135,41 @@
     ("cross" . cross)
     ("I" . eye)))
 
-(defun rule/cursorfree-hat (char &optional color shape)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            :when (lambda ()
-                    (seq-some
-                     (lambda (window)
-                       (buffer-local-value 'hatty-mode (window-buffer window)))
-                     (window-list-1 nil nil t)))
-            (? (color rule/cursorfree-color))
-            (? (shape rule/cursorfree-shape))
-            (char rule/any-alphanumeric-key)))
+(phony-defun cursorfree-hat
+    ((? (color cursorfree-color))
+     (? (shape cursorfree-shape))
+     (char any-alphanumeric-key))
+  :export nil
+  :contributes-to rule/cursorfree-constant
+  :when (lambda ()
+          (seq-some
+           (lambda (window)
+             (buffer-local-value 'hatty-mode (window-buffer window)))
+           (window-list-1 nil nil t)))
   (cursorfree--make-target-from-hat char color shape))
 
-(defun rule/cursorfree--zeroary-modifier (modifier)
+(phony-defun cursorfree--zeroary-modifier ((modifier cursorfree-modifier))
   "Return MODIFIER invoked with zero arguments.
 
 This rule exists to allow `rule/cursorfree-range' to work with
 modifiers which may take the place of a constant."
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            (modifier rule/cursorfree-modifier)))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (funcall modifier))
 
-(defun rule/cursorfree-range (from to)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-compound-constant
-            (? (from rule/cursorfree-constant))
-            "past"
-            (to rule/cursorfree-constant)))
+(phony-defun cursorfree-range ((? (from cursorfree-constant)) "past" (to cursorfree-constant))
+  :export nil
+  :contributes-to rule/cursorfree-compound-constant
   (cursorfree-past (or from (cursorfree-this)) to))
 
-(defun rule/cursorfree-row (index)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "row"
-            (index rule/number)))
+(phony-defun cursorfree-row ("row" (index number))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (cursorfree-row-modulo-100 index))
 
-(defun rule/cursorfree-long-row (index)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-constant
-            "long row"
-            (index rule/number)))
+(phony-defun cursorfree-long-row ("long row" (index number))
+  :export nil
+  :contributes-to rule/cursorfree-constant
   (cursorfree-row index))
 
 
@@ -223,85 +178,54 @@ modifiers which may take the place of a constant."
     ("after" . cursorfree--put-after)
     ("before" . cursorfree--put-before)))
 
-(defun rule/cursorfree-bring (from to modifier)
-  (declare (phony-rule
-            "bring"
-            (from rule/cursorfree-target)
-            (modifier rule/cursorfree-destination-modifiers)
-            (to rule/cursorfree-target)))
+(phony-defun cursorfree-bring
+    ("bring"
+     (from cursorfree-target)
+     (modifier cursorfree-destination-modifiers)
+     (to cursorfree-target))
   (cursorfree--target-bring from to :putter modifier))
 
-(defun rule/cursorfree-change (target &optional source)
-  (declare (phony-rule
-            "change"
-            (target rule/cursorfree-target)
-            (? "to"
-               (source rule/cursorfree-target))))
+(phony-defun cursorfree-change ("change" (target cursorfree-target) (? "to" (source cursorfree-target)))
   (if source
       (cursorfree-target-bring source target)
     (cursorfree-target-change target)))
 
-(defun rule/cursorfree-move (from to modifier)
-  (declare (phony-rule
-            "move"
-            (from rule/cursorfree-target)
-            (modifier rule/cursorfree-destination-modifiers)
-            (to rule/cursorfree-target)))
+(phony-defun cursorfree-move
+    ("move"
+     (from cursorfree-target)
+     (modifier cursorfree-destination-modifiers)
+     (to cursorfree-target))
   (cursorfree--target-move from to :putter modifier))
 
-(defun rule/cursorfree-swap (from to)
-  (declare (phony-rule
-            "swap"
-            (from rule/cursorfree-target)
-            "with"
-            (to rule/cursorfree-target)))
+(phony-defun cursorfree-swap ("swap" (from cursorfree-target) "with" (to cursorfree-target))
   (cursorfree-target-swap from to))
 
 (phony-define-open-rule rule/cursorfree-wrapper)
 
-(defun rule/character-wrapper (character)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-wrapper
-            (? "car")
-            (character rule/symbol-key)))
+(phony-defun character-wrapper ((? "car") (character symbol-key))
+  :export nil
+  :contributes-to rule/cursorfree-wrapper
   (apply-partially #'cursorfree-target-wrap character))
 
-(defun rule/cursorfree-wrap (wrapper &optional target)
-  (declare (phony-rule
-            "wrap"
-            (? (target rule/cursorfree-target))
-            "with"
-            (wrapper rule/cursorfree-wrapper)))
+(phony-defun cursorfree-wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
   (setq target (or target (cursorfree-this)))
   (funcall wrapper target)
   (setq cursorfree--target-that target))
 
-(defun rule/cursorfree-unwrap (target)
-  (declare (phony-rule
-            "unwrap"
-            (target rule/cursorfree-target)))
+(phony-defun cursorfree-unwrap ("unwrap" (target cursorfree-target))
   (cursorfree-target-unwrap target)
   (setq cursorfree--target-that target))
 
-(defun rule/cursorfree-rewrap (character &optional target)
-  (declare (phony-rule
-            "rewrap"
-            (? (target rule/cursorfree-target))
-            "with"
-            (character rule/symbol-key)))
+(phony-defun cursorfree-rewrap ("rewrap" (? (target cursorfree-target)) "with" (character symbol-key))
   (setq target (or target (cursorfree-this)))
   (cursorfree-target-rewrap character target)
   (setq cursorfree--target-that target))
 
-(defun rule/cursorfree-occur (target &optional extent context-lines)
-  (declare (phony-rule
-            "hunt"
-            (target rule/cursorfree-target)
-            (? "in"
-               (extent rule/cursorfree-target))
-            (? "context"
-               (context-lines rule/number))))
+(phony-defun cursorfree-occur
+    ("hunt"
+     (target cursorfree-target)
+     (? "in" (extent cursorfree-target))
+     (? "context" (context-lines number)))
   (cursorfree-target-occur target extent context-lines))
 
 (defmacro rule/cursorfree--define-simple-action (name utterance &rest arguments)
@@ -392,21 +316,15 @@ modifiers which may take the place of a constant."
   #'cursorfree-target-puff)
 
 
-(defun rule/cursorfree-phony-outside (&optional delimiter)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-modifier
-            "outside"
-            (? (delimiter rule/any-alphanumeric-key))))
+(phony-defun cursorfree-phony-outside ("outside" (? (delimiter any-alphanumeric-key)))
+  :export nil
+  :contributes-to rule/cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-outside target delimiter)))
 
-(defun rule/cursorfree-phony-inside (&optional delimiter)
-  (declare (phony-rule
-            :export nil
-            :contributes-to rule/cursorfree-modifier
-            "inside"
-            (? (delimiter rule/any-alphanumeric-key))))
+(phony-defun cursorfree-phony-inside ("inside" (? (delimiter any-alphanumeric-key)))
+  :export nil
+  :contributes-to rule/cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-inside target delimiter)))
 
