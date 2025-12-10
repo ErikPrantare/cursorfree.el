@@ -235,12 +235,11 @@ which may take the place of a constant."
   (declare (indent defun))
   (let ((options (butlast arguments))
         (function (car (last arguments))))
-    `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple-modifier")) (target)
-       (declare (phony-rule
-                 ,utterance
-                 ,(if (plist-get options :optional-argument)
-                      '(? (target cursorfree-target))
-                    '(target cursorfree-target))))
+    `(phony-defun ,(intern (concat "cursorfree-" (symbol-name name) "-simple-action"))
+       (,utterance
+        ,(if (plist-get options :optional-argument)
+             '(? (target cursorfree-target))
+           '(target cursorfree-target)))
        (if target
            (funcall ,function
                     ,(if (plist-get options :use-target-content)
@@ -330,11 +329,10 @@ which may take the place of a constant."
 
 (defmacro cursorfree--define-simple-modifier (name utterance function)
   (declare (indent defun))
-  `(defun ,(intern (concat "rule/cursorfree-" (symbol-name name) "-simple")) ()
-     (declare (phony-rule
-               :contributes-to rule/cursorfree-modifier
-               :export nil
-               ,utterance))
+  `(phony-defun ,(intern (concat "cursorfree-" (symbol-name name) "-simple"))
+       ,utterance
+     :contributes-to rule/cursorfree-modifier
+     :export nil
      (apply-partially ,function)))
 
 (cursorfree--define-simple-modifier paint "paint"
