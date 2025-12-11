@@ -331,7 +331,7 @@ which may take the place of a constant."
   (declare (indent defun))
   `(phony-defun ,(intern (concat "cursorfree-" (symbol-name name) "-simple"))
        ,utterance
-     :contributes-to rule/cursorfree-modifier
+     :contributes-to cursorfree-modifier
      :export nil
      (apply-partially ,function)))
 
