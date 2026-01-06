@@ -1,6 +1,6 @@
 ;;; cursorfree.el --- Complex editing through voice  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024, 2025  Erik Präntare
+;; Copyright (C) 2024, 2025, 2026  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -193,15 +193,26 @@ a `cursorfree-parallel-target'."
       (skip-chars-backward "[:space:]\n")
       (setq left-candidate (point))
       (setq left-whitespace (buffer-substring
-                             (cdr region)
-                             left-candidate))
-      ;; FIXME: "\na(", removing the "a" removes the newline.
+                             left-candidate
+                             (car region)))
+      ;; FIXME? Removing x, we want:
+      ;; (f\nx) -> (f)
+      ;; but also, removing "x-:"
+      ;; (f\nx-y) -> (f\ny)
+      ;; Can both cases be reasonably handled?  Or should we leave
+      ;; such operations for when we have more structural information,
+      ;; e.g. from treesitter?
       (cursorfree--ensure-marker-region
-       (if (and (not (length= right-whitespace 0))
-                (<= (seq-count (lambda (c) (eql c ?\n)) right-whitespace)
-                    (seq-count (lambda (c) (eql c ?\n)) left-whitespace)))
-           (cons (car region) right-candidate)
-         (cons left-candidate (cdr region)))))))
+       (cond
+        ((length= right-whitespace 0)
+         (cons left-candidate (cdr region)))
+        ((length= left-whitespace 0)
+         (cons (car region) right-candidate))
+        ((<= (seq-count (lambda (c) (eql c ?\n)) right-whitespace)
+             (seq-count (lambda (c) (eql c ?\n)) left-whitespace))
+         (cons (car region) right-candidate))
+        (t
+         (cons left-candidate (cdr region))))))))
 
 (cl-defun cursorfree-make-target (content-region
                                   &key

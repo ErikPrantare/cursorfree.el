@@ -1,6 +1,6 @@
 ;;; test.el --- Tests for cursorfree.el              -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024, 2025  Erik Präntare
+;; Copyright (C) 2024, 2025, 2026  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -24,6 +24,8 @@
 ;;
 
 ;;; Code:
+
+(require 'eieio)
 
 (cl-defstruct cursorfree--test-buffer-state
   string
@@ -248,7 +250,7 @@
             :string "Removing\nin text with newline"
             :points '(10))
     :command-form '(cursorfree-target-chuck
-                    (cursorfree-make-target (cons 9 14)))))
+                    (cursorfree-make-target (cons 10 14)))))
 
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -542,19 +544,6 @@
                     (cursorfree-past
                      (cursorfree-make-target (cons 1 5))
                      (cursorfree-make-target (cons 25 29)))))))
-
-(ert-deftest cursorfree--test-fuse ()
-  "fuse."
-  (cursorfree--run-test
-   (make-cursorfree--test-parameters
-    :before (make-cursorfree--test-buffer-state
-             :string "aaa bbb ccc\nddd"
-             :points '(14))
-    :after (make-cursorfree--test-buffer-state
-            :string "aaabbbcccddd"
-            :points '(11))
-    :command-form '(cursorfree-target-fuse
-                    (cursorfree-make-target (cons 1 16))))))
 
 (ert-deftest cursorfree--every-instance ()
   "every instance."
@@ -880,7 +869,7 @@
     :command-form '(cursorfree-target-puff
                     (cursorfree-this)))))
 
-(ert-deftest cursorfree--test-block ()
+(ert-deftest cursorfree--test-block-empty-newline ()
   "block."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -892,8 +881,9 @@
             :points '(1))
     :command-form '(cursorfree-target-chuck
                     (cursorfree-block
-                     (cursorfree-make-target (cons 1 2))))))
+                     (cursorfree-make-target (cons 1 2)))))))
 
+(ert-deftest cursorfree--test-block-newline-with-whitespace ()
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -905,6 +895,18 @@
     :command-form '(cursorfree-target-chuck
                     (cursorfree-block
                      (cursorfree-make-target (cons 1 2)))))))
+
+(ert-deftest cursorfree--chuck-whitespace-with-newline ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "(f\n x)"
+             :points '(1))
+    :after (make-cursorfree--test-buffer-state
+            :string "(f)"
+            :points '(1))
+    :command-form '(cursorfree-target-chuck
+                    (cursorfree-make-target (cons 5 6))))))
 
 (ert-deftest cursorfree--test-beginning-end-of ()
   "cursorfree-beginning, cursorfree-end."
