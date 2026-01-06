@@ -26,6 +26,7 @@
 ;;; Code:
 
 (require 'eieio)
+(require 'multiple-cursors)
 
 (cl-defstruct cursorfree--test-buffer-state
   string

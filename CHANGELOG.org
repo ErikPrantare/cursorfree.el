@@ -79,6 +79,7 @@
   Currently has no speech binding.
 - Removed ~cursorfree-evaluate-environment~.
 - Removed dependency on ~evil~.
+- multiple-cursors and hatty are now optional dependencies.
 
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.

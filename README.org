@@ -1,22 +1,27 @@
 * cursorfree.el
 A GNU Emacs package for editing text from any position in the buffer.
 
-This package provides a simple command language well suited for voice
-control of Emacs.  This allows you to modify text, jump around in the
-buffer and follow links by referring to the target of your action
-immediately.
+This package provides a library and command language well suited for
+voice control of Emacs.  This allows you to modify text, jump around
+in the buffer and follow links by referring to the exact target of
+your action immediately.
 
 This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cursorless]], a package providing similar
 faculties for VSCode.
 
 ** Setup
-First, install the required dependency [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]].  If you
-are using this with voice control, also install [[https://github.com/ErikPrantare/phony.el][phony.el]].
+*** Required dependencies
+If you intend to use this with voice control, install [[https://github.com/ErikPrantare/phony.el][phony.el]] (unless
+you plan to design your own grammar).
 
-We also recommend installing [[https://github.com/ErikPrantare/hatty.el][hatty.el]] to allow querying arbitrary
-positions in the visible text.
+*** Recommended dependencies
+- [[https://github.com/ErikPrantare/hatty.el][hatty.el]] for a way to query arbitrary positions in the visible
+  buffer text.
+- [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]] for integration with multiple-cursors.  Useful
+  when working with multiple targes at once.
 
-Then, clone this repository and add the following to your init file:
+*** Installation
+Clone this repository and add the following to your init file:
 
 #+begin_src elisp
   (add-to-list 'load-path "path/to/cursorfree/directory")

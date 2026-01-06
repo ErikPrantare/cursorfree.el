@@ -33,8 +33,6 @@
 
 ;;; Code:
 
-(require 'multiple-cursors)
-
 (defgroup cursorfree nil
   "Functions for text and session manipulation."
   :group 'convenience
@@ -98,6 +96,9 @@ Each target is assumed to be in the same buffer.
 
 If invoking FUNCTION causes an error, no cursor is created."
   (when targets
+    (when (and (cdr targets)
+               (fboundp 'mc/create-fake-cursor-at-point))
+      (user-error "Using this operation on parallel targets requires the `multiple-cursors' package"))
     (cursorfree-on-content-region (car targets)
       ;; We do not actually use region, we only invoke the above function
       ;; to ensure that everything is performed in the correct context.
@@ -524,18 +525,13 @@ for \"this\".")
 
 Each element of the list is a cons cell of markers (BEG . END).  If
 there is no active region for the cursor, BEG equals END in position."
-  ;; TODO: Handle non-contiguous regions.
+  ;; TODO: Better handle non-contiguous regions (like rectangles).
+  ;; Currently the selection becomes messed up by e.g. "take this".
   (let (regions)
-    (mc/for-each-cursor-ordered
-     ;; multiple cursors returns marker without buffer; Extract only
-     ;; the position so that `cursorfree--ensure-marker-region'
-     ;; eventually creates correct markers.
-     (let ((point (marker-position (overlay-get cursor 'point)))
-           (mark (marker-position (overlay-get cursor 'mark))))
-       (push (if (overlay-get cursor 'mark-active)
-                 (cons (min point mark) (max point mark))
-               (cons point point))
-             regions)))
+    (cursorfree--for-each-cursor
+     (if mark-active
+         (setq regions (append (region-bounds) regions))
+       (push (cons (point) (point)) regions)))
     regions))
 
 (defun cursorfree-this (&optional window-or-buffer)
@@ -842,10 +838,12 @@ highlight color can be customized with
 
 (defmacro cursorfree--for-each-cursor (&rest body)
   "Evaluate BODY for each cursor."
-  `(mc/for-each-cursor-ordered
-    (mc/restore-state-from-overlay cursor)
-    ,@body
-    (mc/store-current-state-in-overlay cursor)))
+  (if (fboundp 'mc/for-each-cursor-ordered)
+       `(mc/for-each-cursor-ordered
+         (mc/restore-state-from-overlay cursor)
+         ,@body
+         (mc/store-current-state-in-overlay cursor))
+     `(progn ,@body)))
 
 (defun cursorfree-target-bring (source &rest targets)
   "Overwrite TARGETS with SOURCE.
