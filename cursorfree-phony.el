@@ -94,7 +94,7 @@
 (phony-defun cursorfree-character ("car" (c any-alphanumeric-key))
   :export nil
   :contributes-to cursorfree-constant
-  c)
+  (string c))
 
 (phony-defun cursorfree-that "that"
   :export nil

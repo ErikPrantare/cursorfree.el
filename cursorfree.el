@@ -434,11 +434,6 @@ by `hatty-locate-token'."
   "Return TARGET."
   target)
 
-(cl-defmethod cursorfree-target-get ((target integer))
-  "Convert TARGET to a string of length one."
-  ;; TODO: Encode characters as singleton strings instead
-  (string target))
-
 (cl-defmethod cursorfree-target-get ((target window))
   "Return TARGET."
   target)
