@@ -6,7 +6,7 @@
 ;; Keywords: convenience
 ;; Version: 0.2.0
 ;; Homepage: https://github.com/ErikPrantare/cursorfree.el
-;; Package-Requires: ((emacs "29.1") (hatty "1.3.0"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Created: 06 Sep 2024
 
 ;; cursorfree.el is free software; you can redistribute it and/or
@@ -33,7 +33,6 @@
 
 ;;; Code:
 
-(require 'hatty)
 (require 'multiple-cursors)
 
 (defgroup cursorfree nil
@@ -415,6 +414,7 @@ For a similar function not creating new cursors, see
 
 The token is indexed by CHARACTER, COLOR and SHAPE, as specified
 by `hatty-locate-token'."
+  (require 'hatty)
   (if-let ((region (hatty-locate-token character color shape)))
       (cursorfree-make-target region)
     (user-error "No such hat: color %s, shape %s, character %c" color shape character)))
@@ -1642,6 +1642,7 @@ TARGET defaults to the return value of `cursorfree-this'."
 (defun cursorfree-token (&optional target)
   "Extend the beginning of TARGET to cover its containing hatty token.
 TARGET defaults to the return value of `cursorfree-this'."
+  (require 'hatty)
   (cursorfree-on-content-region (or target (cursorfree-this))
     (lambda (region)
       (cursorfree-make-target

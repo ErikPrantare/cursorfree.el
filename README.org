@@ -1,16 +1,20 @@
 * cursorfree.el
 A GNU Emacs package for editing text from any position in the buffer.
 
-This package builds upon [[https://github.com/ErikPrantare/hatty.el][hatty.el]] to provide a simple command language
-well suited for voice control of Emacs.  This allows you to modify
-text, jump around in the buffer and follow links by referring to the
-target of your action immediately.
+This package provides a simple command language well suited for voice
+control of Emacs.  This allows you to modify text, jump around in the
+buffer and follow links by referring to the target of your action
+immediately.
 
 This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cursorless]], a package providing similar
 faculties for VSCode.
 
 ** Setup
-First, install the dependencies [[https://github.com/ErikPrantare/hatty.el][hatty.el]] and [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]].
+First, install the required dependency [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]].  If you
+are using this with voice control, also install [[https://github.com/ErikPrantare/phony.el][phony.el]].
+
+We also recommend installing [[https://github.com/ErikPrantare/hatty.el][hatty.el]] to allow querying arbitrary
+positions in the visible text.
 
 Then, clone this repository and add the following to your init file:
 
@@ -20,7 +24,6 @@ Then, clone this repository and add the following to your init file:
 #+end_src
 
 *** Talon integration
-Set up [[https://github.com/ErikPrantare/phony.el][phony.el]] and add the following to your init file:
 
 #+begin_src elisp
   (phony-define-dictionary hatty-color
