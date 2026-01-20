@@ -97,7 +97,7 @@ Each target is assumed to be in the same buffer.
 If invoking FUNCTION causes an error, no cursor is created."
   (when targets
     (when (and (cdr targets)
-               (fboundp 'mc/create-fake-cursor-at-point))
+               (not (fboundp 'mc/create-fake-cursor-at-point)))
       (user-error "Using this operation on parallel targets requires the `multiple-cursors' package"))
     (cursorfree-on-content-region (car targets)
       ;; We do not actually use region, we only invoke the above function
