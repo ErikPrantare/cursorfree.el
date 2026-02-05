@@ -1541,22 +1541,21 @@ TARGET defaults to `cursorfree-this' if nil or omitted"
    (lambda ()
      (bounds-of-thing-at-point thing))))
 
-(defun cursorfree-everything (&optional window-or-buffer)
-  "Return a target referring to the full content of WINDOW-OR-BUFFER.
+(defun cursorfree-everything (&optional target)
+  "Return a target referring to the full content of the buffer of TARGET.
+
+TARGET defaults to `cursorfree-this'.
 
 This function respects narrowing."
-  (let ((in-buffer (cond
-                    ((windowp window-or-buffer) (window-buffer window-or-buffer))
-                    ((bufferp window-or-buffer) window-or-buffer)
-                    (t (current-buffer)))))
-    (with-current-buffer in-buffer
-      (cursorfree-make-target
-       (cons (point-min) (point-max))))))
+  (unless target (setq target (cursorfree-this)))
+  (with-current-buffer (cursorfree-buffer target)
+    (cursorfree-make-target
+     (cons (point-min) (point-max)))))
 
 (defun cursorfree-visible (&optional window)
   "Return a target referring to the visible portion of the buffer.
 
-If WINDOW is not given, use the selected window."
+WINDOW defaults to the selected window."
   (setq window (or window (selected-window)))
   (with-selected-window window
     (with-current-buffer (window-buffer)
