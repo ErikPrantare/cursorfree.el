@@ -1,6 +1,6 @@
 ;;; cursorfree-phony.el --- Phony bindings for cursorfree  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025  Erik Präntare
+;; Copyright (C) 2025, 2026  Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -46,7 +46,6 @@
   :export nil
   (let ((target (cursorfree--normalize-target
                  (cursorfree-evaluate (cons initial rest)))))
-    (setq my/cursorfree-it target)
     target))
 
 (phony-defun cursorfree-content ((target cursorfree-target))
