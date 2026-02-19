@@ -1380,8 +1380,10 @@ If no bound is found, nil is returned."
               ;; comment chars (e.g., ;; inside a string).
               (map-char-table
                (lambda (k v)
-                 (when (or (= (syntax-class-to-char (car v)) ?<)
-                           (= (syntax-class-to-char (car v)) ?>))
+                 ;; (logand (car v) #xff): The lower eight bits of the
+                 ;; syntax code represents the class.
+                 (when (or (= (syntax-class-to-char (logand (car v) #xff)) ?<)
+                           (= (syntax-class-to-char (logand (car v) #xff)) ?>))
                    (set-char-table-range (syntax-table) k (string-to-syntax " "))))
                current-syntax)
               (and-let* ((region (cursorfree--bounds-outside-quote-at-point-impl quote)))
