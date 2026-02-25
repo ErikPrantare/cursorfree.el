@@ -1307,8 +1307,10 @@ If no bound is found, nil is returned."
       ;; them as whitespace in the new syntax table.
       (map-char-table
        (lambda (k v)
-         (when (or (= (syntax-class-to-char (car v)) ?\()
-                   (= (syntax-class-to-char (car v)) ?\)))
+         ;; (logand (car v) #xff): The lower eight bits of the
+         ;; syntax code represents the class.
+         (when (or (= (syntax-class-to-char (logand (car v) #xff)) ?<)
+                   (= (syntax-class-to-char (logand (car v) #xff)) ?>))
            (set-char-table-range (syntax-table) k (string-to-syntax " "))))
        old-syntax)
       (modify-syntax-entry left (string ?\( right))
