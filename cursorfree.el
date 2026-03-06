@@ -585,7 +585,13 @@ means."
   (cursorfree-on-content-region target
     (lambda (region)
       (when (= (point) (car region))
-        (goto-char (cdr region))))))
+        (goto-char (cdr region)))
+      ;; Is there a multiple-cursors cursor here?  If so, move it as
+      ;; well.
+      (dolist (cursor (overlays-at (car region)))
+        (when (overlay-get cursor 'mc-id)
+          (setf (overlay-start cursor) (cdr region))
+          (overlay-put cursor 'point (cdr region)))))))
 
 (cl-defmethod cursorfree-target-put ((target cursorfree--this-target) (buffer buffer))
   "Set BUFFER as the current buffer of the window of TARGET."
