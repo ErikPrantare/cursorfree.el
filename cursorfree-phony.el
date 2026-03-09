@@ -140,11 +140,6 @@
      (char any-alphanumeric-key))
   :export nil
   :contributes-to cursorfree-constant
-  :when (lambda ()
-          (seq-some
-           (lambda (window)
-             (buffer-local-value 'hatty-mode (window-buffer window)))
-           (window-list-1 nil nil t)))
   (cursorfree--make-target-from-hat char color shape))
 
 (phony-defun cursorfree--zeroary-modifier ((modifier cursorfree-modifier))
