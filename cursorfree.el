@@ -259,16 +259,7 @@ target."
            (buffer (current-buffer))
            (deletion (cursorfree--ensure-marker-region
                       (or deletion-region
-                          (cursorfree--guess-deletion-region region)
-                          (save-excursion
-                            (set-buffer buffer)
-                            (goto-char (cdr content-region))
-                            (cursorfree--ensure-marker-region
-                             (if (/= (skip-chars-forward "[:space:]\n"))
-                                 (cons (car content-region) (point))
-                               (goto-char (car content-region))
-                               (skip-chars-backward "[:space:]\n")
-                               (cons (point) (cdr content-region)))))))))
+                          (cursorfree--guess-deletion-region region)))))
       (funcall constructor
                :content-region region
                :buffer buffer
