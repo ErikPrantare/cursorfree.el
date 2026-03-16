@@ -37,7 +37,7 @@
   "Functions for text and session manipulation."
   :group 'convenience
   :prefix "cursorfree-"
-  :link '(emaccs-commentary-link :tag "Commentary" "cursorfree.el"))
+  :link '(emacs-commentary-link :tag "Commentary" "cursorfree.el"))
 
 (defcustom cursorfree-highlight-deletions-p t
   "Whether to highlight text about to be deleted.
