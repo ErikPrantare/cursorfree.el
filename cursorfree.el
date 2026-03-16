@@ -1021,8 +1021,7 @@ content region.  Afterwards, the region will be pulsed."
       (save-excursion
         (goto-char (car region))
         (recenter nil))
-      (cursorfree--clamp-line)))
-  (cursorfree--clamp-line))
+      (cursorfree--clamp-line))))
 
 (defun cursorfree-target-bottom (&optional target)
   "Scroll window so TARGET is at the bottom."
@@ -1032,8 +1031,7 @@ content region.  Afterwards, the region will be pulsed."
       (save-excursion
         (goto-char (car region))
         (recenter -1))
-      (cursorfree--clamp-line)))
-  (cursorfree--clamp-line))
+      (cursorfree--clamp-line))))
 
 (defun cursorfree-target-drink (&optional target)
   "Insert an empty line before TARGET and put point on it.
