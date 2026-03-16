@@ -1747,8 +1747,8 @@ Otherwise, search the buffer of TARGET."
   "Return region of comment or string literal at point.
 
 If TYPE is 'comment, this function looks for a containing comment.  If
-TYPE is 'string, this function looks for a string li troll instead.
-If TYPE is omitted, nil or 'any, either one is looked for.  If TYPE is
+TYPE is 'string, this function looks for a string literal instead.  If
+TYPE is omitted, nil or 'any, either one is looked for.  If TYPE is
 anything else, an error is signalled.
 
 If point is not in a comment or string, nil is returned."
