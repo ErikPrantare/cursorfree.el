@@ -634,6 +634,14 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
   "Put the content of SOURCE after TARGET."
   (cursorfree--target-put-after target (cursorfree-target-get source)))
 
+(cl-defmethod cursorfree--put ((target cursorfree-parallel-target) (source cursorfree-parallel-target))
+  (let ((target-targets (cursorfree-parallel-target-targets target))
+        (source-targets (cursorfree-parallel-target-targets source)))
+    (if (not (eq (seq-length target-targets)
+                 (seq-length source-targets)))
+        (user-error "Mismatching length of parallel targets")
+      (seq-mapn #'cursorfree--put target-targets source-targets))))
+
 ;;;; End of core functions
 
 (defvar cursorfree--target-that nil
