@@ -194,8 +194,10 @@ was applied to each element individually."
 
 (cl-defmethod seq-concatenate ((type (eql 'cursorfree-parallel-target)) &rest sequences)
   (make-cursorfree-parallel-target
-   :targets (seq-concatenate
-             (seq-map #'cursorfree-parallel-target-targets parallel))))
+   :targets (apply #'append
+                   (seq-map
+                    (lambda (sequence) (seq-into sequence 'list))
+                    sequences))))
 
 (defun cursorfree--normalize-target (target)
   "Turn TARGET into a parallel if it is a non-singleton sequence.

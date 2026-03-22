@@ -26,27 +26,21 @@
 
 (phony-module cursorfree "cursorfree")
 
-(phony-define-open-rule cursorfree--initial-instruction)
-(phony-define-open-rule cursorfree--noninitial-instruction)
+(phony-define-open-rule cursorfree-modifier
+  "Rules that produce a modifier.
 
-(phony-define-open-rule cursorfree--instruction
-  :contributes-to (cursorfree--initial-instruction
-                   cursorfree--noninitial-instruction))
-
-(phony-define-open-rule cursorfree-modifier)
-
-(phony-defun cursorfree--modifier-instruction ((modifier cursorfree-modifier))
-  :export nil
-  :contributes-to cursorfree--instruction
-  (cursorfree-make-modifier modifier))
+Modifiers are functions that take a target as an argument, and return a
+target as output.  The target argument is allowed to be optional.")
 
 (phony-defun cursorfree-target
-    ((initial cursorfree--initial-instruction)
-     (* (rest cursorfree--noninitial-instruction)))
+    ;; The element matching is unstructured to avoid grammar inflation
+    ;; from inlined rules.  Otherwise, e.g. (<a> "past" <a>) as a
+    ;; separate alternative would inline <a> twice more.  This issue
+    ;; occurred with talon in [2026-03-21 Sat].
+    ((+ (elements cursorfree--target-element)))
+  "Top level rule for matching an arbitrary target."
   :export nil
-  (let ((target (cursorfree--normalize-target
-                 (cursorfree-evaluate (cons initial rest)))))
-    target))
+  (cursorfree--evaluate-target-elements elements))
 
 (phony-defun cursorfree-content ((target cursorfree-target))
   :export nil
@@ -59,62 +53,50 @@
 (phony-define-open-rule cursorfree-constant
   "Simple rules that provide some value when evaluated.")
 
-;; Two constant levels.  This stratification means that compound
-;; constants cannot refer to other compound constants, as recursion is
-;; not allowed.  Without this stratification, constants would not be
-;; able to refer to other constants at all.
-;;
-;; The compound constant rule is unstructured to avoid grammar
-;; inflation from inlined rules.  Otherwise, (<a> "past" <a>) as a
-;; separate alternative would in line <a> twice more.  This issue
-;; occurred with talon in [2026-03-21 Sat].
-(phony-define-open-rule cursorfree--compound-constant-element)
+(phony-define-open-rule cursorfree--target-element)
 
 (phony-defun cursorfree--constant-element (cursorfree-constant)
   :export nil
-  :contributes-to cursorfree--compound-constant-element
+  :contributes-to cursorfree--target-element
   (list 'constant cursorfree-constant))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
   :export nil
-  :contributes-to cursorfree--compound-constant-element
+  :contributes-to cursorfree--target-element
   (list 'modifier cursorfree-modifier))
 
-(phony-defun cursorfree--past-element "past"
+(phony-defun cursorfree--infix-element-past "past"
   :export nil
-  :contributes-to cursorfree--compound-constant-element
+  :contributes-to cursorfree--target-element
   '(infix cursorfree-past))
 
-(defun cursorfree--evaluate-compound-constant (elements)
+(phony-defun cursorfree--infix-element-and "and"
+  :export nil
+  :contributes-to cursorfree--target-element
+  'and)
+
+(defun cursorfree--evaluate-target-elements (elements)
   (pcase elements
     (`((constant ,c)) c)
     (`((modifier ,m) . ,xs)
-     (cursorfree--evaluate-compound-constant
+     (cursorfree--evaluate-target-elements
       (cons `(constant ,(funcall m)) xs)))
     (`((infix ,_) . ,_)
-     (cursorfree--evaluate-compound-constant
+     (cursorfree--evaluate-target-elements
       (cons `(constant ,(cursorfree-this)) elements)))
     (`((constant ,c) (modifier ,m) . ,xs)
-     (cursorfree--evaluate-compound-constant
+     (cursorfree--evaluate-target-elements
       (cons `(constant ,(funcall m c)) xs)))
     (`((constant ,c) (infix ,i) . ,xs)
-     (funcall i c (cursorfree--evaluate-compound-constant xs)))
-    (_ (error "Invalid compound constant sequence."))))
-
-(phony-defun cursorfree-compound-constant
-    ((+ (elements cursorfree--compound-constant-element)))
-  :export nil
-  (cursorfree--evaluate-compound-constant elements))
-
-(phony-defun cursorfree--initial-constant ((target cursorfree-compound-constant))
-  :export nil
-  :contributes-to cursorfree--initial-instruction
-  (cursorfree--pusher target))
-
-(phony-defun cursorfree--noninitial-constant ("and" (target cursorfree-compound-constant))
-  :export nil
-  :contributes-to cursorfree--noninitial-instruction
-  (cursorfree--pusher target))
+     (funcall i c (cursorfree--evaluate-target-elements xs)))
+    (`((constant ,c1) and (constant ,c2) . ,xs)
+     (cursorfree--evaluate-target-elements
+      `((constant ,(seq-concatenate
+                     'cursorfree-parallel-target
+                     (cursorfree--ensure-parallel c1)
+                     (cursorfree--ensure-parallel c2)))
+        . ,xs)))
+    (_ (error "Invalid target element sequence."))))
 
 (phony-defun cursorfree-window ("split" (n digit))
   :export nil
