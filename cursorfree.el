@@ -161,6 +161,42 @@ Operations applied to a parallel target are generally applied as if it
 was applied to each element individually."
   targets)
 
+(cl-defmethod seq-elt ((parallel cursorfree-parallel-target) n)
+  (seq-elt (cursorfree-parallel-target-targets parallel) n))
+
+(cl-defmethod seq-length ((parallel cursorfree-parallel-target))
+  (seq-length (cursorfree-parallel-target-targets parallel)))
+
+(cl-defmethod seq-do (function (parallel cursorfree-parallel-target))
+  (seq-do function (cursorfree-parallel-target-targets parallel)))
+
+(cl-defmethod seqp ((_ cursorfree-parallel-target))
+  t)
+
+(cl-defmethod seq-subseq ((parallel cursorfree-parallel-target) start &optional end)
+  (make-cursorfree-parallel-target
+   :targets (seq-subseq
+             (cursorfree-parallel-target-targets parallel)
+             start end)))
+
+(cl-defmethod seq-into-sequence ((parallel cursorfree-parallel-target))
+  parallel)
+
+(cl-defmethod seq-copy ((parallel cursorfree-parallel-target))
+  (copy-cursorfree-parallel-target parallel))
+
+(cl-defmethod seq-into ((parallel cursorfree-parallel-target) type)
+  (seq-into (cursorfree-parallel-target-targets parallel) type))
+
+(cl-defmethod seq-into (sequence (type (eql 'cursorfree-parallel-target)))
+  (make-cursorfree-parallel-target
+   :targets (seq-into sequence 'list)))
+
+(cl-defmethod seq-concatenate ((type (eql 'cursorfree-parallel-target)) &rest sequences)
+  (make-cursorfree-parallel-target
+   :targets (seq-concatenate
+             (seq-map #'cursorfree-parallel-target-targets parallel))))
+
 (defun cursorfree--normalize-target (target)
   "Turn TARGET into a parallel if it is a non-singleton sequence.
 
@@ -169,8 +205,17 @@ return that element.  Otherwise, return the targets of the sequence as
 a `cursorfree-parallel-target'."
   (cond
    ((not (seqp target)) target)
-   ((length= target 1) (seq-first target))
-   (t (make-cursorfree-parallel-target :targets (seq-into target 'list)))))
+   ((= (seq-length target) 1) (seq-first target))
+   (t (seq-into target 'cursorfree-parallel-target))))
+
+(defun cursorfree--ensure-parallel (target)
+  "Return TARGET as a parallel.
+
+If TARGET is a `cursorfree-parallel-target', this function returns it.
+Otherwise, it returns a parallel containing TARGET as its sole element."
+  (if (cursorfree-parallel-target-p target)
+      target
+    (cursorfree-make-parallel target)))
 
 (defun cursorfree--guess-deletion-region (region)
   "Guess the correct deletion region for REGION."
