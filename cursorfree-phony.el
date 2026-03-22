@@ -56,14 +56,55 @@
   :export nil
   (cursorfree-content-region target))
 
+(phony-define-open-rule cursorfree-constant
+  "Simple rules that provide some value when evaluated.")
+
 ;; Two constant levels.  This stratification means that compound
 ;; constants cannot refer to other compound constants, as recursion is
 ;; not allowed.  Without this stratification, constants would not be
 ;; able to refer to other constants at all.
-(phony-define-open-rule cursorfree-compound-constant)
+;;
+;; The compound constant rule is unstructured to avoid grammar
+;; inflation from inlined rules.  Otherwise, (<a> "past" <a>) as a
+;; separate alternative would in line <a> twice more.  This issue
+;; occurred with talon in [2026-03-21 Sat].
+(phony-define-open-rule cursorfree--compound-constant-element)
 
-(phony-define-open-rule cursorfree-constant
-  :contributes-to cursorfree-compound-constant)
+(phony-defun cursorfree--constant-element (cursorfree-constant)
+  :export nil
+  :contributes-to cursorfree--compound-constant-element
+  (list 'constant cursorfree-constant))
+
+(phony-defun cursorfree--modifier-element (cursorfree-modifier)
+  :export nil
+  :contributes-to cursorfree--compound-constant-element
+  (list 'modifier cursorfree-modifier))
+
+(phony-defun cursorfree--past-element "past"
+  :export nil
+  :contributes-to cursorfree--compound-constant-element
+  '(infix cursorfree-past))
+
+(defun cursorfree--evaluate-compound-constant (elements)
+  (pcase elements
+    (`((constant ,c)) c)
+    (`((modifier ,m) . ,xs)
+     (cursorfree--evaluate-compound-constant
+      (cons `(constant ,(funcall m)) xs)))
+    (`((infix ,_) . ,_)
+     (cursorfree--evaluate-compound-constant
+      (cons `(constant ,(cursorfree-this)) elements)))
+    (`((constant ,c) (modifier ,m) . ,xs)
+     (cursorfree--evaluate-compound-constant
+      (cons `(constant ,(funcall m c)) xs)))
+    (`((constant ,c) (infix ,i) . ,xs)
+     (funcall i c (cursorfree--evaluate-compound-constant xs)))
+    (_ (error "Invalid compound constant sequence."))))
+
+(phony-defun cursorfree-compound-constant
+    ((+ (elements cursorfree--compound-constant-element)))
+  :export nil
+  (cursorfree--evaluate-compound-constant elements))
 
 (phony-defun cursorfree--initial-constant ((target cursorfree-compound-constant))
   :export nil
@@ -141,20 +182,6 @@
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree--make-target-from-hat char color shape))
-
-(phony-defun cursorfree--zeroary-modifier ((modifier cursorfree-modifier))
-  "Return MODIFIER invoked with zero arguments.
-
-This rule exists to allow `cursorfree-range' to work with modifiers
-which may take the place of a constant."
-  :export nil
-  :contributes-to cursorfree-constant
-  (funcall modifier))
-
-(phony-defun cursorfree-range ((? (from cursorfree-constant)) "past" (to cursorfree-constant))
-  :export nil
-  :contributes-to cursorfree-compound-constant
-  (cursorfree-past (or from (cursorfree-this)) to))
 
 (phony-defun cursorfree-row ("row" (index number))
   :export nil
