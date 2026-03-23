@@ -231,91 +231,46 @@ target as output.  The target argument is allowed to be optional.")
      (? "context" (context-lines number)))
   (cursorfree-target-occur target extent context-lines))
 
-(defmacro cursorfree--define-simple-action (name utterance &rest arguments)
-  "
+;; We prefer to factor out the verbs of the simple actions, as this
+;; avoids unnecessary inlining of cursorfree-target by the speech
+;; engine.
+(phony-define-dictionary cursorfree--simple-action-verb
+  '(("take" . cursorfree-target-select)
+    ("copy" . cursorfree-target-copy)
+    ("chuck" . cursorfree-target-chuck)
+    ("bring" . cursorfree-target-bring)
+    ("move" . cursorfree-target-move)
+    ("clone" . cursorfree-target-clone)
+    ("jump" . cursorfree-target-jump)
+    ("pre" . cursorfree-target-jump-beginning)
+    ("post" . cursorfree-target-jump-end)
+    ("comment" . cursorfree-target-comment)
+    ("uncomment" . cursorfree-target-uncomment)
+    ("indent" . cursorfree-target-indent)
+    ("narrow" . cursorfree-target-narrow)
+    ("title" . cursorfree-target-capitalize)
+    ("upcase" . cursorfree-target-upcase)
+    ("downcase" . cursorfree-target-downcase)
+    ("crown" . cursorfree-target-crown)
+    ("center" . cursorfree-target-center)
+    ("bottom" . cursorfree-target-bottom)
+    ("pick" . cursorfree-target-pick)
+    ("fuse" . cursorfree-target-fuse)
+    ("filler" . cursorfree-target-fill)
+    ("join" . cursorfree-target-join)
+    ("break" . cursorfree-target-break)
+    ("flash" . cursorfree-target-pulse)
+    ("help" . cursorfree-target-help)
+    ("drink" . cursorfree-target-drink)
+    ("pour" . cursorfree-target-pour)
+    ("drop" . cursorfree-target-drop)
+    ("float" . cursorfree-target-float)
+    ("puff" . cursorfree-target-puff)))
 
-\(fn NAME UTTERANCE [OPTIONS...] FUNCTION)"
-  (declare (indent defun))
-  (let ((options (butlast arguments))
-        (function (car (last arguments))))
-    `(phony-defun ,(intern (concat "cursorfree-" (symbol-name name) "-simple-action"))
-       (,utterance
-        ,(if (plist-get options :optional-argument)
-             '(? (target cursorfree-target))
-           '(target cursorfree-target)))
-       (if target
-           (funcall ,function
-                    ,(if (plist-get options :use-target-content)
-                         '(cursorfree-target-get target)
-                       'target))
-         (funcall ,function)))))
-
-(cursorfree--define-simple-action take "take"
-  #'cursorfree-target-select)
-(cursorfree--define-simple-action copy "copy"
-  #'cursorfree-target-copy)
-(cursorfree--define-simple-action chuck "chuck"
-  #'cursorfree-target-chuck)
-(cursorfree--define-simple-action bring "bring"
-  #'cursorfree-target-bring)
-(cursorfree--define-simple-action move "move"
-  #'cursorfree-target-move)
-(cursorfree--define-simple-action clone "clone"
-  #'cursorfree-target-clone)
-(cursorfree--define-simple-action jump "jump"
-  #'cursorfree-target-jump)
-(cursorfree--define-simple-action pre "pre"
-  #'cursorfree-target-jump-beginning)
-(cursorfree--define-simple-action post "post"
-  #'cursorfree-target-jump-end)
-(cursorfree--define-simple-action comment "comment"
-  #'cursorfree-target-comment)
-(cursorfree--define-simple-action uncomment "uncomment"
-  #'cursorfree-target-uncomment)
-(cursorfree--define-simple-action indent "indent"
-  #'cursorfree-target-indent)
-(cursorfree--define-simple-action narrow "narrow"
-  #'cursorfree-target-narrow)
-(cursorfree--define-simple-action title "title"
-  #'cursorfree-target-capitalize)
-(cursorfree--define-simple-action upcase "upcase"
-  #'cursorfree-target-upcase)
-(cursorfree--define-simple-action downcase "downcase"
-  #'cursorfree-target-downcase)
-(cursorfree--define-simple-action crown "crown"
-  :optional-argument t
-  #'cursorfree-target-crown)
-(cursorfree--define-simple-action center "center"
-  :optional-argument t
-  #'cursorfree-target-center)
-(cursorfree--define-simple-action bottom "bottom"
-  :optional-argument t
-  #'cursorfree-target-bottom)
-(cursorfree--define-simple-action pick "pick"
-  :optional-argument t
-  #'cursorfree-target-pick)
-(cursorfree--define-simple-action fuse "fuse"
-  #'cursorfree-target-fuse)
-(cursorfree--define-simple-action fill "filler"
-  #'cursorfree-target-fill)
-(cursorfree--define-simple-action join "join"
-  #'cursorfree-target-join)
-(cursorfree--define-simple-action break "break"
-  #'cursorfree-target-break)
-(cursorfree--define-simple-action flash "flash"
-  #'cursorfree-target-pulse)
-(cursorfree--define-simple-action help "help"
-  #'cursorfree-target-help)
-(cursorfree--define-simple-action drink "drink"
-  #'cursorfree-target-drink)
-(cursorfree--define-simple-action pour "pour"
-  #'cursorfree-target-pour)
-(cursorfree--define-simple-action drop "drop"
-  #'cursorfree-target-drop)
-(cursorfree--define-simple-action float "float"
-  #'cursorfree-target-float)
-(cursorfree--define-simple-action puff "puff"
-  #'cursorfree-target-puff)
+(phony-defun cursorfree-simple-action
+    ((verb cursorfree--simple-action-verb)
+     (target cursorfree-target))
+  (funcall (symbol-function verb) target))
 
 
 (phony-defun cursorfree-phony-outside ("outside" (? (delimiter any-alphanumeric-key)))
@@ -330,65 +285,37 @@ target as output.  The target argument is allowed to be optional.")
   (lambda (&optional target)
     (cursorfree-inside target delimiter)))
 
-(defmacro cursorfree--define-simple-modifier (name utterance function)
-  (declare (indent defun))
-  `(phony-defun ,(intern (concat "cursorfree-" (symbol-name name) "-simple"))
-       ,utterance
-     :contributes-to cursorfree-modifier
-     :export nil
-     (apply-partially ,function)))
+(phony-define-dictionary cursorfree--simple-modifier
+  `(("paint" . ,#'cursorfree-paint)
+    ("leftpaint" . ,#'cursorfree-paint-left)
+    ("rightpaint" . ,#'cursorfree-paint-right)
+    ("trim" . ,#'cursorfree-trim)
+    ("past" . ,#'cursorfree-past)
+    ("selection" . ,#'cursorfree-current-selection)
+    ("line" . ,#'cursorfree-line)
+    ("tail" . ,#'cursorfree-line-right)
+    ("head" . ,#'cursorfree-line-left)
+    ("block" . ,#'cursorfree-block)
+    ("token" . ,#'cursorfree-token)
+    ("comment" . ,#'cursorfree-comment)
+    ("string" . ,#'cursorfree-string-literal)
+    ("everything" . ,#'cursorfree-everything)
+    ("visible" . ,#'cursorfree-visible)
+    ("this" . ,#'cursorfree-this)
+    ("every instance" . ,#'cursorfree-every-instance)
+    ("clip" . ,#'cursorfree-kill-ring)
+    ("primary" . ,#'cursorfree-primary-selection)
+    ("next" . ,#'cursorfree-next)
+    ("preve" . ,#'cursorfree-previous)
+    ("beginning" . ,#'cursorfree-beginning)
+    ("end" . ,#'cursorfree-end)
+    ("buffer" . ,#'cursorfree-buffer)
+    ("split" . ,#'cursorfree-window-or-selected)))
 
-(cursorfree--define-simple-modifier paint "paint"
-  #'cursorfree-paint)
-(cursorfree--define-simple-modifier leftpaint "leftpaint"
-  #'cursorfree-paint-left)
-(cursorfree--define-simple-modifier rightpaint "rightpaint"
-  #'cursorfree-paint-right)
-(cursorfree--define-simple-modifier trim "trim"
-  #'cursorfree-trim)
-;; Sunset standalone "past"?
-(cursorfree--define-simple-modifier past "past"
-  #'cursorfree-past)
-(cursorfree--define-simple-modifier selection "selection"
-  #'cursorfree-current-selection)
-(cursorfree--define-simple-modifier line "line"
-  #'cursorfree-line)
-(cursorfree--define-simple-modifier tail "tail"
-  #'cursorfree-line-right)
-(cursorfree--define-simple-modifier head "head"
-  #'cursorfree-line-left)
-(cursorfree--define-simple-modifier block "block"
-  #'cursorfree-block)
-(cursorfree--define-simple-modifier token "token"
-  #'cursorfree-token)
-(cursorfree--define-simple-modifier comment "comment"
-  #'cursorfree-comment)
-(cursorfree--define-simple-modifier string "string"
-  #'cursorfree-string-literal)
-(cursorfree--define-simple-modifier everything "everything"
-  #'cursorfree-everything)
-(cursorfree--define-simple-modifier visible "visible"
-  #'cursorfree-visible)
-(cursorfree--define-simple-modifier this "this"
-  #'cursorfree-this)
-(cursorfree--define-simple-modifier every-instance "every instance"
-  #'cursorfree-every-instance)
-(cursorfree--define-simple-modifier clip "clip"
-  #'cursorfree-kill-ring)
-(cursorfree--define-simple-modifier primary "primary"
-  #'cursorfree-primary-selection)
-(cursorfree--define-simple-modifier next "next"
-  #'cursorfree-next)
-(cursorfree--define-simple-modifier preve "preve"
-  #'cursorfree-previous)
-(cursorfree--define-simple-modifier beginning "beginning"
-  #'cursorfree-beginning)
-(cursorfree--define-simple-modifier end "end"
-  #'cursorfree-end)
-(cursorfree--define-simple-modifier buffer "buffer"
-  #'cursorfree-buffer)
-(cursorfree--define-simple-modifier split "split"
-  #'cursorfree-window-or-selected)
+(phony-defun cursorfree--simple-modifier-rule (cursorfree--simple-modifier)
+  :export nil
+  :contributes-to cursorfree-modifier
+  cursorfree--simple-modifier)
 
 ;; TODO add sentence, link.  Or wait until I move scopes here as well.
 
