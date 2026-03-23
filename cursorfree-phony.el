@@ -286,6 +286,7 @@ target as output.  The target argument is allowed to be optional.")
     (cursorfree-inside target delimiter)))
 
 (phony-define-dictionary cursorfree--simple-modifier
+  :contributes-to cursorfree-modifier
   `(("paint" . ,#'cursorfree-paint)
     ("leftpaint" . ,#'cursorfree-paint-left)
     ("rightpaint" . ,#'cursorfree-paint-right)
@@ -311,13 +312,6 @@ target as output.  The target argument is allowed to be optional.")
     ("end" . ,#'cursorfree-end)
     ("buffer" . ,#'cursorfree-buffer)
     ("split" . ,#'cursorfree-window-or-selected)))
-
-(phony-defun cursorfree--simple-modifier-rule (cursorfree--simple-modifier)
-  :export nil
-  :contributes-to cursorfree-modifier
-  cursorfree--simple-modifier)
-
-;; TODO add sentence, link.  Or wait until I move scopes here as well.
 
 (provide 'cursorfree-phony)
 ;;; cursorfree-phony.el ends here
