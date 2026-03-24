@@ -42,14 +42,6 @@ target as output.  The target argument is allowed to be optional.")
   :export nil
   (cursorfree--evaluate-target-elements elements))
 
-(phony-defun cursorfree-content ((target cursorfree-target))
-  :export nil
-  (cursorfree-target-get target))
-
-(phony-defun cursorfree-region ((target cursorfree-target))
-  :export nil
-  (cursorfree-content-region target))
-
 (phony-define-open-rule cursorfree-constant
   "Simple rules that provide some value when evaluated.")
 
@@ -98,54 +90,54 @@ target as output.  The target argument is allowed to be optional.")
         . ,xs)))
     (_ (error "Invalid target element sequence."))))
 
-(phony-defun cursorfree-window ("split" (n digit))
+(phony-defun cursorfree--window ("split" (n digit))
   :export nil
   :contributes-to cursorfree-constant
   (winum-get-window-by-number n))
 
-(phony-defun cursorfree-word ("word" (word word))
+(phony-defun cursorfree--word ("word" (word word))
   :export nil
   :contributes-to cursorfree-constant
   word)
 
-(phony-defun cursorfree-number ("numb" (n number))
+(phony-defun cursorfree--number ("numb" (n number))
   :export nil
   :contributes-to cursorfree-constant
   n)
 
-(phony-defun cursorfree-character ("car" (c any-alphanumeric-key))
+(phony-defun cursorfree--character ("car" (c any-alphanumeric-key))
   :export nil
   :contributes-to cursorfree-constant
   (string c))
 
-(phony-defun cursorfree-that "that"
+(phony-defun cursorfree--that "that"
   :export nil
   :contributes-to cursorfree-constant
   cursorfree--target-that)
 
-(phony-defun cursorfree-source "source"
+(phony-defun cursorfree--source "source"
   :export nil
   :contributes-to cursorfree-constant
   cursorfree--target-source)
 
-(phony-defun cursorfree-its "its"
+(phony-defun cursorfree--its "its"
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
-(phony-defun cursorfree-itself "itself"
+(phony-defun cursorfree--itself "itself"
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
-(phony-define-dictionary cursorfree-color
+(phony-define-dictionary cursorfree--color
   '(("squash" . yellow)
     ("red" . red)
     ("blue" .  blue)
     ("pink" . pink)
     ("green" . green)))
 
-(phony-define-dictionary cursorfree-shape
+(phony-define-dictionary cursorfree--shape
   '(("bolt" . bolt)
     ("curve" . curve)
     ("fox" . fox)
@@ -157,50 +149,57 @@ target as output.  The target argument is allowed to be optional.")
     ("cross" . cross)
     ("I" . eye)))
 
-(phony-defun cursorfree-hat
-    ((? (color cursorfree-color))
-     (? (shape cursorfree-shape))
+(phony-defun cursorfree--hat
+    ((? (color cursorfree--color))
+     (? (shape cursorfree--shape))
      (char any-alphanumeric-key))
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree--make-target-from-hat char color shape))
 
-(phony-defun cursorfree-row ("row" (index number))
+(phony-defun cursorfree--row ("row" (index number))
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree-row-modulo-100 index))
 
-(phony-defun cursorfree-long-row ("long row" (index number))
+(phony-defun cursorfree--long-row ("long row" (index number))
   :export nil
   :contributes-to cursorfree-constant
   (cursorfree-row index))
 
 
-(phony-define-dictionary cursorfree-destination-modifiers
+(phony-define-dictionary cursorfree--destination-modifiers
   `(("to" . cursorfree--put)
     ("after" . cursorfree--put-after)
     ("before" . cursorfree--put-before)))
 
-(phony-defun cursorfree-bring
+(phony-defun cursorfree--bring
     ("bring"
      (from cursorfree-target)
-     (modifier cursorfree-destination-modifiers)
+     (modifier cursorfree--destination-modifiers)
      (to cursorfree-target))
   (cursorfree--target-bring from to :putter modifier))
 
-(phony-defun cursorfree-change ("change" (target cursorfree-target) (? "to" (source cursorfree-target)))
+(phony-defun cursorfree--change
+    ("change"
+     (target cursorfree-target)
+     (? "to" (source cursorfree-target)))
   (if source
       (cursorfree-target-bring source target)
     (cursorfree-target-change target)))
 
-(phony-defun cursorfree-move
+(phony-defun cursorfree--move
     ("move"
      (from cursorfree-target)
-     (modifier cursorfree-destination-modifiers)
+     (modifier cursorfree--destination-modifiers)
      (to cursorfree-target))
   (cursorfree--target-move from to :putter modifier))
 
-(phony-defun cursorfree-swap ("swap" (from cursorfree-target) "with" (to cursorfree-target))
+(phony-defun cursorfree--swap
+    ("swap"
+     (from cursorfree-target)
+     "with"
+     (to cursorfree-target))
   (cursorfree-target-swap from to))
 
 (phony-define-open-rule cursorfree-wrapper)
@@ -210,21 +209,21 @@ target as output.  The target argument is allowed to be optional.")
   :contributes-to cursorfree-wrapper
   (apply-partially #'cursorfree-target-wrap character))
 
-(phony-defun cursorfree-wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
+(phony-defun cursorfree--wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
   (setq target (or target (cursorfree-this)))
   (funcall wrapper target)
   (setq cursorfree--target-that target))
 
-(phony-defun cursorfree-unwrap ("unwrap" (target cursorfree-target))
+(phony-defun cursorfree--unwrap ("unwrap" (target cursorfree-target))
   (cursorfree-target-unwrap target)
   (setq cursorfree--target-that target))
 
-(phony-defun cursorfree-rewrap ("rewrap" (? (target cursorfree-target)) "with" (character symbol-key))
+(phony-defun cursorfree--rewrap ("rewrap" (? (target cursorfree-target)) "with" (character symbol-key))
   (setq target (or target (cursorfree-this)))
   (cursorfree-target-rewrap character target)
   (setq cursorfree--target-that target))
 
-(phony-defun cursorfree-occur
+(phony-defun cursorfree--occur
     ("hunt"
      (target cursorfree-target)
      (? "in" (extent cursorfree-target))
@@ -267,19 +266,18 @@ target as output.  The target argument is allowed to be optional.")
     ("float" . cursorfree-target-float)
     ("puff" . cursorfree-target-puff)))
 
-(phony-defun cursorfree-simple-action
+(phony-defun cursorfree--simple-action
     ((verb cursorfree--simple-action-verb)
      (target cursorfree-target))
   (funcall (symbol-function verb) target))
 
-
-(phony-defun cursorfree-phony-outside ("outside" (? (delimiter any-alphanumeric-key)))
+(phony-defun cursorfree--outside ("outside" (? (delimiter any-alphanumeric-key)))
   :export nil
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-outside target delimiter)))
 
-(phony-defun cursorfree-phony-inside ("inside" (? (delimiter any-alphanumeric-key)))
+(phony-defun cursorfree--inside ("inside" (? (delimiter any-alphanumeric-key)))
   :export nil
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
@@ -287,31 +285,31 @@ target as output.  The target argument is allowed to be optional.")
 
 (phony-define-dictionary cursorfree--simple-modifier
   :contributes-to cursorfree-modifier
-  `(("paint" . ,#'cursorfree-paint)
-    ("leftpaint" . ,#'cursorfree-paint-left)
-    ("rightpaint" . ,#'cursorfree-paint-right)
-    ("trim" . ,#'cursorfree-trim)
-    ("past" . ,#'cursorfree-past)
-    ("selection" . ,#'cursorfree-current-selection)
-    ("line" . ,#'cursorfree-line)
-    ("tail" . ,#'cursorfree-line-right)
-    ("head" . ,#'cursorfree-line-left)
-    ("block" . ,#'cursorfree-block)
-    ("token" . ,#'cursorfree-token)
-    ("comment" . ,#'cursorfree-comment)
-    ("string" . ,#'cursorfree-string-literal)
-    ("everything" . ,#'cursorfree-everything)
-    ("visible" . ,#'cursorfree-visible)
-    ("this" . ,#'cursorfree-this)
-    ("every instance" . ,#'cursorfree-every-instance)
-    ("clip" . ,#'cursorfree-kill-ring)
-    ("primary" . ,#'cursorfree-primary-selection)
-    ("next" . ,#'cursorfree-next)
-    ("preve" . ,#'cursorfree-previous)
-    ("beginning" . ,#'cursorfree-beginning)
-    ("end" . ,#'cursorfree-end)
-    ("buffer" . ,#'cursorfree-buffer)
-    ("split" . ,#'cursorfree-window-or-selected)))
+  '(("paint" . cursorfree-paint)
+    ("leftpaint" . cursorfree-paint-left)
+    ("rightpaint" . cursorfree-paint-right)
+    ("trim" . cursorfree-trim)
+    ("past" . cursorfree-past)
+    ("selection" . cursorfree-current-selection)
+    ("line" . cursorfree-line)
+    ("tail" . cursorfree-line-right)
+    ("head" . cursorfree-line-left)
+    ("block" . cursorfree-block)
+    ("token" . cursorfree-token)
+    ("comment" . cursorfree-comment)
+    ("string" . cursorfree-string-literal)
+    ("everything" . cursorfree-everything)
+    ("visible" . cursorfree-visible)
+    ("this" . cursorfree-this)
+    ("every instance" . cursorfree-every-instance)
+    ("clip" . cursorfree-kill-ring)
+    ("primary" . cursorfree-primary-selection)
+    ("next" . cursorfree-next)
+    ("preve" . cursorfree-previous)
+    ("beginning" . cursorfree-beginning)
+    ("end" . cursorfree-end)
+    ("buffer" . cursorfree-buffer)
+    ("split" . cursorfree-window-or-selected)))
 
 (provide 'cursorfree-phony)
 ;;; cursorfree-phony.el ends here
