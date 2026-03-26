@@ -1631,50 +1631,52 @@ WINDOW defaults to the selected window."
 (defun cursorfree-line-right (&optional target)
   "Extend TARGET to the final non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (let ((target-content-region (cursorfree-content-region target))
-        (target-deletion-region (cursorfree--deletion-region target))
-        space-length
-        content-region
-        deletion-region)
-    (save-excursion
-      (set-buffer (cursorfree-buffer target))
-      (goto-char (cdr target-content-region))
-      (unless (search-forward "\n" nil t)
-        (goto-char (point-max)))
-      (setq deletion-region (cons (car target-deletion-region) (point)))
-      (skip-chars-backward "[:space:]\n" (cdr target-content-region))
-      (setq content-region (cons (car target-content-region) (point)))
+  (cursorfree--sweep target
+    (let ((target-content-region (cursorfree-content-region target))
+          (target-deletion-region (cursorfree--deletion-region target))
+          space-length
+          content-region
+          deletion-region)
+      (save-excursion
+        (set-buffer (cursorfree-buffer target))
+        (goto-char (cdr target-content-region))
+        (unless (search-forward "\n" nil t)
+          (goto-char (point-max)))
+        (setq deletion-region (cons (car target-deletion-region) (point)))
+        (skip-chars-backward "[:space:]\n" (cdr target-content-region))
+        (setq content-region (cons (car target-content-region) (point)))
 
-      (cursorfree-make-target
-       content-region
-       :deletion-region deletion-region
-       :pre-insertion-string (cursorfree-region-target-pre-insertion-string target)
-       :post-insertion-string (cursorfree-region-target-pre-insertion-string (cursorfree-line-left target))))))
+        (cursorfree-make-target
+         content-region
+         :deletion-region deletion-region
+         :pre-insertion-string (cursorfree-region-target-pre-insertion-string target)
+         :post-insertion-string (cursorfree-region-target-pre-insertion-string (cursorfree-line-left target)))))))
 
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to the first non-whitespace character of its line."
   (setq target (or target (cursorfree-this)))
-  (let ((target-content-region (cursorfree-content-region target))
-        (target-deletion-region (cursorfree--deletion-region target))
-        space-length
-        content-region
-        deletion-region)
-    (save-excursion
-      (set-buffer (cursorfree-buffer target))
-      (goto-char (car (cursorfree-content-region target)))
-      (if (search-backward "\n" nil t)
-          (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
-        (goto-char (point-min))
-        (setq deletion-region (cons (point) (cdr target-deletion-region))))
-      (skip-chars-forward "[:space:]\n" (car target-content-region))
-      (setq content-region (cons (point) (cdr target-content-region)))
-      (setq space-length (abs (- (car deletion-region) (car content-region))))
+  (cursorfree--sweep target
+    (let ((target-content-region (cursorfree-content-region target))
+          (target-deletion-region (cursorfree--deletion-region target))
+          space-length
+          content-region
+          deletion-region)
+      (save-excursion
+        (set-buffer (cursorfree-buffer target))
+        (goto-char (car (cursorfree-content-region target)))
+        (if (search-backward "\n" nil t)
+            (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
+          (goto-char (point-min))
+          (setq deletion-region (cons (point) (cdr target-deletion-region))))
+        (skip-chars-forward "[:space:]\n" (car target-content-region))
+        (setq content-region (cons (point) (cdr target-content-region)))
+        (setq space-length (abs (- (car deletion-region) (car content-region))))
 
-      (cursorfree-make-target
-       content-region
-       :deletion-region deletion-region
-       :pre-insertion-string (concat "\n" (make-string space-length ?\ ))
-       :post-insertion-string (cursorfree-region-target-post-insertion-string target)))))
+        (cursorfree-make-target
+         content-region
+         :deletion-region deletion-region
+         :pre-insertion-string (concat "\n" (make-string space-length ?\ ))
+         :post-insertion-string (cursorfree-region-target-post-insertion-string target))))))
 
 (defun cursorfree-line (&optional target)
   "Extend TARGET to cover all non-whitespace characters on its line."
@@ -1701,22 +1703,23 @@ TARGET defaults to the return value of `cursorfree-this'."
 (defun cursorfree-block (&optional target)
   "Extend TARGET to the smallest region with empty lines on both sides."
   (setq target (or target (cursorfree-this)))
-  (save-excursion
+  (cursorfree--sweep target
     (cursorfree-on-content-region target
       (lambda (region)
-        (goto-char (car region))
-        (unless (re-search-backward (rx "\n" (* blank) "\n") nil t)
-          (goto-char (point-min)))
-        (skip-chars-forward  "\n[:blank:]")
-        (let ((start (point)))
-          (goto-char (cdr region))
-          (unless (re-search-forward (rx "\n" (* blank) "\n") nil t)
-            (goto-char (point-max)))
-          (let ((result (cursorfree-trim
-                         (cursorfree-make-target (cons start (point))))))
-            (oset result post-insertion-string "\n\n")
-            (oset result pre-insertion-string "\n\n")
-            result))))))
+        (save-excursion
+          (goto-char (car region))
+          (unless (re-search-backward (rx "\n" (* blank) "\n") nil t)
+            (goto-char (point-min)))
+          (skip-chars-forward  "\n[:blank:]")
+          (let ((start (point)))
+            (goto-char (cdr region))
+            (unless (re-search-forward (rx "\n" (* blank) "\n") nil t)
+              (goto-char (point-max)))
+            (let ((result (cursorfree-trim
+                           (cursorfree-make-target (cons start (point))))))
+              (oset result post-insertion-string "\n\n")
+              (oset result pre-insertion-string "\n\n")
+              result)))))))
 
 (defun cursorfree-row (index)
   "Return the line on row INDEX."
