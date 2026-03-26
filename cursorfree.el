@@ -95,28 +95,29 @@ Create a new cursor each time.
 Each target is assumed to be in the same buffer.
 
 If invoking FUNCTION causes an error, no cursor is created."
-  (when targets
-    (when (and (cdr targets)
-               (not (fboundp 'mc/create-fake-cursor-at-point)))
-      (user-error "Using this operation on parallel targets requires the `multiple-cursors' package"))
-    (cursorfree-on-content-region (car targets)
+  (when (and (> (seq-length targets) 1)
+             (not (fboundp 'mc/create-fake-cursor-at-point)))
+    (user-error "Using this operation on parallel targets requires the `multiple-cursors' package"))
+  (unless (seq-empty-p targets)
+    ;; TODO: Keep track of which buffers we have visited, so we only
+    ;; create new cursors when we visit multiple buffers.
+    (cursorfree-on-content-region (seq-first targets)
       ;; We do not actually use region, we only invoke the above function
       ;; to ensure that everything is performed in the correct context.
       (lambda (region)
         (multiple-cursors-mode 0)
 
         ;; Only create new cursors for non-final elements.
-        (while (cdr targets)
+        (seq-doseq (target (seq-take targets (1- (seq-length targets))))
           ;; Error?  No issue, just try again with the next element.
           (condition-case e
-              (funcall function (car targets))
+              (funcall function target)
             (:success (multiple-cursors-mode 1)
                       (mc/create-fake-cursor-at-point))
-            (error nil))
-          (pop targets))
+            (error nil)))
 
         ;; Finally, do it once with the real cursor
-        (funcall function (car targets))))))
+        (funcall function (seq-elt targets (1- (seq-length targets))))))))
 
 (defun cursorfree-make-modifier (function)
   "Translate FUNCTION to an instruction producing a value.
@@ -218,6 +219,22 @@ Otherwise, it returns a parallel containing TARGET as its sole element."
   (if (cursorfree-parallel-target-p target)
       target
     (cursorfree-make-parallel target)))
+
+(defmacro cursorfree--sweep (target &rest body)
+  "Evaluate BODY over variable TARGET.
+
+If TARGET is a parallel with multiple elements, BODY is evaluated once
+per element, in order, with NAME bound to the individual elements.  The
+result of each evaluation is then collected into a parallel.  Otherwise,
+BODY is evaluated once, and the result is the result of evaluating BODY.
+
+If the resultant value is a parallel of one element, that element is
+returned directly."
+  (declare (indent 1))
+  (cl-assert (symbolp target) nil "TARGET is not a symbol: %S" target)
+  `(cursorfree--normalize-target
+    (seq-map (lambda (,target) ,@body)
+             (cursorfree--ensure-parallel ,target))))
 
 (defun cursorfree--guess-deletion-region (region)
   "Guess the correct deletion region for REGION."
@@ -403,15 +420,8 @@ as selected or current respectively."
   "Apply F to the content region of each TARGET.
 
 The return values are collected into a parallel target."
-  (let ((result '()))
-    (seq-doseq (target (cursorfree-parallel-target-targets target))
-      (push (cursorfree-on-content-region target f)
-            result))
-    ;;HACK: Always wrap the results in a parallel-target.  In this way,
-    ;;if f returns a target, we will automatically promote the result
-    ;;into a parallel target.
-    (make-cursorfree-parallel-target
-     :targets (nreverse result))))
+  (cursorfree--sweep target
+    (cursorfree-on-content-region target f)))
 
 (cl-defmethod cursorfree-on-content-region ((buffer buffer) f)
   "Apply F to the contents of BUFFER."
@@ -446,7 +456,7 @@ For a similar function not creating new cursors, see
      (cursorfree-on-content-region target
        (lambda (region)
          (funcall f region))))
-   (cursorfree-parallel-target-targets target)))
+   target))
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a hatty token.
@@ -488,7 +498,7 @@ by `hatty-locate-token'."
 
 (cl-defmethod cursorfree-target-get ((target cursorfree-parallel-target))
   "Return the buffer substring of TARGET."
-  (seq-map #'cursorfree-target-get (cursorfree-parallel-target-targets target)))
+  (seq-map #'cursorfree-target-get target))
 
 (cl-defgeneric cursorfree-target-put (target content)
   "Put CONTENT into TARGET."
@@ -530,7 +540,7 @@ TARGET will be modified to cover the region containing CONTENT."
 
 (cl-defmethod cursorfree-target-put ((parallel cursorfree-parallel-target) content)
   "Put CONTENT into each element of PARALLEL."
-  (seq-doseq (target (oref parallel targets))
+  (seq-doseq (target parallel)
     (cursorfree-target-put target content)))
 
 (cl-defmethod cursorfree-target-put ((parallel cursorfree-parallel-target) (content list))
@@ -539,10 +549,10 @@ TARGET will be modified to cover the region containing CONTENT."
 That is, the first element gets put into the first element, the second
 in the second, and so on.  If the lengths don't match, a user error is
 signaled."
-  (if (not (eq (seq-length (oref parallel targets))
+  (if (not (eq (seq-length parallel)
                (seq-length content)))
       (user-error "Mismatching length of put-ed content list and parallel target")
-    (seq-mapn #'cursorfree-target-put (oref parallel targets) content)))
+    (seq-mapn #'cursorfree-target-put parallel content)))
 
 (cl-defstruct (cursorfree--this-target (:include cursorfree-region-target))
   "Target indicating the \"the currently active thing\".  The meaning
@@ -682,12 +692,9 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
   (cursorfree--target-put-after target (cursorfree-target-get source)))
 
 (cl-defmethod cursorfree--put ((target cursorfree-parallel-target) (source cursorfree-parallel-target))
-  (let ((target-targets (cursorfree-parallel-target-targets target))
-        (source-targets (cursorfree-parallel-target-targets source)))
-    (if (not (eq (seq-length target-targets)
-                 (seq-length source-targets)))
-        (user-error "Mismatching length of parallel targets")
-      (seq-mapn #'cursorfree--put target-targets source-targets))))
+  (unless (= (seq-length target) (seq-length source))
+    (user-error "Mismatching length of parallel targets"))
+  (seq-mapn #'cursorfree--put target source))
 
 ;;;; End of core functions
 
@@ -826,8 +833,7 @@ Try to fix up affected indentation."
 
 (cl-defmethod cursorfree-target-delete ((parallel cursorfree-parallel-target))
   "Delete each element of PARALLEL."
-  (seq-doseq (target (cursorfree-parallel-target-targets parallel))
-    (cursorfree-target-delete target)))
+  (seq-do #'cursorfree-target-delete parallel))
 
 (cl-defmethod cursorfree-target-delete ((window window))
   "Delete WINDOW."
@@ -972,9 +978,7 @@ BUFFER is not deleted, so this is equivalent to
 
 (cl-defmethod cursorfree--target-change ((target cursorfree-parallel-target))
   "Remove contents of TARGET and put points there."
-  (cursorfree--multiple-cursors-do
-   #'cursorfree--target-change
-   (cursorfree-parallel-target-targets target)))
+  (cursorfree--multiple-cursors-do #'cursorfree--target-change target))
 
 (defun cursorfree-target-change (&rest targets)
   "Move point to TARGETS and delete its contents."
