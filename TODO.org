@@ -11,3 +11,5 @@ lists as well.
 Also document the ones part of the apis
 
 * TODO Make hatty dependency optional
+
+* TODO Shortdoc
