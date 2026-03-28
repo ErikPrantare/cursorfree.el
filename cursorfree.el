@@ -39,7 +39,7 @@
   :prefix "cursorfree-"
   :link '(emacs-commentary-link :tag "Commentary" "cursorfree.el"))
 
-(defcustom cursorfree-highlight-deletions-p t
+(defcustom cursorfree-highlight-deletions t
   "Whether to highlight text about to be deleted.
 This is useful as visual feedback that the action just performed was the
 one intended.  To turn this off, set this option to nil."
@@ -791,7 +791,7 @@ Try to fix up affected indentation."
 (cl-defgeneric cursorfree--indicate-deletion (target)
   "Indicate that TARGET is about to be deleted.
 
-This can be turned off with `cursorfree-highlight-deletions-p'.  The
+This can be turned off with `cursorfree-highlight-deletions'.  The
 highlight color can be customized with
 `cursorfree-deletion-highlight-face'."
   ;; TODO: Implement multiple regions for pulsing.  See pulse-faces in Emacs 31.
@@ -799,7 +799,7 @@ highlight color can be customized with
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region-target))
   "Highlight deletion region of TARGET momentarily."
-  (when cursorfree-highlight-deletions-p
+  (when cursorfree-highlight-deletions
     (with-current-buffer (cursorfree--target-buffer target)
       (let* ((region (cursorfree-content-region target))
              (overlay (make-overlay (car region) (cdr region))))
@@ -811,7 +811,7 @@ highlight color can be customized with
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-parallel-target))
   "Highlight deletion region of each target in TARGET momentarily."
   ;; FIXME: Can't we just indicate deletion for each element?
-  (when cursorfree-highlight-deletions-p
+  (when cursorfree-highlight-deletions
     (let ((overlays '()))
       (cursorfree-on-content-region target
         (lambda (region)

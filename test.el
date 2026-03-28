@@ -80,7 +80,7 @@
                form))))
 
 (defun cursorfree--run-test (parameters)
-  (let ((cursorfree-highlight-deletions-p nil))
+  (let ((cursorfree-highlight-deletions nil))
     (save-window-excursion
       ;; Side windows cannot become the only window
       (select-window (get-window-with-predicate
