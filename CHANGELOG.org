@@ -62,6 +62,8 @@
     given) to cover a code comment.
   - New modifier "string": Expand target (or "this" if no target is
     given) to cover a string literal.
+  - New modifier "sentence": Expand target (or "this" if no target is
+    given) to cover a sentence.
   - "everything" can now take an optional argument to get everything
     in the ~cursorfree-buffer~ of that target.
   - "line" and "block" are now trimmed, i.e. contain no whitespace on
@@ -75,8 +77,6 @@
     argument.
   - "visible" now takes an optional window argument, selecting which
     window the visible portion should be taken from.
-- New function ~cursorfree-sentence~ for selecting a sentence.
-  Currently has no speech binding.
 - Removed ~cursorfree-evaluate-environment~, ~cursorfree-evaluate~,
   ~cursorfree-make-modifier~ and ~cursorfree-make-action~.
 - Removed dependency on ~evil~.

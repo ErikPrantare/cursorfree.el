@@ -323,7 +323,8 @@ target as output.  The target argument is allowed to be optional.")
     ("beginning" . cursorfree-beginning)
     ("end" . cursorfree-end)
     ("buffer" . cursorfree-buffer)
-    ("split" . cursorfree-window-or-selected)))
+    ("split" . cursorfree-window-or-selected)
+    ("sentence" . cursorfree-sentence)))
 
 (provide 'cursorfree-phony)
 ;;; cursorfree-phony.el ends here
