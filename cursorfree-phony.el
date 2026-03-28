@@ -97,7 +97,7 @@ target as output.  The target argument is allowed to be optional.")
     (`((constant ,c1) and (constant ,c2) . ,xs)
      (cursorfree--evaluate-target-elements
       `((constant ,(seq-concatenate
-                    'cursorfree-parallel-target
+                    'cursorfree--parallel
                     (cursorfree--ensure-parallel c1)
                     (cursorfree--ensure-parallel c2)))
         . ,xs)))
@@ -198,8 +198,8 @@ target as output.  The target argument is allowed to be optional.")
      (target cursorfree-target)
      (? "to" (source cursorfree-target)))
   (if source
-      (cursorfree-target-bring source target)
-    (cursorfree-target-change target)))
+      (cursorfree-bring source target)
+    (cursorfree-change target)))
 
 (phony-defun cursorfree--move
     ("move"
@@ -213,14 +213,14 @@ target as output.  The target argument is allowed to be optional.")
      (from cursorfree-target)
      "with"
      (to cursorfree-target))
-  (cursorfree-target-swap from to))
+  (cursorfree-swap from to))
 
 (phony-define-open-rule cursorfree-wrapper)
 
 (phony-defun character-wrapper ((? "car") (character symbol-key))
   :export nil
   :contributes-to cursorfree-wrapper
-  (apply-partially #'cursorfree-target-wrap character))
+  (apply-partially #'cursorfree-wrap character))
 
 (phony-defun cursorfree--wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
   (setq target (or target (cursorfree-this)))
@@ -228,12 +228,12 @@ target as output.  The target argument is allowed to be optional.")
   (setq cursorfree--target-that target))
 
 (phony-defun cursorfree--unwrap ("unwrap" (target cursorfree-target))
-  (cursorfree-target-unwrap target)
+  (cursorfree-unwrap target)
   (setq cursorfree--target-that target))
 
 (phony-defun cursorfree--rewrap ("rewrap" (? (target cursorfree-target)) "with" (character symbol-key))
   (setq target (or target (cursorfree-this)))
-  (cursorfree-target-rewrap character target)
+  (cursorfree-rewrap character target)
   (setq cursorfree--target-that target))
 
 (phony-defun cursorfree--occur
@@ -241,43 +241,43 @@ target as output.  The target argument is allowed to be optional.")
      (target cursorfree-target)
      (? "in" (extent cursorfree-target))
      (? "context" (context-lines number)))
-  (cursorfree-target-occur target extent context-lines))
+  (cursorfree-occur target extent context-lines))
 
 ;; We prefer to factor out the verbs of the simple actions, as this
 ;; avoids unnecessary inlining of cursorfree-target by the speech
 ;; engine.
 (phony-define-dictionary cursorfree--simple-action-verb
-  '(("take" . cursorfree-target-select)
-    ("copy" . cursorfree-target-copy)
-    ("chuck" . cursorfree-target-chuck)
-    ("bring" . cursorfree-target-bring)
-    ("move" . cursorfree-target-move)
-    ("clone" . cursorfree-target-clone)
-    ("jump" . cursorfree-target-jump)
-    ("pre" . cursorfree-target-jump-beginning)
-    ("post" . cursorfree-target-jump-end)
-    ("comment" . cursorfree-target-comment)
-    ("uncomment" . cursorfree-target-uncomment)
-    ("indent" . cursorfree-target-indent)
-    ("narrow" . cursorfree-target-narrow)
-    ("title" . cursorfree-target-capitalize)
-    ("upcase" . cursorfree-target-upcase)
-    ("downcase" . cursorfree-target-downcase)
-    ("crown" . cursorfree-target-crown)
-    ("center" . cursorfree-target-center)
-    ("bottom" . cursorfree-target-bottom)
-    ("pick" . cursorfree-target-pick)
-    ("fuse" . cursorfree-target-fuse)
-    ("filler" . cursorfree-target-fill)
-    ("join" . cursorfree-target-join)
-    ("break" . cursorfree-target-break)
-    ("flash" . cursorfree-target-pulse)
-    ("help" . cursorfree-target-help)
-    ("drink" . cursorfree-target-drink)
-    ("pour" . cursorfree-target-pour)
-    ("drop" . cursorfree-target-drop)
-    ("float" . cursorfree-target-float)
-    ("puff" . cursorfree-target-puff)))
+  '(("take" . cursorfree-select)
+    ("copy" . cursorfree-copy)
+    ("chuck" . cursorfree-chuck)
+    ("bring" . cursorfree-bring)
+    ("move" . cursorfree-move)
+    ("clone" . cursorfree-clone)
+    ("jump" . cursorfree-jump)
+    ("pre" . cursorfree-jump-beginning)
+    ("post" . cursorfree-jump-end)
+    ("comment" . cursorfree-comment)
+    ("uncomment" . cursorfree-uncomment)
+    ("indent" . cursorfree-indent)
+    ("narrow" . cursorfree-narrow)
+    ("title" . cursorfree-capitalize)
+    ("upcase" . cursorfree-upcase)
+    ("downcase" . cursorfree-downcase)
+    ("crown" . cursorfree-crown)
+    ("center" . cursorfree-center)
+    ("bottom" . cursorfree-bottom)
+    ("pick" . cursorfree-pick)
+    ("fuse" . cursorfree-fuse)
+    ("filler" . cursorfree-fill)
+    ("join" . cursorfree-join)
+    ("break" . cursorfree-break)
+    ("flash" . cursorfree-pulse)
+    ("help" . cursorfree-help)
+    ("drink" . cursorfree-drink)
+    ("pour" . cursorfree-pour)
+    ("drop" . cursorfree-drop)
+    ("float" . cursorfree-float)
+    ("puff" . cursorfree-puff)))
 
 (phony-defun cursorfree--simple-action
     ((verb cursorfree--simple-action-verb)

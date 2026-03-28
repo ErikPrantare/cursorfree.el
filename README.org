@@ -110,32 +110,32 @@ first argument, the next one for the second argument, and so on.
 |-------------+----------------------------------|
 | Spoken form | Function                         |
 |-------------+----------------------------------|
-| select      | cursorfree-target-select         |
-| copy        | cursorfree-target-copy           |
-| chuck       | cursorfree-target-chuck          |
-| bring       | cursorfree-target-bring          |
-| move        | cursorfree-target-move           |
-| swap        | cursorfree-target-swap           |
-| clone       | cursorfree-target-clone          |
-| jump        | cursorfree-target-jump-beginning |
-| pre         | cursorfree-target-jump-beginning |
-| post        | cursorfree-target-jump-end       |
-| change      | cursorfree-target-change         |
-| comment     | cursorfree-target-comment        |
-| uncomment   | cursorfree-target-uncomment      |
-| indent      | cursorfree-target-indent         |
-| narrow      | cursorfree-target-narrow         |
-| wrap        | cursorfree-target-wrap           |
-| filler      | cursorfree-target-fill           |
-| title       | cursorfree-target-capitalize     |
-| upcase      | cursorfree-target-upcase         |
-| downcase    | cursorfree-target-downcase       |
-| crown       | cursorfree-target-crown          |
-| center      | cursorfree-target-center         |
-| bottom      | cursorfree-target-bottom         |
-| pick        | cursorfree-target-pick           |
-| fuse        | cursorfree-target-fuse           |
-| join        | cursorfree-target-join           |
+| select      | cursorfree-select         |
+| copy        | cursorfree-copy           |
+| chuck       | cursorfree-chuck          |
+| bring       | cursorfree-bring          |
+| move        | cursorfree-move           |
+| swap        | cursorfree-swap           |
+| clone       | cursorfree-clone          |
+| jump        | cursorfree-jump-beginning |
+| pre         | cursorfree-jump-beginning |
+| post        | cursorfree-jump-end       |
+| change      | cursorfree-change         |
+| comment     | cursorfree-comment        |
+| uncomment   | cursorfree-uncomment      |
+| indent      | cursorfree-indent         |
+| narrow      | cursorfree-narrow         |
+| wrap        | cursorfree-wrap           |
+| filler      | cursorfree-fill           |
+| title       | cursorfree-capitalize     |
+| upcase      | cursorfree-upcase         |
+| downcase    | cursorfree-downcase       |
+| crown       | cursorfree-crown          |
+| center      | cursorfree-center         |
+| bottom      | cursorfree-bottom         |
+| pick        | cursorfree-pick           |
+| fuse        | cursorfree-fuse           |
+| join        | cursorfree-join           |
 |-------------+----------------------------------|
 
 *** Modifiers

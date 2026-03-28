@@ -10,8 +10,8 @@
   If the parallel targets match in size, the targets will be brought
   one-to-one.
 - Support for custom target types: For your custom types, override the
-  generic functions ~cursorfree-target-get~ and/or
-  ~cursorfree-target-put~.  This will allow many actions to work on
+  generic functions ~cursorfree-get~ and/or
+  ~cursorfree-put~.  This will allow many actions to work on
   them as well, particularly the action "bring".
 - New primitive target: "split <number>" will now put the window
   corresponding to <number> onto the stack.  This requires winum to be
