@@ -43,9 +43,9 @@
            :string ""
            :points nil)
           :type my/test-buffer-state)
-  (from-same-buffer t
-                    :documentation "Whether evaluating the command is invariant to the
-    selected window.")
+  (from-same-buffer nil
+                    :documentation "Whether evaluating the command must be done from
+    the same buffer as the targets.")
   (setup #'ignore))
 
 (defun cursorfree--multiple-cursor-points ()
@@ -70,6 +70,15 @@
   (should (equal (seq-sort #'< (cursorfree--multiple-cursor-points))
                  (seq-sort #'< (oref (oref parameters after) points)))))
 
+(defun cursorfree--test-inject-buffer (form buffer)
+  "Rewrite FORM so `cursorfree-make-target' uses BUFFER."
+  (pcase form
+    (`(cursorfree-make-target (cons ,x ,y))
+     `(cursorfree-make-target (cons ,x ,y) :buffer ,buffer))
+    ((pred atom) form)
+    (_ (mapcar (lambda (x) (cursorfree--test-inject-buffer x buffer))
+               form))))
+
 (defun cursorfree--run-test (parameters)
   (let ((cursorfree-highlight-deletions-p nil))
     (save-window-excursion
@@ -91,12 +100,13 @@
 
               (unless (cursorfree--test-parameters-from-same-buffer parameters)
                 (cursorfree--setup-test parameters)
-                (let ((instructions (seq-map #'eval (cursorfree--test-parameters-command-form parameters))))
-                  (other-window 1)
-                  (switch-to-buffer alternative-buffer)
-                  (funcall #'cursorfree-evaluate instructions)
-                  (select-window (get-buffer-window test-buffer))
-                  (cursorfree--test-check-state parameters))))
+                (other-window 1)
+                (switch-to-buffer alternative-buffer)
+                (eval (cursorfree--test-inject-buffer
+                       (cursorfree--test-parameters-command-form parameters)
+                       test-buffer))
+                (select-window (get-buffer-window test-buffer))
+                (cursorfree--test-check-state parameters)))
           (kill-buffer test-buffer)
           (kill-buffer alternative-buffer))))))
 
