@@ -45,49 +45,6 @@ This is useful as visual feedback that the action just performed was the
 one intended.  To turn this off, set this option to nil."
   :group 'cursorfree)
 
-;;;; Instruction interpreter:
-
-(defvar cursorfree--last-evaluation-result nil
-  "The result of the last call to `cursorfree-evaluate'.")
-
-(defun cursorfree-evaluate (instructions)
-  "Apply the composition of INSTRUCTIONS on nil.
-
-For example,
-
-  (cursorfree-evaluate (list #'f #'g #'h))
-
-would be equivalent to
-
-  (h (g (f nil)))"
-  (let ((values '()))
-    (seq-doseq (instruction instructions)
-      (setq values (funcall instruction values)))
-    (setq cursorfree--last-evaluation-result values)
-    values))
-
-(defun cursorfree--apply-on-stack (function stack)
-  "Apply FUNCTION to the top elements of STACK.
-Return the rest of the STACK with the return value of FUNCTION on top.
-
-The arity of FUNCTION is read from the cdr of `func-arity'.  The
-function is evaluated with the top values of STACK, with the top
-elements applied as the first arguments.  &rest arguments are
-supported."
-  (let* ((arity (cdr (func-arity function)))
-         (args (if (eq arity 'many) stack (take arity stack)))
-         (tail (if (eq arity 'many) '() (nthcdr arity stack))))
-    (cons (apply function args) tail)))
-
-(defun cursorfree-make-action (function)
-  "Translate FUNCTION into an instruction not producing any value.
-
-The resulting instruction will read the top elements of the value
-stack to supply arguments for FUNCTION.  The read arguments will
-not remain on the value stack."
-  (lambda (values)
-    (seq-rest (cursorfree--apply-on-stack function values))))
-
 (defun cursorfree--multiple-cursors-do (function targets)
   "Apply FUNCTION to each target in TARGETS.
 Create a new cursor each time.
@@ -118,16 +75,6 @@ If invoking FUNCTION causes an error, no cursor is created."
 
         ;; Finally, do it once with the real cursor
         (funcall function (seq-elt targets (1- (seq-length targets))))))))
-
-(defun cursorfree-make-modifier (function)
-  "Translate FUNCTION to an instruction producing a value.
-
-The resulting instruction will read the top elements of the value
-stack to supply arguments for FUNCTION.  The result of invoking
-FUNCTION will be put back on the value stack.  The read arguments
-will not remain on the stack."
-  (lambda (values)
-    (cursorfree--apply-on-stack function values)))
 
 (defun cursorfree--ensure-marker-region (region)
   "Return REGION, with the endpoints turned into markers as needed."
@@ -467,12 +414,6 @@ by `hatty-locate-token'."
   (if-let ((region (hatty-locate-token character color shape)))
       (cursorfree-make-target region)
     (user-error "No such hat: color %s, shape %s, character %c" color shape character)))
-
-(defun cursorfree--pusher (value)
-  "Return instruction putting VALUE on the value stack."
-  (lambda (values) (cons value values)))
-
-;;;; Core functions
 
 (cl-defgeneric cursorfree-target-get (target)
   "Return the content referred to by TARGET."

@@ -77,7 +77,8 @@
     window the visible portion should be taken from.
 - New function ~cursorfree-sentence~ for selecting a sentence.
   Currently has no speech binding.
-- Removed ~cursorfree-evaluate-environment~.
+- Removed ~cursorfree-evaluate-environment~, ~cursorfree-evaluate~,
+  ~cursorfree-make-modifier~ and ~cursorfree-make-action~.
 - Removed dependency on ~evil~.
 - multiple-cursors and hatty are now optional dependencies.
 

@@ -26,6 +26,9 @@
 
 (phony-module cursorfree "cursorfree")
 
+(defvar cursorfree--last-evaluation-result nil
+  "The result of the last evaluated cursorfree command.")
+
 (phony-define-open-rule cursorfree-modifier
   "Rules that produce a modifier.
 
