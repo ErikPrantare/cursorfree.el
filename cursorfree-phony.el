@@ -54,7 +54,9 @@ target as output.  The target argument is allowed to be optional.")
     ((+ (elements cursorfree--target-element)))
   "Top level rule for matching an arbitrary target."
   :export nil
-  (cursorfree--evaluate-target-elements elements))
+  (let ((target (cursorfree--evaluate-target-elements elements)))
+    (setq cursorfree--last-evaluation-result target)
+    target))
 
 (phony-define-open-rule cursorfree-constant
   "Simple rules that provide some value when evaluated.")

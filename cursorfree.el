@@ -343,7 +343,7 @@ If no window is showing its buffer, return nil."
 
 (defun cursorfree-window-or-selected (&optional target)
   "Get the window associated with TARGET.
-If TARGET is nil or omitted, returned the selected window."
+If TARGET is nil or omitted, return the selected window."
   (if target
       (cursorfree--target-window target)
     (selected-window)))
