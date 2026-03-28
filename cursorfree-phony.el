@@ -58,15 +58,15 @@ target as output.  The target argument is allowed to be optional.")
     (setq cursorfree--last-evaluation-result target)
     target))
 
-(phony-define-open-rule cursorfree-constant
+(phony-define-open-rule cursorfree-primitive
   "Simple rules that provide some value when evaluated.")
 
 (phony-define-open-rule cursorfree--target-element)
 
-(phony-defun cursorfree--constant-element (cursorfree-constant)
+(phony-defun cursorfree--constant-element (cursorfree-primitive)
   :export nil
   :contributes-to cursorfree--target-element
-  (list 'constant cursorfree-constant))
+  (list 'constant cursorfree-primitive))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
   :export nil
@@ -107,42 +107,42 @@ target as output.  The target argument is allowed to be optional.")
 
 (phony-defun cursorfree--window ("split" (n digit))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (winum-get-window-by-number n))
 
 (phony-defun cursorfree--word ("word" (word word))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   word)
 
 (phony-defun cursorfree--number ("numb" (n number))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   n)
 
 (phony-defun cursorfree--character ("car" (c any-alphanumeric-key))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (string c))
 
 (phony-defun cursorfree--that "that"
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   cursorfree--target-that)
 
 (phony-defun cursorfree--source "source"
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   cursorfree--target-source)
 
 (phony-defun cursorfree--its "its"
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
 (phony-defun cursorfree--itself "itself"
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (cursorfree--normalize-target cursorfree--last-evaluation-result))
 
 (phony-define-dictionary cursorfree--color
@@ -169,17 +169,17 @@ target as output.  The target argument is allowed to be optional.")
      (? (shape cursorfree--shape))
      (char any-alphanumeric-key))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (cursorfree--make-target-from-hat char color shape))
 
 (phony-defun cursorfree--row ("row" (index number))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (cursorfree-row-modulo-100 index))
 
 (phony-defun cursorfree--long-row ("long row" (index number))
   :export nil
-  :contributes-to cursorfree-constant
+  :contributes-to cursorfree-primitive
   (cursorfree-row index))
 
 
