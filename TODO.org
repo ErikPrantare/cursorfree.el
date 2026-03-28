@@ -1,15 +1,4 @@
 * TODO Commands:
-- block: Properly select paragraph in all modes.  Currently does not
-  always work in org-mode.
 - filler: Implicitly act upon "block".
-
-* TODO cursorfree-this: Potentially return multiple (e.g. for multiple cursors)
-This is probably simplest if we generalize targets, so they can be
-lists as well.
-
-* TODO Give better names to the talon captures
-Also document the ones part of the apis
-
-* TODO Make hatty dependency optional
 
 * TODO Shortdoc
