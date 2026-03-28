@@ -87,20 +87,19 @@ target as output.  The target argument is allowed to be optional.")
     (`((modifier ,m) . ,xs)
      (cursorfree--evaluate-target-elements
       (cons `(constant ,(funcall m)) xs)))
-    (`((infix ,_) . ,_)
-     (cursorfree--evaluate-target-elements
-      (cons `(constant ,(cursorfree-this)) elements)))
+    (`((infix ,i) . ,xs)
+     (funcall i (cursorfree--evaluate-target-elements xs)))
+    (`((constant ,c) (infix ,i) . ,xs)
+     (funcall i c (cursorfree--evaluate-target-elements xs)))
     (`((constant ,c) (modifier ,m) . ,xs)
      (cursorfree--evaluate-target-elements
       (cons `(constant ,(funcall m c)) xs)))
-    (`((constant ,c) (infix ,i) . ,xs)
-     (funcall i c (cursorfree--evaluate-target-elements xs)))
     (`((constant ,c1) and (constant ,c2) . ,xs)
      (cursorfree--evaluate-target-elements
       `((constant ,(seq-concatenate
-                     'cursorfree-parallel-target
-                     (cursorfree--ensure-parallel c1)
-                     (cursorfree--ensure-parallel c2)))
+                    'cursorfree-parallel-target
+                    (cursorfree--ensure-parallel c1)
+                    (cursorfree--ensure-parallel c2)))
         . ,xs)))
     (_ (error "Invalid target element sequence."))))
 
@@ -303,8 +302,6 @@ target as output.  The target argument is allowed to be optional.")
     ("leftpaint" . cursorfree-paint-left)
     ("rightpaint" . cursorfree-paint-right)
     ("trim" . cursorfree-trim)
-    ("past" . cursorfree-past)
-    ("selection" . cursorfree-current-selection)
     ("line" . cursorfree-line)
     ("tail" . cursorfree-line-right)
     ("head" . cursorfree-line-left)

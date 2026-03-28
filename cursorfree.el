@@ -513,7 +513,7 @@ there is no active region for the cursor, BEG equals END in position."
   ;; Currently the selection becomes messed up by e.g. "take this".
   (let (regions)
     (cursorfree--for-each-cursor
-     (if mark-active
+     (if (use-region-p)
          (setq regions (append (region-bounds) regions))
        (push (cons (point) (point)) regions)))
     regions))
