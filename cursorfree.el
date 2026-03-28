@@ -1324,6 +1324,23 @@ parentheses will be put on the left and right side."
   (setq target (or target (cursorfree-this)))
   (cursorfree-paint-right (cursorfree-paint-left target)))
 
+(defun cursorfree--forward-paint (&optional n)
+  (setq n (or n 1))
+  (if (< n 0)
+      (dotimes (_ (- n))
+        (skip-chars-backward "[:space:]\n")
+        (cursorfree-target-jump-beginning (cursorfree-paint)))
+    (dotimes (_ n)
+      (skip-chars-forward "[:space:]\n")
+      (cursorfree-target-jump-end (cursorfree-paint)))))
+
+(defun cursorfree--bounds-of-paint-at-point ()
+  (when-let* ((paint (cursorfree-paint)))
+    (cursorfree-content-region paint)))
+
+(put 'cursorfree--paint 'forward-op #'cursorfree--forward-paint)
+(put 'cursorfree--paint 'bounds-of-thing-at-point #'cursorfree--bounds-of-paint-at-point)
+
 (defun cursorfree--trim-left (target)
   "Shrink TARGET until there is no whitespace to the left."
   (cursorfree-on-content-region target

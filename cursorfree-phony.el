@@ -37,6 +37,17 @@ target as output.  The target argument is allowed to be optional.")
     ;; from inlined rules.  Otherwise, e.g. (<a> "past" <a>) as a
     ;; separate alternative would inline <a> twice more.  This issue
     ;; occurred with talon in [2026-03-21 Sat].
+
+    ;; TODO: Try to improve efficiency of grammar to the point that we
+    ;; can at least comfortably have one extra clone of
+    ;; cursorfree--target-element.  That would allow us to make sure a
+    ;; new constant can only be matched by a preceding "and", so if
+    ;; one utters "chuck boff cap", it is interpreted as "[chuck boff]
+    ;; [cap]" rather than an erroneous sequence.
+
+    ;; Potential alleviations: Have a nop "then" command for explicit
+    ;; disambiguation.  Infer at which point an illegal constant has
+    ;; been introduced, and reparse that tail.
     ((+ (elements cursorfree--target-element)))
   "Top level rule for matching an arbitrary target."
   :export nil
