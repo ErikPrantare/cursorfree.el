@@ -4,25 +4,29 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
+;; Package-Requires: ((phony "0.3.0"))
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; cursorfree-phony.el is free software; you can redistribute it
+;; and/or modify it under the terms of the GNU Affero General Public
+;; License as published by the Free Software Foundation, either
+;; version 3 of the License, or (at your option) any later version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; cursorfree-phony.el is distributed in the hope that it will be
+;; useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+;; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;; You should have received a copy of the GNU Affero General Public
+;; License along with this program.  If not, see
+;; <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;
 
 ;;; Code:
+
+(require 'phony)
 
 (phony-module cursorfree "cursorfree")
 
@@ -51,6 +55,12 @@ target as output.  The target argument is allowed to be optional.")
     ;; Potential alleviations: Have a nop "then" command for explicit
     ;; disambiguation.  Infer at which point an illegal constant has
     ;; been introduced, and reparse that tail.
+
+    ;; Also consider providing phony with a flag for "relaxing" a
+    ;; rule, such that the precise grammar can be specified as usual
+    ;; but the exported grammar being flattened like this.  Phony
+    ;; would verify that the relaxed parse conforms to the specified
+    ;; precise grammar.
     ((+ (elements cursorfree--target-element)))
   "Top level rule for matching an arbitrary target."
   :export nil
@@ -102,6 +112,14 @@ target as output.  The target argument is allowed to be optional.")
                     'cursorfree--parallel
                     (cursorfree--ensure-parallel c1)
                     (cursorfree--ensure-parallel c2)))
+        . ,xs)))
+    (`((constant ,c) and (modifier ,m) . ,xs)
+     (cursorfree--evaluate-target-elements
+      `((constant ,(seq-concatenate
+                    'cursorfree--parallel
+                    (cursorfree--ensure-parallel c)
+                    (cursorfree--ensure-parallel
+                     (funcall m))))
         . ,xs)))
     (_ (error "Invalid target element sequence."))))
 
@@ -258,7 +276,7 @@ target as output.  The target argument is allowed to be optional.")
     ("jump" . cursorfree-jump)
     ("pre" . cursorfree-jump-beginning)
     ("post" . cursorfree-jump-end)
-    ("comment" . cursorfree-comment)
+    ("comment" . cursorfree-make-comment)
     ("uncomment" . cursorfree-uncomment)
     ("indent" . cursorfree-indent)
     ("narrow" . cursorfree-narrow)

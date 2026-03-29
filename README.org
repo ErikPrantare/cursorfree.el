@@ -162,7 +162,7 @@ corresponding library function.
 | jump        | cursorfree-jump           |
 | pre         | cursorfree-jump-beginning |
 | post        | cursorfree-jump-end       |
-| comment     | cursorfree-comment        |
+| comment     | cursorfree-make-comment   |
 | uncomment   | cursorfree-uncomment      |
 | indent      | cursorfree-indent         |
 | narrow      | cursorfree-narrow         |

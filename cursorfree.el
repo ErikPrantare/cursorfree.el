@@ -33,6 +33,9 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'eww)
+
 (defgroup cursorfree nil
   "Functions for text and session manipulation."
   :group 'convenience
@@ -43,6 +46,7 @@
   "Whether to highlight text about to be deleted.
 This is useful as visual feedback that the action just performed was the
 one intended.  To turn this off, set this option to nil."
+  :type 'boolean
   :group 'cursorfree)
 
 (defun cursorfree--multiple-cursors-do (function targets)
@@ -52,26 +56,28 @@ Create a new cursor each time.
 Each target is assumed to be in the same buffer.
 
 If invoking FUNCTION causes an error, no cursor is created."
-  (when (and (> (seq-length targets) 1)
-             (not (fboundp 'mc/create-fake-cursor-at-point)))
-    (user-error "Using this operation on parallel targets requires the `multiple-cursors' package"))
   (unless (seq-empty-p targets)
     ;; TODO: Keep track of which buffers we have visited, so we only
     ;; create new cursors when we visit multiple buffers.
     (cursorfree-on-content-region (seq-first targets)
       ;; We do not actually use region, we only invoke the above function
       ;; to ensure that everything is performed in the correct context.
-      (lambda (region)
-        (multiple-cursors-mode 0)
-
-        ;; Only create new cursors for non-final elements.
-        (seq-doseq (target (seq-take targets (1- (seq-length targets))))
-          ;; Error?  No issue, just try again with the next element.
-          (condition-case e
-              (funcall function target)
-            (:success (multiple-cursors-mode 1)
-                      (mc/create-fake-cursor-at-point))
-            (error nil)))
+      (lambda (_)
+        (when (fboundp 'multiple-cursors-mode)
+          (multiple-cursors-mode 0))
+        (when (> (seq-length targets) 1)
+          (if (and (fboundp 'mc/create-fake-cursor-at-point)
+                   (fboundp 'multiple-cursors-mode))
+              ;; Only create new cursors for non-final elements.
+              (seq-doseq (target (seq-take targets (1- (seq-length targets))))
+                ;; Error?  No issue, just try again with the next element.
+                (condition-case _
+                    (funcall function target)
+                  (:success
+                   (multiple-cursors-mode 1)
+                   (mc/create-fake-cursor-at-point))
+                  (error nil)))
+            (user-error "Using this operation on parallel targets requires the `multiple-cursors' package")))
 
         ;; Finally, do it once with the real cursor
         (funcall function (seq-elt targets (1- (seq-length targets))))))))
@@ -110,37 +116,47 @@ was applied to each element individually."
   targets)
 
 (cl-defmethod seq-elt ((parallel cursorfree--parallel) n)
+  "Return Nth element of PARALLEL."
   (seq-elt (cursorfree--parallel-targets parallel) n))
 
 (cl-defmethod seq-length ((parallel cursorfree--parallel))
+  "Return amount of elements in PARALLEL."
   (seq-length (cursorfree--parallel-targets parallel)))
 
 (cl-defmethod seq-do (function (parallel cursorfree--parallel))
+  "Apply FUNCTION to each element of PARALLEL."
   (seq-do function (cursorfree--parallel-targets parallel)))
 
 (cl-defmethod seqp ((_ cursorfree--parallel))
+  "Return t."
   t)
 
 (cl-defmethod seq-subseq ((parallel cursorfree--parallel) start &optional end)
+  "Return a parallel of elements of PARALLEL from START to END."
   (make-cursorfree--parallel
    :targets (seq-subseq
              (cursorfree--parallel-targets parallel)
              start end)))
 
 (cl-defmethod seq-into-sequence ((parallel cursorfree--parallel))
+  "Return PARALLEL."
   parallel)
 
 (cl-defmethod seq-copy ((parallel cursorfree--parallel))
+  "Return shallow copy of PARALLEL."
   (copy-cursorfree--parallel parallel))
 
 (cl-defmethod seq-into ((parallel cursorfree--parallel) type)
+  "Transform PARALLEL into sequence of TYPE."
   (seq-into (cursorfree--parallel-targets parallel) type))
 
-(cl-defmethod seq-into (sequence (type (eql 'cursorfree--parallel)))
+(cl-defmethod seq-into (sequence (_ (eql 'cursorfree--parallel)))
+  "Transform SEQUENCE into a `cursorfree-parallel'."
   (make-cursorfree--parallel
    :targets (seq-into sequence 'list)))
 
-(cl-defmethod seq-concatenate ((type (eql 'cursorfree--parallel)) &rest sequences)
+(cl-defmethod seq-concatenate ((_ (eql 'cursorfree--parallel)) &rest sequences)
+  "Return a `cursorfree--parallel' spanning the elements of SEQUENCES."
   (make-cursorfree--parallel
    :targets (apply #'append
                    (seq-map
@@ -296,7 +312,7 @@ To override this function for new target types, implement a method for
       (cursorfree--target-buffer target)
     (current-buffer)))
 
-(cl-defgeneric cursorfree--target-buffer (target)
+(cl-defgeneric cursorfree--target-buffer (_)
   "Get the buffer associated with TARGET."
   nil)
 
@@ -334,7 +350,7 @@ or nil if no window is showing that buffer."
   "Get the window TARGET was created in.
 If the window is unknown, return a window displaying its buffer instead.
 If no window is showing its buffer, return nil."
-  (or (oref target window)
+  (or (cursorfree-region-window target)
       (cl-call-next-method)))
 
 (cl-defmethod cursorfree--target-window ((window window))
@@ -348,7 +364,7 @@ If TARGET is nil or omitted, return the selected window."
       (cursorfree--target-window target)
     (selected-window)))
 
-(cl-defgeneric cursorfree-on-content-region (target f)
+(cl-defgeneric cursorfree-on-content-region (target _f)
   "Apply F to the region associated with TARGET."
   (declare (indent defun))
   (error (format "Type error: %s has no associated region" target)))
@@ -378,7 +394,7 @@ The return values are collected into a parallel target."
   "Apply F to the contents of the buffer in WINDOW."
   (cursorfree-on-content-region (cursorfree-everything window) f))
 
-(cl-defgeneric cursorfree-on-content-region-cursor-effect (target f)
+(cl-defgeneric cursorfree-on-content-region-cursor-effect (target _f)
   "Apply F to the region associated with TARGET.
 
 This function exists for actions that manipulate point and mark.  If
@@ -404,6 +420,8 @@ For a similar function not creating new cursors, see
        (lambda (region)
          (funcall f region))))
    target))
+
+(declare-function hatty-locate-token "hatty")
 
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a hatty token.
@@ -504,6 +522,15 @@ denotes the currently selected window.
 Generic functions may be overridden to provide specialized behavior
 for \"this\".")
 
+(defmacro cursorfree--for-each-cursor (&rest body)
+  "Evaluate BODY for each cursor."
+  (if (fboundp 'mc/for-each-cursor-ordered)
+      `(mc/for-each-cursor-ordered
+        (mc/restore-state-from-overlay cursor)
+        ,@body
+        (mc/store-current-state-in-overlay cursor))
+    `(progn ,@body)))
+
 (defun cursorfree--collect-this ()
   "Return a list of the active regions of each cursor.
 
@@ -565,7 +592,7 @@ means."
                        :window in-window))
                     regions)))))))
 
-(cl-defmethod cursorfree-put ((target cursorfree--this-target) (content string))
+(cl-defmethod cursorfree-put ((target cursorfree--this-target) (_ string))
   "Insert CONTENT at point in the buffer of TARGET."
   ;; Insert as if usual region target
   (cl-call-next-method)
@@ -579,7 +606,11 @@ means."
       ;; well.
       (dolist (cursor (overlays-at (car region)))
         (when (overlay-get cursor 'mc-id)
-          (setf (overlay-start cursor) (cdr region))
+          ;; Bug in elisp byte compiler (Emacs 30):
+          ;; value from call to ‘cdr’ is unused
+          ;; For now, we express it in a bit more clumsy way.
+          ;; (setf (overlay-start cursor) (cdr region))
+          (move-overlay cursor (cdr region) (overlay-end cursor))
           (overlay-put cursor 'point (cdr region)))))))
 
 (cl-defmethod cursorfree-put ((target cursorfree--this-target) (buffer buffer))
@@ -633,6 +664,9 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
   (cursorfree--target-put-after target (cursorfree-get source)))
 
 (cl-defmethod cursorfree--put ((target cursorfree--parallel) (source cursorfree--parallel))
+  "Put each element of SOURCE into the corresponding element of TARGET.
+
+If the lengths mismatch, a user error is signaled."
   (unless (= (seq-length target) (seq-length source))
     (user-error "Mismatching length of parallel targets"))
   (seq-mapn #'cursorfree--put target source))
@@ -662,8 +696,7 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
 
 (defun cursorfree--insert-at (marker string)
   "Insert STRING at MARKER."
-  (save-excursion
-    (set-buffer (marker-buffer marker))
+  (with-current-buffer (marker-buffer marker)
     (goto-char marker)
     (insert string)
     (cursorfree-pulse (cons marker (+ marker (length string))))))
@@ -766,7 +799,8 @@ associated buffer."
 (cl-defmethod cursorfree-delete ((target cursorfree-region))
   "Delete the deletion region of TARGET.
 Try to fix up affected indentation."
-  (cursorfree--region-delete (oref target deletion-region))
+  (cursorfree--region-delete
+   (cursorfree-region-deletion-region target))
   (cursorfree-on-content-region (cursorfree-line target)
     (lambda (region)
       (when (derived-mode-p 'prog-mode)
@@ -788,7 +822,7 @@ Try to fix up affected indentation."
   '((t :background "#620f2a"))
   "Face used to highlight target that will be removed.")
 
-(cl-defgeneric cursorfree--indicate-deletion (target)
+(cl-defgeneric cursorfree--indicate-deletion (_target)
   "Indicate that TARGET is about to be deleted.
 
 This can be turned off with `cursorfree-highlight-deletions'.  The
@@ -810,7 +844,9 @@ highlight color can be customized with
 
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree--parallel))
   "Highlight deletion region of each target in TARGET momentarily."
-  ;; FIXME: Can't we just indicate deletion for each element?
+  ;; TODO: Dispatch deletion indication to each element instead.  We
+  ;; would need to make sure that there is not a delay between each
+  ;; indication.
   (when cursorfree-highlight-deletions
     (let ((overlays '()))
       (cursorfree-on-content-region target
@@ -829,15 +865,6 @@ highlight color can be customized with
     (cursorfree--indicate-deletion target)
     (cursorfree-delete target)
     (setq cursorfree--target-that target)))
-
-(defmacro cursorfree--for-each-cursor (&rest body)
-  "Evaluate BODY for each cursor."
-  (if (fboundp 'mc/for-each-cursor-ordered)
-       `(mc/for-each-cursor-ordered
-         (mc/restore-state-from-overlay cursor)
-         ,@body
-         (mc/store-current-state-in-overlay cursor))
-     `(progn ,@body)))
 
 (defun cursorfree-bring (source &rest targets)
   "Overwrite TARGETS with SOURCE.
@@ -933,7 +960,7 @@ BUFFER is not deleted, so this is equivalent to
 
 (cl-defgeneric cursorfree--target-clone (target)
   "Insert another copy of TARGET after itself."
-  (cursorfree--target-put
+  (cursorfree-put
    target
    (concat
     (cursorfree-get target)
@@ -958,7 +985,7 @@ content region.  Afterwards, the region will be pulsed."
            (,function (car region) (cdr region))))
        (cursorfree-pulse target))))
 
-(cursorfree--simple-content-function cursorfree-comment
+(cursorfree--simple-content-function cursorfree-make-comment
   "Comment out TARGETS."
   comment-region)
 
@@ -1164,8 +1191,9 @@ follow the thing at TARGET."
   (cursorfree-on-content-region target
     (lambda (region)
       (save-excursion
-        (replace-regexp (rx (not graphic)) ""
-                        nil (car region) (cdr region))))))
+        (goto-char (car region))
+        (while (re-search-forward (rx (not graphic)) (cdr region) t)
+          (replace-match "" nil nil))))))
 
 (defun cursorfree-join (target)
   "Join TARGET into one line."
@@ -1266,6 +1294,9 @@ parentheses will be put on the left and right side."
   (cursorfree-paint-right (cursorfree-paint-left target)))
 
 (defun cursorfree--forward-paint (&optional n)
+  "Move point N contiguous characters of non-whitespace forward.
+
+If N is negative, point is moved backward instead."
   (setq n (or n 1))
   (if (< n 0)
       (dotimes (_ (- n))
@@ -1276,6 +1307,7 @@ parentheses will be put on the left and right side."
       (cursorfree-jump-end (cursorfree-paint)))))
 
 (defun cursorfree--bounds-of-paint-at-point ()
+  "Return bounds of `cursorfree-paint' at point."
   (when-let* ((paint (cursorfree-paint)))
     (cursorfree-content-region paint)))
 
@@ -1592,23 +1624,22 @@ WINDOW defaults to the selected window."
   (cursorfree--sweep target
     (let ((target-content-region (cursorfree-content-region target))
           (target-deletion-region (cursorfree--deletion-region target))
-          space-length
           content-region
           deletion-region)
-      (save-excursion
-        (set-buffer (cursorfree-buffer target))
-        (goto-char (cdr target-content-region))
-        (unless (search-forward "\n" nil t)
-          (goto-char (point-max)))
-        (setq deletion-region (cons (car target-deletion-region) (point)))
-        (skip-chars-backward "[:space:]\n" (cdr target-content-region))
-        (setq content-region (cons (car target-content-region) (point)))
+      (with-current-buffer (cursorfree-buffer target)
+        (save-excursion
+          (goto-char (cdr target-content-region))
+          (unless (search-forward "\n" nil t)
+            (goto-char (point-max)))
+          (setq deletion-region (cons (car target-deletion-region) (point)))
+          (skip-chars-backward "[:space:]\n" (cdr target-content-region))
+          (setq content-region (cons (car target-content-region) (point)))
 
-        (cursorfree-make-target
-         content-region
-         :deletion-region deletion-region
-         :pre-insertion-string (cursorfree-region-pre-insertion-string target)
-         :post-insertion-string (cursorfree-region-pre-insertion-string (cursorfree-line-left target)))))))
+          (cursorfree-make-target
+           content-region
+           :deletion-region deletion-region
+           :pre-insertion-string (cursorfree-region-pre-insertion-string target)
+           :post-insertion-string (cursorfree-region-pre-insertion-string (cursorfree-line-left target))))))))
 
 (defun cursorfree-line-left (&optional target)
   "Extend TARGET to the first non-whitespace character of its line."
@@ -1619,22 +1650,22 @@ WINDOW defaults to the selected window."
           space-length
           content-region
           deletion-region)
-      (save-excursion
-        (set-buffer (cursorfree-buffer target))
-        (goto-char (car (cursorfree-content-region target)))
-        (if (search-backward "\n" nil t)
-            (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
-          (goto-char (point-min))
-          (setq deletion-region (cons (point) (cdr target-deletion-region))))
-        (skip-chars-forward "[:space:]\n" (car target-content-region))
-        (setq content-region (cons (point) (cdr target-content-region)))
-        (setq space-length (abs (- (car deletion-region) (car content-region))))
+      (with-current-buffer (cursorfree-buffer target)
+        (save-excursion
+          (goto-char (car (cursorfree-content-region target)))
+          (if (search-backward "\n" nil t)
+              (setq deletion-region (cons (1+ (point)) (cdr target-deletion-region)))
+            (goto-char (point-min))
+            (setq deletion-region (cons (point) (cdr target-deletion-region))))
+          (skip-chars-forward "[:space:]\n" (car target-content-region))
+          (setq content-region (cons (point) (cdr target-content-region)))
+          (setq space-length (abs (- (car deletion-region) (car content-region))))
 
-        (cursorfree-make-target
-         content-region
-         :deletion-region deletion-region
-         :pre-insertion-string (concat "\n" (make-string space-length ?\ ))
-         :post-insertion-string (cursorfree-region-post-insertion-string target))))))
+          (cursorfree-make-target
+           content-region
+           :deletion-region deletion-region
+           :pre-insertion-string (concat "\n" (make-string space-length ?\ ))
+           :post-insertion-string (cursorfree-region-post-insertion-string target)))))))
 
 (defun cursorfree-line (&optional target)
   "Extend TARGET to cover all non-whitespace characters on its line."
@@ -1755,10 +1786,11 @@ Otherwise, search the buffer of TARGET."
 (defun cursorfree--bounds-of-nonsyntactic-region-at-point (&optional type)
   "Return region of comment or string literal at point.
 
-If TYPE is 'comment, this function looks for a containing comment.  If
-TYPE is 'string, this function looks for a string literal instead.  If
-TYPE is omitted, nil or 'any, either one is looked for.  If TYPE is
-anything else, an error is signalled.
+If TYPE is the symbol `comment', this function looks for a containing
+comment.  If TYPE is the symbol `string', this function looks for a
+string literal instead.  If TYPE is omitted, nil or the symbol `any',
+either one is looked for.  If TYPE is anything else, an error is
+signalled.
 
 If point is not in a comment or string, nil is returned."
   (unless type (setq type 'any))
@@ -1792,7 +1824,7 @@ If there is no comment at point, this function returns nil."
      #'cursorfree--bounds-of-comment-at-point)
 
 (defun cursorfree-comment (&optional target)
-  "Return target extended to contain the comment at its beginning.
+  "Return TARGET extended to contain the comment at its beginning.
 
 If there is no comment at the beginning of target, nil is returned."
   (cursorfree--expand-to-thing
@@ -1800,6 +1832,7 @@ If there is no comment at the beginning of target, nil is returned."
    (or target (cursorfree-this))))
 
 (defun cursorfree--bounds-of-string-literal-at-point ()
+  "Return bounds of string literal at point."
   (cursorfree--bounds-of-nonsyntactic-region-at-point 'string))
 
 (put 'cursorfree--string-literal
@@ -1807,6 +1840,9 @@ If there is no comment at the beginning of target, nil is returned."
      #'cursorfree--bounds-of-string-literal-at-point)
 
 (defun cursorfree-string-literal (&optional target)
+  "Expand TARGET to cover a containing string literal.
+
+If TARGET is omitted or nil, use `cursorfree-this' instead."
   (cursorfree--expand-to-thing
    'cursorfree--string-literal
    (or target (cursorfree-this))))
