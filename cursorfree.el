@@ -636,6 +636,11 @@ The pre-insertion string of target is inserted between CONTENT and TARGET."
         (insert content)
         (insert (cursorfree-region-pre-insertion-string target))))))
 
+(cl-defmethod cursorfree--target-put-before ((parallel cursorfree--parallel) content)
+  "Put CONTENT before each element of PARALLEL."
+  (cursorfree--sweep parallel
+    (cursorfree--target-put-before parallel content)))
+
 (cl-defgeneric cursorfree--target-put-after (target content)
   "Put CONTENT after TARGET.."
   (error "No method for writing %S after target %S" content target))
@@ -650,6 +655,11 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
         (goto-char (cdr region))
         (insert (cursorfree-region-post-insertion-string target))
         (insert content)))))
+
+(cl-defmethod cursorfree--target-put-after ((parallel cursorfree--parallel) content)
+  "Put CONTENT after each element of PARALLEL."
+  (cursorfree--sweep parallel
+    (cursorfree--target-put-after parallel content)))
 
 (cl-defgeneric cursorfree--put (target source)
   "Put the content of SOURCE in TARGET."
