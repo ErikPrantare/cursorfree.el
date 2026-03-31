@@ -187,9 +187,10 @@ Otherwise, it returns a parallel containing TARGET as its sole element."
   "Evaluate BODY over variable TARGET.
 
 If TARGET is a parallel with multiple elements, BODY is evaluated once
-per element, in order, with NAME bound to the individual elements.  The
-result of each evaluation is then collected into a parallel.  Otherwise,
-BODY is evaluated once, and the result is the result of evaluating BODY.
+per element, in order, with TARGET bound to the individual elements.
+The result of each evaluation is then collected into a parallel.
+Otherwise, BODY is evaluated once, and the result is the result of
+evaluating BODY.
 
 If the resultant value is a parallel of one element, that element is
 returned directly."
@@ -1594,7 +1595,9 @@ The extension is done from the beginning of the target.  See
 `bounds-of-thing-at-point' for more information about the builtin
 `thing-at-point' functionalities.
 
-TARGET defaults to `cursorfree-this' if nil or omitted"
+TARGET defaults to `cursorfree-this' if nil or omitted.
+
+If there is no THING at point, this function returns nil."
   (cursorfree--expand-bounds
    (or target (cursorfree-this))
    (lambda ()
