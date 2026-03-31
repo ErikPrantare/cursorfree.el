@@ -707,9 +707,10 @@ If the lengths mismatch, a user error is signaled."
 (defun cursorfree--insert-at (marker string)
   "Insert STRING at MARKER."
   (with-current-buffer (marker-buffer marker)
-    (goto-char marker)
-    (insert string)
-    (cursorfree-pulse (cons marker (+ marker (length string))))))
+    (save-excursion
+      (goto-char marker)
+      (insert string)
+      (cursorfree-pulse (cons marker (+ marker (length string)))))))
 
 (defun cursorfree-select (target)
   "Set active region to TARGET."
