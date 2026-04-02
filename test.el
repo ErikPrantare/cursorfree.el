@@ -64,11 +64,29 @@
     (mc/create-fake-cursor-at-point)
     (goto-char point)))
 
-(defun cursorfree--test-check-state (parameters)
-  (should (equal (buffer-string) (oref (oref parameters after) string)))
+(dolist (specification
+         '((cursorfree--test-equal-point
+            "Expected point position state %S, got %S"
+            "(other buffer) Expected point position state %S, got %S")
+           (cursorfree--test-equal-content
+            "Expected buffer content %S, got %S"
+            "(other buffer) Expected buffer content %S, got %S")))
+  (pcase-let ((`(,name ,same-buffer-format ,other-buffer-format) specification))
+    (fset name (lambda (same-buffer expected actual) (equal expected actual)))
+    (put name 'ert-explainer
+         (lambda (same-buffer expected actual)
+           (format (if same-buffer same-buffer-format other-buffer-format)
+                   expected actual)))))
+
+(defun cursorfree--test-check-state (parameters same-buffer)
+  (should (cursorfree--test-equal-content
+           same-buffer
+           (buffer-string) (oref (oref parameters after) string)))
   ;; We do not test the order (for now)
-  (should (equal (seq-sort #'< (cursorfree--multiple-cursor-points))
-                 (seq-sort #'< (oref (oref parameters after) points)))))
+  (should (cursorfree--test-equal-point
+           same-buffer
+           (seq-sort #'< (cursorfree--multiple-cursor-points))
+           (seq-sort #'< (oref (oref parameters after) points)))))
 
 (defun cursorfree--test-inject-buffer (form buffer)
   "Rewrite FORM so `cursorfree-make-target' uses BUFFER."
@@ -96,7 +114,7 @@
 
               (cursorfree--setup-test parameters)
               (eval (cursorfree--test-parameters-command-form parameters))
-              (cursorfree--test-check-state parameters)
+              (cursorfree--test-check-state parameters t)
 
               (unless (cursorfree--test-parameters-from-same-buffer parameters)
                 (cursorfree--setup-test parameters)
@@ -106,7 +124,7 @@
                        (cursorfree--test-parameters-command-form parameters)
                        test-buffer))
                 (select-window (get-buffer-window test-buffer))
-                (cursorfree--test-check-state parameters)))
+                (cursorfree--test-check-state parameters nil)))
           (kill-buffer test-buffer)
           (kill-buffer alternative-buffer))))))
 
@@ -149,7 +167,7 @@
     :command-form '(cursorfree-change
                     (cursorfree-make-target (cons 9 14))))))
 
-(ert-deftest cursorfree--test-bring ()
+(ert-deftest cursorfree--test-bring-replace ()
   "bring."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -161,8 +179,10 @@
             :points '(37))
     :command-form '(cursorfree-bring
                     (cursorfree-make-target (cons 19 30))
-                    (cursorfree-make-target (cons 6 10)))))
+                    (cursorfree-make-target (cons 6 10))))))
 
+(ert-deftest cursorfree--test-bring-to-point ()
+  "bring to point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -173,8 +193,10 @@
             :points '(17))
     :command-form '(cursorfree-bring
                     (cursorfree-make-target (cons 21 26)))
-    :from-same-buffer t))
+    :from-same-buffer t)))
 
+(ert-deftest cursorfree--test-bring-same-target ()
+  "bring same target."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -185,8 +207,10 @@
             :points '(13))
     :command-form '(cursorfree-bring
                     (cursorfree-make-target (cons 7 13))
-                    (cursorfree-make-target (cons 7 13)))))
+                    (cursorfree-make-target (cons 7 13))))))
 
+(ert-deftest cursorfree--test-bring-string ()
+  "bring string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -211,8 +235,10 @@
             :points '(17))
     :command-form '(cursorfree-move
                     (cursorfree-make-target (cons 1 7))
-                    (cursorfree-make-target (cons 14 16)))))
+                    (cursorfree-make-target (cons 14 16))))))
 
+(ert-deftest cursorfree--test-move-to-point ()
+  "move to point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -236,8 +262,10 @@
             :string "I must remove an extraneous word"
             :points '(33))
     :command-form '(cursorfree-chuck
-                    (cursorfree-make-target (cons 18 28)))))
+                    (cursorfree-make-target (cons 18 28))))))
 
+(ert-deftest cursorfree--test-chuck-multiple ()
+  "chuck multiple."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -250,8 +278,10 @@
                     (cursorfree--make-parallel
                      (cursorfree-make-target (cons 6 14))
                      (cursorfree-make-target (cons 20 22))
-                     (cursorfree-make-target (cons 33 36))))))
+                     (cursorfree-make-target (cons 33 36)))))))
 
+(ert-deftest cursorfree--test-chuck-word-before-newline ()
+  "chuck word before newline."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -261,8 +291,10 @@
             :string "Removing\nin text with newline"
             :points '(10))
     :command-form '(cursorfree-chuck
-                    (cursorfree-make-target (cons 10 14)))))
+                    (cursorfree-make-target (cons 10 14))))))
 
+(ert-deftest cursorfree--test-chuck-leading-whitespace-after-newline ()
+  "chuck leading whitespace after newline."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -272,8 +304,10 @@
             :string "Removing word\ntext with newline"
             :points '(15))
     :command-form '(cursorfree-chuck
-                    (cursorfree-make-target (cons 15 17)))))
+                    (cursorfree-make-target (cons 15 17))))))
 
+(ert-deftest cursorfree--test-chuck-line-before-empty-line ()
+  "chuck line before empty line."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -283,8 +317,10 @@
             :string "a\n\nc\nd"
             :points '(1))
     :command-form '(cursorfree-chuck
-                    (cursorfree-make-target (cons 3 4)))))
+                    (cursorfree-make-target (cons 3 4))))))
 
+(ert-deftest cursorfree--test-chuck-line-after-empty-line ()
+  "chuck line after empty line."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -296,8 +332,8 @@
     :command-form '(cursorfree-chuck
                     (cursorfree-make-target (cons 6 7))))))
 
-(ert-deftest cursorfree--test-inside ()
-  "inside."
+(ert-deftest cursorfree--test-inside-parenthesis ()
+  "inside parenthesis."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -310,8 +346,10 @@
     '(cursorfree-chuck
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
-       ?\())))
+       ?\()))))
 
+(ert-deftest cursorfree--test-inside-bracket ()
+  "inside bracket."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -324,8 +362,10 @@
     '(cursorfree-chuck
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
-       ?\[))))
+       ?\[)))))
 
+(ert-deftest cursorfree--test-inside-inferred ()
+  "inside inferred delimiter."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -337,8 +377,10 @@
     :command-form
     '(cursorfree-chuck
       (cursorfree-inside
-       (cursorfree-make-target (cons 3 6))))))
+       (cursorfree-make-target (cons 3 6)))))))
 
+(ert-deftest cursorfree--test-inside-quote ()
+  "inside quote."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -350,8 +392,10 @@
     :command-form
     '(cursorfree-chuck
       (cursorfree-inside
-       (cursorfree-make-target (cons 3 6))))))
+       (cursorfree-make-target (cons 3 6)))))))
 
+(ert-deftest cursorfree--test-inside-at-point ()
+  "inside at point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -365,8 +409,8 @@
       (cursorfree-inside))
     :from-same-buffer t)))
 
-(ert-deftest cursorfree--test-outside ()
-  "outside."
+(ert-deftest cursorfree--test-outside-parenthesis ()
+  "outside parenthesis."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -379,8 +423,10 @@
     '(cursorfree-chuck
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
-       ?\())))
+       ?\()))))
 
+(ert-deftest cursorfree--test-outside-bracket ()
+  "outside bracket."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -393,8 +439,10 @@
     '(cursorfree-chuck
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
-       ?\[))))
+       ?\[)))))
 
+(ert-deftest cursorfree--test-outside-inferred ()
+  "outside inferred delimiter."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -406,8 +454,10 @@
     :command-form
     '(cursorfree-chuck
       (cursorfree-outside
-       (cursorfree-make-target (cons 3 6))))))
+       (cursorfree-make-target (cons 3 6)))))))
 
+(ert-deftest cursorfree--test-outside-quote ()
+  "outside quote."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -419,8 +469,10 @@
     :command-form
     '(cursorfree-chuck
       (cursorfree-outside
-       (cursorfree-make-target (cons 3 6))))))
+       (cursorfree-make-target (cons 3 6)))))))
 
+(ert-deftest cursorfree--test-outside-at-point ()
+  "outside at point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -447,8 +499,8 @@
     '(cursorfree-chuck
       (cursorfree-outside)))))
 
-(ert-deftest cursorfree--wrap ()
-  "wrap."
+(ert-deftest cursorfree--test-wrap-braces ()
+  "wrap braces."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -459,9 +511,10 @@
             :points '(14))
     :command-form '(cursorfree-wrap
                     ?\{
-                    (cursorfree-make-target (cons 5 8)))))
+                    (cursorfree-make-target (cons 5 8))))))
 
-  ;; Non-parentheses use same character for both ends
+(ert-deftest cursorfree--test-wrap-non-parenthesis ()
+  "wrap non-parenthesis."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -472,8 +525,10 @@
             :points '(14))
     :command-form '(cursorfree-wrap
                     ?$
-                    (cursorfree-make-target (cons 5 8)))))
+                    (cursorfree-make-target (cons 5 8))))))
 
+(ert-deftest cursorfree--test-wrap-multiple ()
+  "wrap multiple."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -487,8 +542,10 @@
                     (cursorfree--make-parallel
                      (cursorfree-make-target (cons 6 8))
                      (cursorfree-make-target (cons 11 15))
-                     (cursorfree-make-target (cons 19 27))))))
+                     (cursorfree-make-target (cons 19 27)))))))
 
+(ert-deftest cursorfree--test-wrap-point-inside ()
+  "wrap point inside."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -514,8 +571,10 @@
     :command-form '(cursorfree-chuck
                     (cursorfree-past
                      (cursorfree-make-target (cons 3 10))
-                     (cursorfree-make-target (cons 11 15))))))
+                     (cursorfree-make-target (cons 11 15)))))))
 
+(ert-deftest cursorfree--test-past-from-point ()
+  "past from point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -556,7 +615,7 @@
                      (cursorfree-make-target (cons 1 5))
                      (cursorfree-make-target (cons 25 29)))))))
 
-(ert-deftest cursorfree--every-instance ()
+(ert-deftest cursorfree--test-every-instance ()
   "every instance."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -568,8 +627,10 @@
             :points '(4))
     :command-form '(cursorfree-chuck
                     (cursorfree-every-instance
-                     (cursorfree-make-target (cons 11 12))))))
+                     (cursorfree-make-target (cons 11 12)))))))
 
+(ert-deftest cursorfree--test-every-instance-in-range ()
+  "every instance in range."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -596,8 +657,10 @@
             :string "This IS a test"
             :points '(15))
     :command-form '(cursorfree-upcase
-                    (cursorfree-make-target (cons 6 8)))))
+                    (cursorfree-make-target (cons 6 8))))))
 
+(ert-deftest cursorfree--test-upcase-multiple ()
+  "upcase multiple."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -612,8 +675,8 @@
                      (cursorfree-make-target (cons 9 16))
                      (cursorfree-make-target (cons 22 26)))))))
 
-(ert-deftest cursorfree--test-next ()
-  "next."
+(ert-deftest cursorfree--test-next-string ()
+  "next string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -624,8 +687,10 @@
             :points '(9))
     :command-form '(cursorfree-chuck
                     (cursorfree-next "word"))
-    :from-same-buffer t))
+    :from-same-buffer t)))
 
+(ert-deftest cursorfree--test-next-target ()
+  "next target."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -638,8 +703,8 @@
                     (cursorfree-next
                      (cursorfree-make-target (cons 11 15)))))))
 
-(ert-deftest cursorfree--test-preve ()
-  "preve."
+(ert-deftest cursorfree--test-previous-string ()
+  "previous string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -650,8 +715,10 @@
             :points '(13))
     :command-form '(cursorfree-chuck
                     (cursorfree-previous "test"))
-    :from-same-buffer t))
+    :from-same-buffer t)))
 
+(ert-deftest cursorfree--test-previous-target ()
+  "previous target."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -676,8 +743,10 @@
             :points '(10))
     :command-form '(cursorfree-change
                     (cursorfree-trim
-                     (cursorfree-make-target (cons 10 18))))))
+                     (cursorfree-make-target (cons 10 18)))))))
 
+(ert-deftest cursorfree--test-trim-everything ()
+  "trim everything."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -778,7 +847,8 @@
                      (cursorfree-make-target (cons 16 22))
                      (cursorfree-make-target (cons 30 38)))))))
 
-(ert-deftest cursorfree--test-line ()
+(ert-deftest cursorfree--test-line-chuck ()
+  "line chuck."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -789,8 +859,10 @@
             :points '(12))
     :command-form
     '(cursorfree-chuck
-      (cursorfree-line (cursorfree-make-target (cons 17 22))))))
+      (cursorfree-line (cursorfree-make-target (cons 17 22)))))))
 
+(ert-deftest cursorfree--test-line-change ()
+  "line change."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -803,8 +875,8 @@
     '(cursorfree-change
       (cursorfree-line (cursorfree-make-target (cons 15 15)))))))
 
-(ert-deftest cursorfree--test-line2 ()
-  "line."
+(ert-deftest cursorfree--test-line-chuck-with-indentation ()
+  "line chuck with indentation."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -815,8 +887,10 @@
             :points '(5))
     :command-form
     '(cursorfree-chuck
-      (cursorfree-line (cursorfree-make-target (cons 1 2))))))
+      (cursorfree-line (cursorfree-make-target (cons 1 2)))))))
 
+(ert-deftest cursorfree--test-line-move ()
+  "line move."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -919,8 +993,8 @@
     :command-form '(cursorfree-chuck
                     (cursorfree-make-target (cons 5 6))))))
 
-(ert-deftest cursorfree--test-beginning-end-of ()
-  "cursorfree-beginning, cursorfree-end."
+(ert-deftest cursorfree--test-beginning ()
+  "cursorfree-beginning."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -929,8 +1003,12 @@
     :after (make-cursorfree--test-buffer-state
             :string "abcde"
             :points '(1))
-    :command-form '(cursorfree-jump-end (cursorfree-beginning (cursorfree-everything)))))
+    :command-form '(cursorfree-jump-end
+                    (cursorfree-beginning
+                     (cursorfree-make-target (cons 1 6)))))))
 
+(ert-deftest cursorfree--test-end ()
+  "cursorfree-end."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -939,7 +1017,9 @@
     :after (make-cursorfree--test-buffer-state
             :string "abcde"
             :points '(6))
-    :command-form '(cursorfree-jump-beginning (cursorfree-end (cursorfree-everything))))))
+    :command-form '(cursorfree-jump-beginning
+                    (cursorfree-end
+                     (cursorfree-make-target (cons 1 6)))))))
 
 (ert-deftest cursorfree--test-outside-escaped-delimiter ()
   (cursorfree--run-test
@@ -955,6 +1035,7 @@
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-string ()
+  "outside delimiter in string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -965,8 +1046,10 @@
             :points '(2))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-parenthesis-in-string ()
+  "outside parenthesis in string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -977,8 +1060,10 @@
             :points '(1))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside nil ?\())
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-single-quote-python ()
+  "outside single quote in python."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1004,7 +1089,8 @@
                     (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
-(ert-deftest cursorfree--test-outside-in-string ()
+(ert-deftest cursorfree--test-outside-parenthesis-inside-string ()
+  "outside parenthesis inside string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1015,8 +1101,10 @@
             :points '(9))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-single-quote-inside-double-quote-elisp ()
+  "outside single quote inside double quote in elisp."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1027,8 +1115,10 @@
             :points '(7))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-single-quote-inside-double-quote-python ()
+  "outside single quote inside double quote in python."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1039,8 +1129,10 @@
             :points '(9))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (python-mode))))
+    :setup (lambda () (python-mode)))))
 
+(ert-deftest cursorfree--test-outside-mismatched-brackets-in-string ()
+  "outside mismatched brackets in string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1051,8 +1143,10 @@
             :points '(9))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-escaped-quotes-in-string ()
+  "outside escaped quotes in string."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1065,7 +1159,8 @@
                     (cursorfree-outside))
     :setup (lambda () (emacs-lisp-mode)))))
 
-(ert-deftest cursorfree--test-outside-in-comment ()
+(ert-deftest cursorfree--test-outside-parenthesis-in-comment ()
+  "outside parenthesis in comment."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1076,8 +1171,10 @@
             :points '(12))
     :command-form '(cursorfree-chuck
                     (cursorfree-outside))
-    :setup (lambda () (emacs-lisp-mode))))
+    :setup (lambda () (emacs-lisp-mode)))))
 
+(ert-deftest cursorfree--test-outside-quote-in-comment ()
+  "outside quote in comment."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
