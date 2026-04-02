@@ -81,12 +81,12 @@
 (defun cursorfree--test-check-state (parameters same-buffer)
   (should (cursorfree--test-equal-content
            same-buffer
-           (buffer-string) (oref (oref parameters after) string)))
+           (oref (oref parameters after) string) (buffer-string)))
   ;; We do not test the order (for now)
   (should (cursorfree--test-equal-point
            same-buffer
-           (seq-sort #'< (cursorfree--multiple-cursor-points))
-           (seq-sort #'< (oref (oref parameters after) points)))))
+           (seq-sort #'< (oref (oref parameters after) points))
+           (seq-sort #'< (cursorfree--multiple-cursor-points)))))
 
 (defun cursorfree--test-inject-buffer (form buffer)
   "Rewrite FORM so `cursorfree-make-target' uses BUFFER."

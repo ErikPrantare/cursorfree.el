@@ -1365,9 +1365,12 @@ If no bound is found, nil is returned."
        (lambda (k v)
          ;; (logand (car v) #xff): The lower eight bits of the
          ;; syntax code represents the class.
-         (when (or (= (syntax-class-to-char (logand (car v) #xff)) ?<)
-                   (= (syntax-class-to-char (logand (car v) #xff)) ?>))
-           (set-char-table-range (syntax-table) k (string-to-syntax " "))))
+         (let ((class (syntax-class-to-char (logand (car v) #xff))))
+           (when (or (= class ?\()
+                     (= class ?\))
+                     (= class ?<)
+                     (= class ?>))
+             (set-char-table-range (syntax-table) k (string-to-syntax " ")))))
        old-syntax)
       (modify-syntax-entry left (string ?\( right))
       (modify-syntax-entry right (string ?\) left))
