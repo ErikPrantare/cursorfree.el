@@ -113,18 +113,24 @@
               (switch-to-buffer test-buffer)
 
               (cursorfree--setup-test parameters)
-              (eval (cursorfree--test-parameters-command-form parameters))
-              (cursorfree--test-check-state parameters t)
+              (condition-case error
+                  (progn
+                    (eval (cursorfree--test-parameters-command-form parameters))
+                    (cursorfree--test-check-state parameters t))
+                (error (error "(same buffer) %s" (error-message-string error))))
 
               (unless (cursorfree--test-parameters-from-same-buffer parameters)
                 (cursorfree--setup-test parameters)
                 (other-window 1)
                 (switch-to-buffer alternative-buffer)
-                (eval (cursorfree--test-inject-buffer
-                       (cursorfree--test-parameters-command-form parameters)
-                       test-buffer))
-                (select-window (get-buffer-window test-buffer))
-                (cursorfree--test-check-state parameters nil)))
+                (condition-case error
+                    (progn
+                      (eval (cursorfree--test-inject-buffer
+                             (cursorfree--test-parameters-command-form parameters)
+                             test-buffer))
+                      (select-window (get-buffer-window test-buffer))
+                      (cursorfree--test-check-state parameters nil))
+                  (error (error "(other buffer) %s" (error-message-string error))))))
           (kill-buffer test-buffer)
           (kill-buffer alternative-buffer))))))
 
@@ -1022,6 +1028,7 @@
                      (cursorfree-make-target (cons 1 6)))))))
 
 (ert-deftest cursorfree--test-outside-escaped-delimiter ()
+  "outside escaped delimiter."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
     :before (make-cursorfree--test-buffer-state
@@ -1031,7 +1038,8 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 4 8))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-string ()
@@ -1045,7 +1053,8 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 4 8))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-parenthesis-in-string ()
