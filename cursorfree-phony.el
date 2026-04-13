@@ -45,12 +45,10 @@ target as output.  The target argument is allowed to be optional.")
     ;; separate alternative would inline <a> twice more.  This issue
     ;; occurred with talon in [2026-03-21 Sat].
 
-    ;; TODO: Try to improve efficiency of grammar to the point that we
-    ;; can at least comfortably have one extra clone of
-    ;; cursorfree--target-element.  That would allow us to make sure a
-    ;; new constant can only be matched by a preceding "and", so if
-    ;; one utters "chuck boff cap", it is interpreted as "[chuck boff]
-    ;; [cap]" rather than an erroneous sequence.
+    ;; We avoid flattening "and <constant>", as the "and" helps
+    ;; disambiguating a target element sequence from a sequence
+    ;; followed by a keypress ("chuck boff cap" should be interpreted
+    ;; "[chuck boff] [cap]")
 
     ;; Potential alleviations: Have a nop "then" command for explicit
     ;; disambiguation.  Infer at which point an illegal constant has
@@ -61,10 +59,12 @@ target as output.  The target argument is allowed to be optional.")
     ;; but the exported grammar being flattened like this.  Phony
     ;; would verify that the relaxed parse conforms to the specified
     ;; precise grammar.
-    ((+ (elements cursorfree--target-element)))
+    ((initial cursorfree--initial-target-element)
+     (* (rest cursorfree--noninitial-target-element)))
   "Top level rule for matching an arbitrary target."
   :export nil
-  (let ((target (cursorfree--evaluate-target-elements elements)))
+  (let ((target (cursorfree--evaluate-target-elements
+                 (cons initial rest))))
     (setq cursorfree--last-evaluation-result target)
     target))
 
@@ -73,9 +73,15 @@ target as output.  The target argument is allowed to be optional.")
 
 (phony-define-open-rule cursorfree--target-element)
 
+(phony-define-open-rule cursorfree--initial-target-element
+  :alternatives (cursorfree--target-element))
+
+(phony-define-open-rule cursorfree--noninitial-target-element
+  :alternatives (cursorfree--target-element))
+
 (phony-defun cursorfree--constant-element (cursorfree-primitive)
   :export nil
-  :contributes-to cursorfree--target-element
+  :contributes-to cursorfree--initial-target-element
   (list 'constant cursorfree-primitive))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
@@ -88,10 +94,10 @@ target as output.  The target argument is allowed to be optional.")
   :contributes-to cursorfree--target-element
   '(infix cursorfree-past))
 
-(phony-defun cursorfree--infix-element-and "and"
+(phony-defun cursorfree--infix-element-and ("and" cursorfree--constant-element)
   :export nil
-  :contributes-to cursorfree--target-element
-  'and)
+  :contributes-to cursorfree--noninitial-target-element
+  `(and ,(cadr cursorfree--constant-element)))
 
 (defun cursorfree--evaluate-target-elements (elements)
   (pcase elements
@@ -106,20 +112,12 @@ target as output.  The target argument is allowed to be optional.")
     (`((constant ,c) (modifier ,m) . ,xs)
      (cursorfree--evaluate-target-elements
       (cons `(constant ,(funcall m c)) xs)))
-    (`((constant ,c1) and (constant ,c2) . ,xs)
+    (`((constant ,c1) (and ,c2) . ,xs)
      (cursorfree--evaluate-target-elements
       `((constant ,(seq-concatenate
                     'cursorfree--parallel
                     (cursorfree--ensure-parallel c1)
                     (cursorfree--ensure-parallel c2)))
-        . ,xs)))
-    (`((constant ,c) and (modifier ,m) . ,xs)
-     (cursorfree--evaluate-target-elements
-      `((constant ,(seq-concatenate
-                    'cursorfree--parallel
-                    (cursorfree--ensure-parallel c)
-                    (cursorfree--ensure-parallel
-                     (funcall m))))
         . ,xs)))
     (_ (error "Invalid target element sequence."))))
 
