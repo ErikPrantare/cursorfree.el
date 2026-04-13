@@ -117,6 +117,7 @@
                   (progn
                     (eval (cursorfree--test-parameters-command-form parameters))
                     (cursorfree--test-check-state parameters t))
+                (ert-test-failed (signal (car error) (cdr error)))
                 (error (error "(same buffer) %s" (error-message-string error))))
 
               (unless (cursorfree--test-parameters-from-same-buffer parameters)
@@ -130,6 +131,7 @@
                              test-buffer))
                       (select-window (get-buffer-window test-buffer))
                       (cursorfree--test-check-state parameters nil))
+                  (ert-test-failed (signal (car error) (cdr error)))
                   (error (error "(other buffer) %s" (error-message-string error))))))
           (kill-buffer test-buffer)
           (kill-buffer alternative-buffer))))))
