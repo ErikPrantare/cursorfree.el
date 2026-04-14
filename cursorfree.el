@@ -1104,16 +1104,20 @@ TARGET defaults to `cursorfree-this'."
 
 TARGET defaults to `cursorfree-this'."
   (unless target (setq target (cursorfree-this)))
-  (save-excursion
-    (cursorfree-drink target)))
+  (cursorfree-on-content-region target
+    (lambda (_)
+      (save-excursion
+        (cursorfree-drink target)))))
 
 (defun cursorfree-float (&optional target)
   "Insert an empty line after the line of TARGET.
 
 TARGET defaults to `cursorfree-this'."
   (unless target (setq target (cursorfree-this)))
-  (save-excursion
-    (cursorfree-pour target)))
+  (cursorfree-on-content-region target
+    (lambda (_)
+      (save-excursion
+        (cursorfree-pour target)))))
 
 (defun cursorfree-puff (&optional target)
   "Insert an empty line before and after the line of TARGET.

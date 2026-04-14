@@ -505,7 +505,8 @@
             :points '(1))
     :command-form
     '(cursorfree-chuck
-      (cursorfree-outside)))))
+      (cursorfree-outside
+       (cursorfree-make-target (cons 11 11)))))))
 
 (ert-deftest cursorfree--test-wrap-braces ()
   "wrap braces."
@@ -765,7 +766,7 @@
             :points '(1))
     :command-form '(cursorfree-change
                     (cursorfree-trim
-                     (cursorfree-everything))))))
+                     (cursorfree-make-target (cons 1 14)))))))
 
 (ert-deftest cursorfree--test-break ()
   "break."
@@ -960,7 +961,7 @@
 "
             :points '(2))
     :command-form '(cursorfree-puff
-                    (cursorfree-this)))))
+                    (cursorfree-make-target (cons 1 1))))))
 
 (ert-deftest cursorfree--test-block-empty-newline ()
   "block."
@@ -1070,7 +1071,8 @@
             :string ""
             :points '(1))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside nil ?\())
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 5 5)) ?\())
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-single-quote-python ()
@@ -1084,7 +1086,8 @@
             :string "'def\"'"
             :points '(1))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside nil ?'))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 4 4)) ?'))
     :setup (lambda () (python-mode)))))
 
 (ert-deftest cursorfree--test-outside-delimiter-in-comment ()
@@ -1097,7 +1100,8 @@
             :string "ab"
             :points '(2))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 4 4))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-parenthesis-inside-string ()
@@ -1111,7 +1115,8 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-single-quote-inside-double-quote-elisp ()
@@ -1125,7 +1130,8 @@
             :string "(hello)"
             :points '(7))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-single-quote-inside-double-quote-python ()
@@ -1139,7 +1145,8 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (python-mode)))))
 
 (ert-deftest cursorfree--test-outside-mismatched-brackets-in-string ()
@@ -1153,7 +1160,8 @@
             :string "(hello \"\")"
             :points '(9))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-escaped-quotes-in-string ()
@@ -1167,7 +1175,8 @@
             :string "(hello)"
             :points '(7))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-parenthesis-in-comment ()
@@ -1181,7 +1190,8 @@
             :string "(hello \n ;;\n)"
             :points '(12))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 15 15))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-quote-in-comment ()
@@ -1195,7 +1205,8 @@
             :string "(hello \n ;;\n)"
             :points '(12))
     :command-form '(cursorfree-chuck
-                    (cursorfree-outside))
+                    (cursorfree-outside
+                     (cursorfree-make-target (cons 17 17))))
     :setup (lambda () (emacs-lisp-mode)))))
 
 (ert-deftest cursorfree--test-outside-fail ()
@@ -1207,13 +1218,10 @@
     :after (make-cursorfree--test-buffer-state
             :string "success"
             :points '(8))
-    :command-form '(progn
-                     (if (not (cursorfree-outside))
-                         (progn
-                           (delete-region (point-min) (point-max))
-                           (insert "success"))
-                       (delete-region (point-min) (point-max))
-                       (insert "fail")))
+    :command-form '(let ((this (cursorfree-make-target (cons 5 5))))
+                     (cursorfree-bring
+                      (if (not (cursorfree-outside this)) "success" "fail")
+                      (cursorfree-everything this)))
     :setup (lambda () (emacs-lisp-mode)))))
 
 ;;; test.el ends here
