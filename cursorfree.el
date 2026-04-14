@@ -1695,20 +1695,26 @@ WINDOW defaults to the selected window."
 
 (defun cursorfree-sentence (&optional target)
   "Extend TARGET to cover its containing sentence.
+
 TARGET defaults to the return value of `cursorfree-this'."
-  (cursorfree-on-content-region (or target (cursorfree-this))
-    (lambda (region)
-      (cursorfree-make-target
-       (cursorfree--bounds-of-thing-at 'sentence (car region))))))
+  (cursorfree--expand-to-thing 'sentence target))
+
+(defun cursorfree-symbol (&optional target)
+  "Extend the beginning of TARGET to cover its containing symbol.
+
+TARGET defaults to the return value of `cursorfree-this'."
+  (cursorfree--expand-to-thing 'symbol target))
 
 (defun cursorfree-token (&optional target)
   "Extend the beginning of TARGET to cover its containing hatty token.
-TARGET defaults to the return value of `cursorfree-this'."
-  (require 'hatty)
-  (cursorfree-on-content-region (or target (cursorfree-this))
-    (lambda (region)
-      (cursorfree-make-target
-       (cursorfree--bounds-of-thing-at 'hatty-token (car region))))))
+
+TARGET defaults to the return value of `cursorfree-this'.
+
+If hatty-mode is not active, this function falls back to using
+`cursorfree-symbol'."
+  (if (seq-contains-p local-minor-modes 'hatty-mode)
+      (cursorfree--expand-to-thing 'hatty-token target)
+    (cursorfree-symbol target)))
 
 (defun cursorfree-block (&optional target)
   "Extend TARGET to the smallest region with empty lines on both sides."
