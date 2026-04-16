@@ -1009,10 +1009,6 @@ content region.  Afterwards, the region will be pulsed."
   "Narrow region to the last element of TARGETS."
   narrow-to-region)
 
-(cursorfree--simple-content-function cursorfree-fill
-  "Fill the paragraphs in TARGETS."
-  fill-region)
-
 (cursorfree--simple-content-function cursorfree-capitalize
   "Capitalize the first character of each word in TARGETS."
   capitalize-region)
@@ -1024,6 +1020,27 @@ content region.  Afterwards, the region will be pulsed."
 (cursorfree--simple-content-function cursorfree-downcase
   "Convert TARGET to lower case."
   downcase-region)
+
+(cl-defgeneric cursorfree--fill-region (region)
+  (fill-region (car region) (cdr region)))
+
+(cl-defmethod cursorfree--fill-region (region &context (major-mode (derived-mode prog-mode)))
+  (indent-region (car region) (cdr region)))
+
+(cl-defmethod cursorfree--fill-region (region &context (major-mode (derived-mode org-mode)))
+  (save-excursion
+    (goto-char (car region))
+    (while (and (not (> (point) (cdr region))) (not (eobp)))
+      (org-fill-paragraph)
+      (org-forward-paragraph))
+    (goto-char (cdr region))
+    (org-fill-paragraph)))
+
+(defun cursorfree-fill (&optional target)
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (cursorfree--fill-region region)))
+  (cursorfree-pulse target))
 
 (defun cursorfree--clamp-line ()
   "Move point to within window if outside."
