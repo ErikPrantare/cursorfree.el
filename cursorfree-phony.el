@@ -141,25 +141,17 @@ target as output.  The target argument is allowed to be optional.")
   :contributes-to cursorfree-primitive
   (string c))
 
-(phony-defun cursorfree--that "that"
-  :export nil
-  :contributes-to cursorfree-primitive
-  cursorfree--target-that)
+(phony-define-dictionary cursorfree--procedural-primitive
+  `(("clip" . cursorfree-kill-ring)
+    ("primary" . cursorfree-primary-selection)
+    ("that" . ,(lambda () cursorfree--target-that))
+    ("source" . ,(lambda () cursorfree--target-source))
+    ("its" . ,(lambda () cursorfree--last-evaluation-result))
+    ("itself" . ,(lambda () cursorfree--last-evaluation-result))))
 
-(phony-defun cursorfree--source "source"
-  :export nil
+(phony-defun cursorfree--resolved-procedural-primitive ((primitive cursorfree--procedural-primitive))
   :contributes-to cursorfree-primitive
-  cursorfree--target-source)
-
-(phony-defun cursorfree--its "its"
-  :export nil
-  :contributes-to cursorfree-primitive
-  (cursorfree--normalize-target cursorfree--last-evaluation-result))
-
-(phony-defun cursorfree--itself "itself"
-  :export nil
-  :contributes-to cursorfree-primitive
-  (cursorfree--normalize-target cursorfree--last-evaluation-result))
+  (funcall primitive))
 
 (phony-define-dictionary cursorfree--color
   '(("squash" . yellow)
@@ -331,8 +323,6 @@ target as output.  The target argument is allowed to be optional.")
     ("visible" . cursorfree-visible)
     ("this" . cursorfree-this)
     ("every instance" . cursorfree-every-instance)
-    ("clip" . cursorfree-kill-ring)
-    ("primary" . cursorfree-primary-selection)
     ("next" . cursorfree-next)
     ("preve" . cursorfree-previous)
     ("beginning" . cursorfree-beginning)
