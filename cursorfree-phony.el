@@ -292,7 +292,7 @@ target as output.  The target argument is allowed to be optional.")
 (phony-defun cursorfree--simple-action
     ((verb cursorfree--simple-action-verb)
      (target cursorfree-target))
-  (funcall (symbol-function verb) target))
+  (funcall verb target))
 
 (phony-defun cursorfree--outside ("outside" (? (delimiter any-alphanumeric-key)))
   :export nil
