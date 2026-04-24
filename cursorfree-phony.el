@@ -43,28 +43,49 @@ target as output.  The target argument is allowed to be optional.")
     ;; The element matching is unstructured to avoid grammar inflation
     ;; from inlined rules.  Otherwise, e.g. (<a> "past" <a>) as a
     ;; separate alternative would inline <a> twice more.  This issue
-    ;; occurred with talon in [2026-03-21 Sat].
+    ;; occurred with talon in [2026-03-21 Sat].  Targets are used
+    ;; everywhere, so we cannot afford the inlining of targets to be
+    ;; expensive.
 
-    ;; We avoid flattening "and <constant>", as the "and" helps
-    ;; disambiguating a target element sequence from a sequence
-    ;; followed by a keypress ("chuck boff cap" should be interpreted
-    ;; "[chuck boff] [cap]")
+    ;; The general problem that we still need to overcome is that a
+    ;; primitive, unless it is the first element, needs to be preceded
+    ;; by an infix operator.  That is why we still need to
+    ;; differentiate between initial elements and noninitial elements.
+    ;; They are equivalent, except that noninitial primitives always
+    ;; occur as <infix> <primitive>.  Otherwise, <char1> <char2> could
+    ;; be interpreted both as two elements, or as element <char1>
+    ;; followed by a separate keypress command <char2>.  The second
+    ;; form is what is generally intended.
 
-    ;; Potential alleviations: Have a nop "then" command for explicit
-    ;; disambiguation.  Infer at which point an illegal constant has
-    ;; been introduced, and reparse that tail.
+    ;; Current syntax:
 
-    ;; Also consider providing phony with a flag for "relaxing" a
-    ;; rule, such that the precise grammar can be specified as usual
-    ;; but the exported grammar being flattened like this.  Phony
-    ;; would verify that the relaxed parse conforms to the specified
-    ;; precise grammar.
+    ;; S -> initial noninitial*
+    ;; initial -> primitive | modifier | infix
+    ;; noninitial -> infix primitive | modifier | infix
+
+    ;; Note how inlining will still double the occurrence of each
+    ;; rule, or triple for infix.  This is still better than being a
+    ;; bit more precise precise in the syntax structure, which'd be
+    ;; something like:
+
+    ;; S -> infix? seq (infix seq)*
+    ;; seq -> primitive modifier* | modifier modifier*
+
+    ;; which has 2 infixes, 2 primitives, and 6 (!) modifiers.
+    ;; Modifiers can become very complex in syntax compared to
+    ;; primitives and infixes, so we want to minimize the amount of
+    ;; inlined modifiers.  If inlining was no problem, we would
+    ;; probably want an even more complex structure than this.
+
+    ;; TODO: Clarify the "real" syntax.  The current interpretation is
+    ;; a bit "ad-hoc".  It works for most cases though.  The real
+    ;; syntax could be used to re-parse the less precise one.
     ((initial cursorfree--initial-target-element)
      (* (rest cursorfree--noninitial-target-element)))
   "Top level rule for matching an arbitrary target."
   :export nil
   (let ((target (cursorfree--evaluate-target-elements
-                 (cons initial rest))))
+                 (apply #'append initial rest))))
     (setq cursorfree--last-evaluation-result target)
     target))
 
@@ -79,47 +100,55 @@ target as output.  The target argument is allowed to be optional.")
 (phony-define-open-rule cursorfree--noninitial-target-element
   :alternatives (cursorfree--target-element))
 
-(phony-defun cursorfree--constant-element (cursorfree-primitive)
+(phony-defun cursorfree--primitive-element (cursorfree-primitive)
   :export nil
   :contributes-to cursorfree--initial-target-element
-  (list 'constant cursorfree-primitive))
+  (list (list 'primitive cursorfree-primitive)))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
   :export nil
   :contributes-to cursorfree--target-element
-  (list 'modifier cursorfree-modifier))
+  (list (list 'modifier cursorfree-modifier)))
+
+(phony-define-open-rule cursorfree--infix-element
+  :contributes-to cursorfree--target-element)
 
 (phony-defun cursorfree--infix-element-past "past"
   :export nil
-  :contributes-to cursorfree--target-element
-  '(infix cursorfree-past))
+  :contributes-to cursorfree--infix-element
+  '((infix cursorfree-past)))
 
-(phony-defun cursorfree--infix-element-and ("and" cursorfree--constant-element)
+(phony-defun cursorfree--infix-element-and "and"
   :export nil
-  :contributes-to cursorfree--noninitial-target-element
-  `(and ,(cadr cursorfree--constant-element)))
+  :contributes-to cursorfree--infix-element
+  `((infix ,(lambda (&rest targets)
+              (apply #'seq-concatenate
+                     'cursorfree--parallel
+                     (seq-map #'cursorfree--ensure-parallel targets))))))
+
+(phony-defun cursorfree--infix-primitive ((infix cursorfree--infix-element)
+                                          (primitive cursorfree--primitive-element))
+  :contributes-to cursorfree--target-element
+  (append infix primitive))
 
 (defun cursorfree--evaluate-target-elements (elements)
   (pcase elements
-    (`((constant ,c)) c)
+    (`((primitive ,c)) c)
     (`((modifier ,m) . ,xs)
      (cursorfree--evaluate-target-elements
-      (cons `(constant ,(funcall m)) xs)))
-    (`((infix ,i) . ,xs)
-     (funcall i (cursorfree--evaluate-target-elements xs)))
-    (`((constant ,c) (infix ,i) . ,xs)
-     (funcall i c (cursorfree--evaluate-target-elements xs)))
-    (`((constant ,c) (modifier ,m) . ,xs)
+      (cons `(primitive ,(funcall m)) xs)))
+    (`((infix ,i) ,x . ,xs)
      (cursorfree--evaluate-target-elements
-      (cons `(constant ,(funcall m c)) xs)))
-    (`((constant ,c1) (and ,c2) . ,xs)
+      (cons `(primitive ,(funcall i (cursorfree--evaluate-target-elements (list x))))
+            xs)))
+    (`((primitive ,c) (infix ,i) ,x . ,xs)
      (cursorfree--evaluate-target-elements
-      `((constant ,(seq-concatenate
-                    'cursorfree--parallel
-                    (cursorfree--ensure-parallel c1)
-                    (cursorfree--ensure-parallel c2)))
-        . ,xs)))
-    (_ (error "Invalid target element sequence."))))
+      (cons `(primitive ,(funcall i c (cursorfree--evaluate-target-elements (list x))))
+            xs)))
+    (`((primitive ,c) (modifier ,m) . ,xs)
+     (cursorfree--evaluate-target-elements
+      (cons `(primitive ,(funcall m c)) xs)))
+    (_ (error "Invalid target element sequence %S" elements))))
 
 (phony-defun cursorfree--window ("split" (n digit))
   :export nil
