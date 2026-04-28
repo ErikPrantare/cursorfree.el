@@ -1739,7 +1739,7 @@ TARGET defaults to the return value of `cursorfree-this'."
 
 TARGET defaults to the return value of `cursorfree-this'.
 
-If hatty-mode is not active, this function falls back to using
+If `hatty-mode' is not active, this function falls back to using
 `cursorfree-symbol'."
   (if (seq-contains-p local-minor-modes 'hatty-mode)
       (cursorfree--expand-to-thing 'hatty-token target)
