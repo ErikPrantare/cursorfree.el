@@ -1,5 +1,5 @@
 * TODO Commands:
-- filler: Implicitly act upon "block".
+- tidy: Implicitly act upon "block".
 
 * TODO Test grammar using phony-provided parser
 

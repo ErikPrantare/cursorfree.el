@@ -1021,13 +1021,21 @@ content region.  Afterwards, the region will be pulsed."
   "Convert TARGET to lower case."
   downcase-region)
 
-(cl-defgeneric cursorfree--fill-region (region)
+(cl-defgeneric cursorfree--tidy-region (region)
+  "Tidy up REGION."
   (fill-region (car region) (cdr region)))
 
-(cl-defmethod cursorfree--fill-region (region &context (major-mode (derived-mode prog-mode)))
+(cl-defmethod cursorfree--tidy-region (region &context (major-mode (derived-mode prog-mode)))
+  ;; checkdoc-params: (major-mode)
+  "Tidy up REGION."
   (indent-region (car region) (cdr region)))
 
-(cl-defmethod cursorfree--fill-region (region &context (major-mode (derived-mode org-mode)))
+(declare-function org-fill-paragraph "org")
+(declare-function org-forward-paragraph "org")
+
+(cl-defmethod cursorfree--tidy-region (region &context (major-mode (derived-mode org-mode)))
+  ;; checkdoc-params: (major-mode)
+  "Tidy up REGION."
   (save-excursion
     (goto-char (car region))
     (while (and (not (> (point) (cdr region))) (not (eobp)))
@@ -1036,10 +1044,14 @@ content region.  Afterwards, the region will be pulsed."
     (goto-char (cdr region))
     (org-fill-paragraph)))
 
-(defun cursorfree-fill (&optional target)
+(defun cursorfree-tidy (&optional target)
+  "Tidy up TARGET.
+
+\"Tidy\" in this context is an operation that reformats text to look
+neat, for example by correctly indenting code."
   (cursorfree-on-content-region target
     (lambda (region)
-      (cursorfree--fill-region region)))
+      (cursorfree--tidy-region region)))
   (cursorfree-pulse target))
 
 (defun cursorfree--clamp-line ()

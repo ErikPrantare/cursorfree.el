@@ -174,7 +174,7 @@ corresponding library function.
 | bottom      | cursorfree-bottom         |
 | pick        | cursorfree-pick           |
 | fuse        | cursorfree-fuse           |
-| filler      | cursorfree-fill           |
+| tidy        | cursorfree-tidy           |
 | join        | cursorfree-join           |
 | break       | cursorfree-break          |
 | flash       | cursorfree-pulse          |

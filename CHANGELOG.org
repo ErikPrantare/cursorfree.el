@@ -26,7 +26,7 @@
   - New actions "float", "drop", "puff": This will insert a newline
     before, after, or around the line of the target without moving
     point.
-  - New command "rewrap": Replaces the surrounding parentheses with a
+  - New action "rewrap": Replaces the surrounding parentheses with a
     new pair.
   - "wrap" can now act on multiple targets.
   - "occur" can now take an optional parameter to specify in which
@@ -35,6 +35,7 @@
     of context lines.
   - "pick" can now follow alternatives in xref buffers.
   - "pick" can now apply widgets.
+  - New action "tidy": Tidy up text.
 - Modifiers:
   - "this" now returns region if it is active.
   - "this" now returns a parallel target if multiple cursors are
