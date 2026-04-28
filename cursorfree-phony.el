@@ -30,7 +30,7 @@
 
 (phony-module cursorfree "cursorfree")
 
-(defvar cursorfree--last-evaluation-result nil
+(defvar cursorfree-phony--last-evaluation-result nil
   "The result of the last evaluated cursorfree command.")
 
 (phony-define-open-rule cursorfree-modifier
@@ -84,9 +84,9 @@ target as output.  The target argument is allowed to be optional.")
      (* (rest cursorfree--noninitial-target-element)))
   "Top level rule for matching an arbitrary target."
   :interactive nil
-  (let ((target (cursorfree--evaluate-target-elements
+  (let ((target (cursorfree-phony--evaluate-target-elements
                  (apply #'append initial rest))))
-    (setq cursorfree--last-evaluation-result target)
+    (setq cursorfree-phony--last-evaluation-result target)
     target))
 
 (phony-define-open-rule cursorfree-primitive
@@ -131,22 +131,22 @@ target as output.  The target argument is allowed to be optional.")
   :contributes-to cursorfree--target-element
   (append infix primitive))
 
-(defun cursorfree--evaluate-target-elements (elements)
+(defun cursorfree-phony--evaluate-target-elements (elements)
   (pcase elements
     (`((primitive ,c)) c)
     (`((modifier ,m) . ,xs)
-     (cursorfree--evaluate-target-elements
+     (cursorfree-phony--evaluate-target-elements
       (cons `(primitive ,(funcall m)) xs)))
     (`((infix ,i) ,x . ,xs)
-     (cursorfree--evaluate-target-elements
-      (cons `(primitive ,(funcall i (cursorfree--evaluate-target-elements (list x))))
+     (cursorfree-phony--evaluate-target-elements
+      (cons `(primitive ,(funcall i (cursorfree-phony--evaluate-target-elements (list x))))
             xs)))
     (`((primitive ,c) (infix ,i) ,x . ,xs)
-     (cursorfree--evaluate-target-elements
-      (cons `(primitive ,(funcall i c (cursorfree--evaluate-target-elements (list x))))
+     (cursorfree-phony--evaluate-target-elements
+      (cons `(primitive ,(funcall i c (cursorfree-phony--evaluate-target-elements (list x))))
             xs)))
     (`((primitive ,c) (modifier ,m) . ,xs)
-     (cursorfree--evaluate-target-elements
+     (cursorfree-phony--evaluate-target-elements
       (cons `(primitive ,(funcall m c)) xs)))
     (_ (error "Invalid target element sequence %S" elements))))
 
@@ -175,8 +175,8 @@ target as output.  The target argument is allowed to be optional.")
     ("primary" . cursorfree-primary-selection)
     ("that" . ,(lambda () cursorfree--target-that))
     ("source" . ,(lambda () cursorfree--target-source))
-    ("its" . ,(lambda () cursorfree--last-evaluation-result))
-    ("itself" . ,(lambda () cursorfree--last-evaluation-result))))
+    ("its" . ,(lambda () cursorfree-phony--last-evaluation-result))
+    ("itself" . ,(lambda () cursorfree-phony--last-evaluation-result))))
 
 (phony-defun cursorfree--resolved-procedural-primitive ((primitive cursorfree--procedural-primitive))
   :contributes-to cursorfree-primitive
@@ -256,7 +256,7 @@ target as output.  The target argument is allowed to be optional.")
 
 (phony-define-open-rule cursorfree-wrapper)
 
-(phony-defun character-wrapper ((? "car") (character symbol-key))
+(phony-defun cursorfree--character-wrapper ((? "car") (character symbol-key))
   :interactive nil
   :contributes-to cursorfree-wrapper
   (apply-partially #'cursorfree-wrap character))
