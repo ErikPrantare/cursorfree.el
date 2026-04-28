@@ -83,7 +83,7 @@ target as output.  The target argument is allowed to be optional.")
     ((initial cursorfree--initial-target-element)
      (* (rest cursorfree--noninitial-target-element)))
   "Top level rule for matching an arbitrary target."
-  :export nil
+  :interactive nil
   (let ((target (cursorfree--evaluate-target-elements
                  (apply #'append initial rest))))
     (setq cursorfree--last-evaluation-result target)
@@ -101,12 +101,12 @@ target as output.  The target argument is allowed to be optional.")
   :alternatives (cursorfree--target-element))
 
 (phony-defun cursorfree--primitive-element (cursorfree-primitive)
-  :export nil
+  :interactive nil
   :contributes-to cursorfree--initial-target-element
   (list (list 'primitive cursorfree-primitive)))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
-  :export nil
+  :interactive nil
   :contributes-to cursorfree--target-element
   (list (list 'modifier cursorfree-modifier)))
 
@@ -114,12 +114,12 @@ target as output.  The target argument is allowed to be optional.")
   :contributes-to cursorfree--target-element)
 
 (phony-defun cursorfree--infix-element-past "past"
-  :export nil
+  :interactive nil
   :contributes-to cursorfree--infix-element
   '((infix cursorfree-past)))
 
 (phony-defun cursorfree--infix-element-and "and"
-  :export nil
+  :interactive nil
   :contributes-to cursorfree--infix-element
   `((infix ,(lambda (&rest targets)
               (apply #'seq-concatenate
@@ -151,22 +151,22 @@ target as output.  The target argument is allowed to be optional.")
     (_ (error "Invalid target element sequence %S" elements))))
 
 (phony-defun cursorfree--window ("split" (n digit))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   (winum-get-window-by-number n))
 
 (phony-defun cursorfree--word ("word" (word word))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   word)
 
 (phony-defun cursorfree--number ("numb" (n number))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   n)
 
 (phony-defun cursorfree--character ("car" (c any-alphanumeric-key))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   (string c))
 
@@ -205,17 +205,17 @@ target as output.  The target argument is allowed to be optional.")
     ((? (color cursorfree--color))
      (? (shape cursorfree--shape))
      (char any-alphanumeric-key))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   (cursorfree--make-target-from-hat char color shape))
 
 (phony-defun cursorfree--row ("row" (index number))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   (cursorfree-row-modulo-100 index))
 
 (phony-defun cursorfree--long-row ("long row" (index number))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-primitive
   (cursorfree-row index))
 
@@ -257,7 +257,7 @@ target as output.  The target argument is allowed to be optional.")
 (phony-define-open-rule cursorfree-wrapper)
 
 (phony-defun character-wrapper ((? "car") (character symbol-key))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-wrapper
   (apply-partially #'cursorfree-wrap character))
 
@@ -324,13 +324,13 @@ target as output.  The target argument is allowed to be optional.")
   (funcall verb target))
 
 (phony-defun cursorfree--outside ("outside" (? (delimiter any-alphanumeric-key)))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-outside target delimiter)))
 
 (phony-defun cursorfree--inside ("inside" (? (delimiter any-alphanumeric-key)))
-  :export nil
+  :interactive nil
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-inside target delimiter)))
