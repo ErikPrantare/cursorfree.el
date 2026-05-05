@@ -128,6 +128,7 @@ target as output.  The target argument is allowed to be optional.")
 
 (phony-defun cursorfree--infix-primitive ((infix cursorfree--infix-element)
                                           (primitive cursorfree--primitive-element))
+  :interactive nil
   :contributes-to cursorfree--target-element
   (append infix primitive))
 
