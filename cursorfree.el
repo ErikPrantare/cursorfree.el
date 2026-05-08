@@ -1220,16 +1220,20 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
    (t (user-error "Nothing to follow at %S in %S"
                   (point) (current-buffer)))))
 
-(defun cursorfree-pick (&optional target)
-  "Try to follow the thing at TARGET.
+(cl-defgeneric cursorfree--pick (target)
+  "Try to follow or activate the thing at TARGET.
 
-This function calls on `cursorfree-dwim-follow' to attempt to
+By default this function invokes `cursorfree-dwim-follow' to attempt to
 follow the thing at TARGET."
-  (setq target (or target (cursorfree-this)))
   (cursorfree-on-content-region target
     (lambda (region)
       (goto-char (car region))
       (cursorfree-dwim-follow))))
+
+(defun cursorfree-pick (&optional target)
+  "Try to follow or activate the thing at TARGET."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--pick target))
 
 (defun cursorfree-fuse (target)
   "Remove all whitespace within TARGET."
