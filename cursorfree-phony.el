@@ -61,7 +61,7 @@ target as output.  The target argument is allowed to be optional.")
 
     ;; S -> initial noninitial*
     ;; initial -> primitive | modifier | infix
-    ;; noninitial -> infix primitive | modifier | infix
+    ;; noninitial -> infix primitive | infix? modifier
 
     ;; Note how inlining will still double the occurrence of each
     ;; rule, or triple for infix.  This is still better than being a
@@ -105,11 +105,10 @@ target as output.  The target argument is allowed to be optional.")
   (list (list 'primitive cursorfree-primitive)))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
-  :contributes-to cursorfree--target-element
+  :contributes-to cursorfree--initial-target-element
   (list (list 'modifier cursorfree-modifier)))
 
-(phony-define-open-rule cursorfree--infix-element
-  :contributes-to cursorfree--target-element)
+(phony-define-open-rule cursorfree--infix-element)
 
 (phony-defun cursorfree--infix-element-past "past"
   :contributes-to cursorfree--infix-element
@@ -126,6 +125,11 @@ target as output.  The target argument is allowed to be optional.")
                                           (primitive cursorfree--primitive-element))
   :contributes-to cursorfree--target-element
   (append infix primitive))
+
+(phony-defun cursorfree--maybe-infix-modifier ((? (infix cursorfree--infix-element))
+                                               (modifier cursorfree--modifier-element))
+  :contributes-to cursorfree--noninitial-target-element
+  (append infix modifier))
 
 (defun cursorfree-phony--evaluate-target-elements (elements)
   (pcase elements
