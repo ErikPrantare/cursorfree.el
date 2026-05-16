@@ -94,8 +94,8 @@ If invoking FUNCTION causes an error, no cursor is created."
   "Return bounds of THING at POSITION."
   (save-excursion
     (goto-char position)
-    (if-let ((bounds (bounds-of-thing-at-point thing)))
-        (cursorfree--ensure-marker-region bounds))))
+    (and-let* ((bounds (bounds-of-thing-at-point thing)))
+      (cursorfree--ensure-marker-region bounds))))
 
 (cl-defstruct cursorfree-region
   "Target referring to CONTENT-REGION inside of BUFFER.
@@ -344,7 +344,7 @@ To override this function for new target types, implement a method for
 
 By default, returns a window showing the `cursorfree-buffer' of TARGET,
 or nil if no window is showing that buffer."
-  (when-let ((buffer (cursorfree-buffer target)))
+  (and-let* ((buffer (cursorfree-buffer target)))
     (get-buffer-window buffer)))
 
 (cl-defmethod cursorfree--target-window ((target cursorfree-region))
@@ -430,7 +430,7 @@ For a similar function not creating new cursors, see
 The token is indexed by CHARACTER, COLOR and SHAPE, as specified
 by `hatty-locate-token'."
   (require 'hatty)
-  (if-let ((region (hatty-locate-token character color shape)))
+  (if-let* ((region (hatty-locate-token character color shape)))
       (cursorfree-make-target region)
     (user-error "No such hat: color %s, shape %s, character %c" color shape character)))
 
@@ -1515,7 +1515,7 @@ If no such region exists, return nil."
         (while (cursorfree--nonsyntactic-p)
           (skip-syntax-backward "^\"\(")
           (when (bobp) (cl-return nil))
-          (when-let ((bounds (cursorfree--bounds-outside-at-point (char-before))))
+          (when-let* ((bounds (cursorfree--bounds-outside-at-point (char-before))))
             (when (and (<= (car bounds) point-before (cdr bounds))
                        (eq (point) (1+ (car bounds))))
               (cl-return bounds)))
