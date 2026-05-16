@@ -193,7 +193,7 @@ Some actions have more complex spoken forms:
 - ~move <target> to/after/before <target>~ invokes ~cursorfree-move~.
 - ~change <target> [to <target>]~ invokes ~cursorfree-change~.
 - ~swap <target> with <target>~ invokes ~cursorfree-swap~.
-- ~wrap <target> with <character>~ invokes ~cursorfree-swap~.
+- ~wrap <target> with <character>~ invokes ~cursorfree-wrap~.
 - ~unwrap <target>~ invokes ~cursorfree-unwrap~.
 - ~rewrap <target> with <character>~ invokes ~cursorfree-rewrap~.
 - ~hunt <target> [in <target>] [context <number>]~ invokes
