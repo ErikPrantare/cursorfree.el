@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Package-Requires: ((phony "0.3.0"))
+;; Package-Requires: ((emacs "29") (phony "0.5.0"))
 
 ;; cursorfree-phony.el is free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU Affero General Public
@@ -26,6 +26,7 @@
 
 ;;; Code:
 
+(require 'cursorfree)
 (require 'phony)
 
 (phony-module cursorfree "cursorfree")
