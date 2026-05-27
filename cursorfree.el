@@ -1726,6 +1726,12 @@ WINDOW defaults to the selected window."
   (setq target (or target (cursorfree-this)))
   (cursorfree-line-left (cursorfree-line-right target)))
 
+(defun cursorfree-word (&optional target)
+  "Extend TARGET to cover its containing word.
+
+TARGET defaults to the return value of `cursorfree-this'."
+  (cursorfree--expand-to-thing 'word target))
+
 (defun cursorfree-sentence (&optional target)
   "Extend TARGET to cover its containing sentence.
 

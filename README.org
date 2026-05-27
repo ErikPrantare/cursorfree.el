@@ -219,6 +219,8 @@ A modifier transforms a target into a new target.
 | token                 | cursorfree-token              |
 | comment               | cursorfree-comment            |
 | string                | cursorfree-string-literal     |
+| word                  | cursorfree-word               |
+| symbol                | cursorfree-symbol             |
 | sentence              | cursorfree-sentence           |
 | everything            | cursorfree-everything         |
 | visible               | cursorfree-visible            |

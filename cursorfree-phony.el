@@ -349,6 +349,8 @@ target as output.  The target argument is allowed to be optional.")
     ("end" . cursorfree-end)
     ("buffer" . cursorfree-buffer)
     ("split" . cursorfree-window-or-selected)
+    ("word" . cursorfree-word)
+    ("symbol" . cursorfree-symbol)
     ("sentence" . cursorfree-sentence)))
 
 (provide 'cursorfree-phony)
