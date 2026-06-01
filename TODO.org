@@ -1,8 +1,6 @@
 * TODO Commands:
-- block: Properly select paragraph in all modes.  Currently does not
-  always work in org-mode.
-- filler: Implicitly act upon "block".
+- tidy: Implicitly act upon "block".
 
-* TODO cursorfree-this: Potentially return multiple (e.g. for multiple cursors)
-This is probably simplest if we generalize targets, so they can be
-lists as well.
+* TODO Test grammar using phony-provided parser
+
+* TODO Shortdoc

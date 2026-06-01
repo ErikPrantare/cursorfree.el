@@ -1,3 +1,85 @@
+* 0.3.0 [2026-06-02 Tue]
+- Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say
+  "phony enable cursorfree" to activate them.  Alternatively, do ~M-x
+  phony-enable-module RET~.
+- Old grammar has been removed.
+- Introduced parallel targets: This type of target contains a list of
+  other targets.  When evaluating an instruction on them, the
+  semantics are that it should be performed on every contained target.
+  They can also be used to bring multiple sources to multiple targets:
+  If the parallel targets match in size, the targets will be brought
+  one-to-one.
+- Support for custom target types: For your custom types, override the
+  generic functions ~cursorfree-get~ and/or
+  ~cursorfree-put~.  This will allow many actions to work on
+  them as well, particularly the action "bring".
+- New primitive target: "split <number>" will now put the window
+  corresponding to <number> onto the stack.  This requires winum to be
+  installed.
+- Putting text into a window or buffer now inserts it at the
+  corresponding point.
+- Text to be removed is now momentarily highlighted in red before
+  removed.  This can be turned off by setting
+  ~cursorfree-highlight-deletions~ to nil.  The highlight face can be
+  customized by customizing ~cursorfree-deletion-highlight-face~.
+- Actions:
+  - New actions "float", "drop", "puff": This will insert a newline
+    before, after, or around the line of the target without moving
+    point.
+  - New action "rewrap": Replaces the surrounding parentheses with a
+    new pair.
+  - "wrap" can now act on multiple targets.
+  - "occur" can now take an optional parameter to specify in which
+    region, buffer, or window to search for the target.
+  - "occur" can now take an optional parameter to specify the amount
+    of context lines.
+  - "pick" can now follow alternatives in xref buffers.
+  - "pick" can now apply widgets.
+  - New action "tidy": Tidy up text.
+- Modifiers:
+  - "this" now returns region if it is active.
+  - "this" now returns a parallel target if multiple cursors are
+    enabled.
+  - "selection" has been deprecated in favour of "this".
+  - New primitives "that" and "source": "that" refers to the target of
+    the last action.  "source" refers to the source of the last
+    action.  For example, if you said "bring clip to <x>", you can
+    then remove target "<x>" with "chuck source", or insert from the
+    kill ring with "bring that".
+  - New modifiers "beginning" and "end": Return a target referring to
+    an empty region at the beginning or end of the content region of a
+    given target.  Without argument, the returned target is at the
+    beginning or end of the current buffer instead.
+  - New primitive "primary": Return the primary selection as a target.
+  - "this" now takes an optional window or buffer as argument,
+    denoting where it should be created relative to.
+  - New modifiers "buffer" and "split": Returns the current buffer or
+    selected window.  If given an optional target argument, it will
+    instead return the target's associated buffer or window.
+  - New modifier "comment": Expand target (or "this" if no target is
+    given) to cover a code comment.
+  - New modifier "string": Expand target (or "this" if no target is
+    given) to cover a string literal.
+  - New modifiers "word", "symbol", "sentence": Expand target (or
+    "this" if no target is given) to cover a word, symbol, or
+    sentence.
+  - "everything" can now take an optional argument to get everything
+    in the ~cursorfree-buffer~ of that target.
+  - "line" and "block" are now trimmed, i.e. contain no whitespace on
+    their left or right side.
+  - "row" now tries to find the correct line modulo 100 from the
+    visible lines.  For example, "row 63" will select line 1363 if it
+    is visible.  The new primitive "long row <number>" looks up lines
+    without modulo 100.
+  - "past" now expands from point in the appropriate buffer if one end
+    is left implicit.
+  - "visible" now takes an optional window argument, selecting which
+    window the visible portion should be taken from.
+- Removed ~cursorfree-evaluate-environment~, ~cursorfree-evaluate~,
+  ~cursorfree-make-modifier~ and ~cursorfree-make-action~.
+- Removed dependency on ~evil~.
+- multiple-cursors and hatty are now optional dependencies.
+
 * 0.2.0 [2025-04-14 Mon]
 - Actions now respect which buffers targets belong to.
 - Actions:
@@ -27,8 +109,6 @@
     of the target.
 - Talon bindings: Add "word" escape to add a single word to the value
   stack.  These can be read from like ordinary targets.
-
-** TODO Bump hatty version
 
 * 0.1.1 [2025-02-25 Tue]
 - Add temporary highlighting of acted upon target.
