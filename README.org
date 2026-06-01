@@ -14,8 +14,8 @@ without moving point.
 
 This package also provides a spoken command language using [[https://github.com/ErikPrantare/phony.el][phony.el]] to
 allow controlling Emacs using your voice.  Being able to do this was
-the motivating goal of this package, and to do that the higher level
-operations of this package were required.
+the motivating goal of this package, leveraging the natural richness
+possible with spoken language.
 
 This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cursorless]], a package providing similar
 faculties for VSCode.
@@ -30,14 +30,15 @@ faculties for VSCode.
 - [[#description][Description]]
 - [[#contents][Contents]]
 - [[#setup][Setup]]
-  - [[#required-dependencies][Required dependencies]]
   - [[#recommended-dependencies][Recommended dependencies]]
   - [[#installation][Installation]]
   - [[#talon-integration][Talon integration]]
 - [[#usage][Usage]]
+  - [[#spoken-command-structure][Spoken command structure]]
   - [[#primitives][Primitives]]
   - [[#actions][Actions]]
   - [[#modifiers][Modifiers]]
+  - [[#infixes][Infixes]]
 - [[#extending-cursorfree][Extending cursorfree]]
 - [[#versioning-system][Versioning system]]
 :END:
@@ -46,13 +47,6 @@ faculties for VSCode.
 :PROPERTIES:
 :CUSTOM_ID: setup
 :END:
-** Required dependencies
-:PROPERTIES:
-:CUSTOM_ID: required-dependencies
-:END:
-If you intend to use this with voice control, install [[https://github.com/ErikPrantare/phony.el][phony.el]] (unless
-you plan to design your own grammar).
-
 ** Recommended dependencies
 :PROPERTIES:
 :CUSTOM_ID: recommended-dependencies
@@ -100,25 +94,41 @@ or add ~(phony-enable-module 'cursorfree)~ to your configuration.
 :PROPERTIES:
 :CUSTOM_ID: usage
 :END:
-The object acted upon by the cursorfree operations are called
+The objects acted upon by the cursorfree operations are called
 /targets/.  Targets can be any elisp object, but are most often
 objects representing a region in some buffer.
 
-Operations and target can roughly be divided up into two kinds:
-/actions/ and /modifiers/.  An action acts upon targets for some type
-of side effect.  This may be removing a certain region, closing a
-window, or moving point to a location.  A modifier transforms targets
-into new targets, and are the mechanism for specifying more complex
-targets for the actions to operate on.  Targets that are available
-without the use of modifiers are called /primitives/.
+** Spoken command structure
+:PROPERTIES:
+:CUSTOM_ID: spoken-command-structure
+:END:
+The typical structure of a command is ~<action> <target>~, with
+~<target>~ a sequence of primitives, modifiers, and infixes.
 
-The spoken command language provides a compact domain specific
-language for operations.  For example, ~"chuck row 23 block"~ is
-interpreted as ~"[chuck] [row 23] [block]"~.  ~"chuck"~ is the action
-for deleting a target.  ~"row 23"~ is a primitive, indicating the
-region of line 23.  Finally, ~"block"~ is a modifier that expands the
-target to contain the whole paragraph in which ~row 23~ appears.  The
-effect of this command is to remove the paragraph at line 23.
+A primitive is something that immediately evaluates to a target.  For
+example, ~row 42~ evaluates to a target for line 42.
+
+Modifiers form a pipeline for targets.  ~block~ is a modifier
+selecting the paragraph of a target.  Using the aforementioned
+primitive, ~row 42 block~ would evaluate to a target for the paragraph
+at line 42.
+
+Infixes are like modifiers, but combine two targets.  ~past~ is an
+infix selecting a range between two other targets.  ~row 42 past row
+67~ would evaluate to a target ranging from lines 42 to 67.
+
+Actions take a target and perform some operation.  For example, ~chuck
+row 42 past row 67~ removes lines 42 to 67.
+
+Some actions have a more complex structure.  One commonly used action
+with more complex structure is ~bring <target> to <target>~.  It
+overwrites the second target with the contents of the first one.  So,
+~bring row 13 past row 15 to row 42 block~ would overwrite the
+paragraph at line 42 with the text spanning line 13 to 15.
+
+There are a heap of different actions, primitives, modifiers and
+infixes, not all of them related to the regions of the buffer.
+Following is a list of all available elements for forming a command.
 
 ** Primitives
 :PROPERTIES:
@@ -126,65 +136,67 @@ effect of this command is to remove the paragraph at line 23.
 :END:
 A primitive is a target that can be referred to directly.
 
-|-----------------------------+------------------------------------------|
-| Spoken form                 | Description                              |
-|-----------------------------+------------------------------------------|
-| [color] [shape] <character> | Token under a hatty hat.                 |
-| car <character>             | The character itself as a string.        |
-| word <word>                 | The word itself as a string.             |
-| numb <number>               | The number itself.                       |
-| row <number>                | Line with the given number (modulo 100). |
-| long row <number>           | Line with the given number (exact).      |
-| split <number>              | Window with the given [[https://melpa.org/#/winum][winum.el]] index.    |
-| this                        | Point, or region if active.              |
-| that                        | The target of the last action.           |
-| source                      | The source of the last action.           |
-| clip                        | The kill ring.                           |
-| primary                     | The primary selection.                   |
-| its, itself                 | The result of the last evaluation.       |
-|-----------------------------+------------------------------------------|
+|-----------------------------+----------------------------------------------|
+| Spoken form                 | Description                                  |
+|-----------------------------+----------------------------------------------|
+| [color] [shape] <character> | Token under a hatty hat (see hatty package). |
+| car <character>             | The character itself as a string.            |
+| word <word>                 | The word itself as a string.                 |
+| numb <number>               | The number itself.                           |
+| row <number>                | Line with the given number (modulo 100).     |
+| long row <number>           | Line with the given number (exact).          |
+| split <number>              | Window with the given [[https://melpa.org/#/winum][winum.el]] index.        |
+| this                        | Point, or region if active.                  |
+| that                        | The target of the last action.               |
+| source                      | The source of the last action.               |
+| clip                        | The kill ring.                               |
+| primary                     | The primary selection.                       |
+| its, itself                 | The result of the last evaluation.           |
+|-----------------------------+----------------------------------------------|
 
 ** Actions
 :PROPERTIES:
 :CUSTOM_ID: actions
 :END:
-An action consumes targets and performs a side effect.  The following
-table lists of their different actions, both the spoken form and the
-corresponding library function.
+An action consumes targets and performs a side effect.  The most
+important actions are ~pre~, ~take~, ~change~, ~bring~ and ~move~.
 
-|-------------+---------------------------|
-| Spoken form | Function                  |
-|-------------+---------------------------|
-| take        | cursorfree-select         |
-| copy        | cursorfree-copy           |
-| chuck       | cursorfree-chuck          |
-| clone       | cursorfree-clone          |
-| jump        | cursorfree-jump           |
-| pre         | cursorfree-jump-beginning |
-| post        | cursorfree-jump-end       |
-| comment     | cursorfree-make-comment   |
-| uncomment   | cursorfree-uncomment      |
-| indent      | cursorfree-indent         |
-| narrow      | cursorfree-narrow         |
-| title       | cursorfree-capitalize     |
-| upcase      | cursorfree-upcase         |
-| downcase    | cursorfree-downcase       |
-| crown       | cursorfree-crown          |
-| center      | cursorfree-center         |
-| bottom      | cursorfree-bottom         |
-| pick        | cursorfree-pick           |
-| fuse        | cursorfree-fuse           |
-| tidy        | cursorfree-tidy           |
-| join        | cursorfree-join           |
-| break       | cursorfree-break          |
-| flash       | cursorfree-pulse          |
-| help        | cursorfree-help           |
-| drink       | cursorfree-drink          |
-| pour        | cursorfree-pour           |
-| drop        | cursorfree-drop           |
-| float       | cursorfree-float          |
-| puff        | cursorfree-puff           |
-|-------------+---------------------------|
+The following table lists the different actions, both the spoken form
+and the corresponding library function.
+
+|-------------+--------------------------------------+---------------------------|
+| Spoken form | Description                          | Function                  |
+|-------------+--------------------------------------+---------------------------|
+| take        | Select target                        | cursorfree-select         |
+| copy        | Copy to kill ring                    | cursorfree-copy           |
+| chuck       | Delete and tidy whitespace           | cursorfree-chuck          |
+| clone       | Insert a copy after itself           | cursorfree-clone          |
+| jump        | Move point to target                 | cursorfree-jump           |
+| pre         | Move point to beginning              | cursorfree-jump-beginning |
+| post        | Move point to end                    | cursorfree-jump-end       |
+| comment     | Comment out                          | cursorfree-make-comment   |
+| uncomment   | Uncomment                            | cursorfree-uncomment      |
+| indent      | Indent                               | cursorfree-indent         |
+| narrow      | Narrow buffer to target              | cursorfree-narrow         |
+| title       | Capitalize each word                 | cursorfree-capitalize     |
+| upcase      | Convert to upper case                | cursorfree-upcase         |
+| downcase    | Convert to lower case                | cursorfree-downcase       |
+| crown       | Scroll target to top of window       | cursorfree-crown          |
+| center      | Scroll target to center of window    | cursorfree-center         |
+| bottom      | Scroll target to bottom of window    | cursorfree-bottom         |
+| pick        | Follow or activate thing at target   | cursorfree-pick           |
+| fuse        | Remove all whitespace within target  | cursorfree-fuse           |
+| tidy        | Tidy up whitespace and formatting    | cursorfree-tidy           |
+| join        | Join into one line                   | cursorfree-join           |
+| break       | Insert newline before target         | cursorfree-break          |
+| flash       | Temporarily highlight                | cursorfree-pulse          |
+| help        | Show help at target                  | cursorfree-help           |
+| drink       | Insert empty line before, jump there | cursorfree-drink          |
+| pour        | Insert empty line after, jump there  | cursorfree-pour           |
+| drop        | Insert empty line before             | cursorfree-drop           |
+| float       | Insert empty line after              | cursorfree-float          |
+| puff        | Insert empty lines around            | cursorfree-puff           |
+|-------------+--------------------------------------+---------------------------|
 
 Some actions have more complex spoken forms:
 
@@ -205,40 +217,50 @@ Some actions have more complex spoken forms:
 :END:
 A modifier transforms a target into a new target.
 
-|-----------------------+-------------------------------|
-| Spoken form           | Function                      |
-|-----------------------+-------------------------------|
-| paint                 | cursorfree-paint              |
-| leftpaint             | cursorfree-paint-left         |
-| rightpaint            | cursorfree-paint-right        |
-| trim                  | cursorfree-trim               |
-| line                  | cursorfree-line               |
-| tail                  | cursorfree-line-right         |
-| head                  | cursorfree-line-left          |
-| block                 | cursorfree-block              |
-| token                 | cursorfree-token              |
-| comment               | cursorfree-comment            |
-| string                | cursorfree-string-literal     |
-| word                  | cursorfree-word               |
-| symbol                | cursorfree-symbol             |
-| sentence              | cursorfree-sentence           |
-| everything            | cursorfree-everything         |
-| visible               | cursorfree-visible            |
-| every instance        | cursorfree-every-instance     |
-| next                  | cursorfree-next               |
-| preve                 | cursorfree-previous           |
-| beginning             | cursorfree-beginning          |
-| end                   | cursorfree-end                |
-| buffer                | cursorfree-buffer             |
-| split                 | cursorfree-window-or-selected |
-| inside [<character>]  | cursorfree-inside             |
-| outside [<character>] | cursorfree-outside            |
-|-----------------------+-------------------------------|
+|-----------------------+------------------------------------------+-------------------------------|
+| Spoken form           | Description                              | Function                      |
+|-----------------------+------------------------------------------+-------------------------------|
+| paint                 | Expand to surrounding non-whitespace     | cursorfree-paint              |
+| leftpaint             | Expand left to non-whitespace            | cursorfree-paint-left         |
+| rightpaint            | Expand right to non-whitespace           | cursorfree-paint-right        |
+| trim                  | Shrink to exclude surrounding whitespace | cursorfree-trim               |
+| line                  | Extend to non-whitespace on line         | cursorfree-line               |
+| tail                  | Extend to end of line                    | cursorfree-line-right         |
+| head                  | Extend to start of line                  | cursorfree-line-left          |
+| block                 | Extend to surrounding paragraph          | cursorfree-block              |
+| token                 | Extend to containing hatty token         | cursorfree-token              |
+| comment               | Extend to containing comment             | cursorfree-comment            |
+| string                | Extend to containing string literal      | cursorfree-string-literal     |
+| word                  | Extend to containing word                | cursorfree-word               |
+| symbol                | Extend to containing symbol              | cursorfree-symbol             |
+| sentence              | Extend to containing sentence            | cursorfree-sentence           |
+| everything            | Whole buffer contents                    | cursorfree-everything         |
+| visible               | Visible portion of buffer                | cursorfree-visible            |
+| every instance        | All occurrences of target                | cursorfree-every-instance     |
+| next                  | Next occurrence                          | cursorfree-next               |
+| preve                 | Previous occurrence                      | cursorfree-previous           |
+| beginning             | Empty region at start of target          | cursorfree-beginning          |
+| end                   | Empty region at end of target            | cursorfree-end                |
+| buffer                | Buffer containing target                 | cursorfree-buffer             |
+| split                 | Window containing target                 | cursorfree-window-or-selected |
+| inside [<character>]  | Expand to inside enclosing delimiter     | cursorfree-inside             |
+| outside [<character>] | Expand to include enclosing delimiter    | cursorfree-outside            |
+|-----------------------+------------------------------------------+-------------------------------|
 
-Furthermore, the region between two primitives can be referred to with
-~<target> past <target>~, and two or more primitives primitives to be
-acted upon (both by modifiers and actions) can be referred to with
-~<target> and <target>~.
+** Infixes
+:PROPERTIES:
+:CUSTOM_ID: infixes
+:END:
+The region spanning two targets can be referred to with ~<target> past
+<target>~.
+
+Sometimes, one wants to act on multiple targets.  This can be achieved
+with the infix ~and~, which collects targets into a sequence.
+Modifiers and actions act on all the targets of the sequence.  For
+example, ~chuck row 23 and row 42 block~ creates a sequence with the
+targets ~row 23~ and ~row 42~, applies ~block~ to them to get the
+paragraph at those lines, and finally deletes those two paragraphs
+with ~chuck~.
 
 * Extending cursorfree
 :PROPERTIES:
@@ -250,6 +272,8 @@ actions to work on them, particularly "bring".
 
 Custom modifiers and primitives can be added by defining phony rules
 that contribute to ~cursorfree-modifier~ and ~cursorfree-primitive~.
+Custom actions are added by using ~phony-defun~ and capturing on
+~cursorfree-target~.
 
 * Versioning system
 :PROPERTIES:
