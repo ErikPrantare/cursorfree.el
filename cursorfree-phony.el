@@ -4,7 +4,9 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Package-Requires: ((emacs "29") (phony "0.5.0"))
+;; Version: 0.2.0
+;; Homepage: https://github.com/ErikPrantare/cursorfree.el
+;; Package-Requires: ((emacs "29.1") (phony "0.5.0"))
 
 ;; cursorfree-phony.el is free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU Affero General Public
@@ -22,7 +24,7 @@
 
 ;;; Commentary:
 
-;;
+;; This package provides phony voice control rules for cursorfree.
 
 ;;; Code:
 
@@ -35,7 +37,7 @@
   "The result of the last evaluated cursorfree command.")
 
 (phony-define-open-rule cursorfree-modifier
-  "Rules that produce a modifier.
+  "A modifier.
 
 Modifiers are functions with one optional parameter.  When
 invoked, it should produce a target.")
@@ -64,16 +66,19 @@ invoked, it should produce a target.")
      (* (rest cursorfree--noninitial-target-element)))
   "Top level rule for matching an arbitrary target.
 
-A target can be any value we might want to operate on.
-
-The target is specified by a sequence SPEC of elements.  INITIAL
-contributes one list of elements, and REST multiple lists of elements.
-SPEC is computed as the concatenation of all these lists.
+The target is specified by a sequence SPEC of elements.
 
 SPEC must conform to the following syntax:
 
   target -> (? infix) component (* infix component)
   component -> (| primitive modifier) (* modifier)
+
+To extend the target grammar, add rule contributions to the rules
+`cursorfree-primitive' and `cursorfree-modifier'.
+
+INITIAL contributes one list of elements to SPEC, and REST multiple
+lists of elements.  SPEC is computed as the concatenation of all these
+lists.
 
 Each element is a list (TYPE VALUE), with TYPE one of `primitive',
 `modifier', or `infix'.  VALUE defines the operation of the element, and
@@ -115,34 +120,44 @@ an alternative during this iteration."
     target))
 
 (phony-define-open-rule cursorfree-primitive
-  "Rules that produce a target.")
+  "A primitive.
+
+A primitive is any arbitrary value.")
 
 (phony-define-open-rule cursorfree--target-element
-  "A component that may occur anywhere in a target specification.")
+  "List of elements that may occur anywhere in a specification.")
 
 (phony-define-open-rule cursorfree--initial-target-element
-  "A component that may occur at the start of a target specification."
+  "List of elements that may occur at the start of a specification."
   :alternatives (cursorfree--target-element))
 
 (phony-define-open-rule cursorfree--noninitial-target-element
-  "A component that may occur after the start of a target specification."
+  "List of elements that may occur after the start of a specification."
   :alternatives (cursorfree--target-element))
 
 (phony-defun cursorfree--primitive-element (cursorfree-primitive)
+  "A list of one primitive element."
   :contributes-to cursorfree--initial-target-element
   (list (list 'primitive cursorfree-primitive)))
 
 (phony-defun cursorfree--modifier-element (cursorfree-modifier)
+  "A list of one modifier element."
   :contributes-to cursorfree--initial-target-element
   (list (list 'modifier cursorfree-modifier)))
 
-(phony-define-open-rule cursorfree--infix-element)
+(phony-define-open-rule cursorfree--infix-element
+  "A list of one infix element.")
 
 (phony-defun cursorfree--infix-element-past "past"
+  "Infix element for `cursorfree-past'."
   :contributes-to cursorfree--infix-element
   '((infix cursorfree-past)))
 
 (phony-defun cursorfree--infix-element-and "and"
+  "Infix element putting targets into a `cursorfree--parallel'.
+
+The targets sent to the infix function are transformed with
+`cursorfree--ensure-parallel' before they are concatenated."
   :contributes-to cursorfree--infix-element
   `((infix ,(lambda (&rest targets)
               (apply #'seq-concatenate
@@ -151,16 +166,20 @@ an alternative during this iteration."
 
 (phony-defun cursorfree--infix-primitive ((infix cursorfree--infix-element)
                                           (primitive cursorfree--primitive-element))
+  "List of an INFIX element followed by PRIMITIVE element."
   :contributes-to cursorfree--target-element
   (append infix primitive))
 
 (phony-defun cursorfree--maybe-infix-modifier ((? (infix cursorfree--infix-element))
                                                (modifier cursorfree--modifier-element))
+  "List of an INFIX element followed by MODIFIER element."
   :contributes-to cursorfree--noninitial-target-element
   (append infix modifier))
 
 (defun cursorfree-phony--evaluate-target-elements (elements)
-  ;; TODO: Make the implementation closer to the documented specification.
+  "Evaluate ELEMENTS to get a target.
+
+See the rule `cursorfree-target' for the semantics of ELEMENTS."
   (pcase elements
     (`((primitive ,c)) c)
     (`((modifier ,m) . ,xs)
@@ -180,22 +199,32 @@ an alternative during this iteration."
     (_ (error "Invalid target element sequence %S" elements))))
 
 (phony-defun cursorfree--window ("split" (n digit))
+  "Window numbered N by N."
   :contributes-to cursorfree-primitive
-  (winum-get-window-by-number n))
+  (if (and (boundp 'winum-mode)
+           winum-mode
+           ;; To silence byte-compiler
+           (fboundp 'winum-get-window-by-number))
+      (winum-get-window-by-number n)
+    (user-error "Install winum to make use of numbered windows")))
 
 (phony-defun cursorfree--word ("word" (word word))
+  "A WORD."
   :contributes-to cursorfree-primitive
   word)
 
 (phony-defun cursorfree--number ("numb" (n number))
+  "A number N."
   :contributes-to cursorfree-primitive
   n)
 
 (phony-defun cursorfree--character ("car" (c any-alphanumeric-key))
+  "A character C, given as a string."
   :contributes-to cursorfree-primitive
   (string c))
 
 (phony-define-dictionary cursorfree--procedural-primitive
+  "Primitive computed through a function call."
   `(("clip" . cursorfree-kill-ring)
     ("primary" . cursorfree-primary-selection)
     ("that" . ,(lambda () cursorfree--target-that))
@@ -203,11 +232,14 @@ an alternative during this iteration."
     ("its" . ,(lambda () cursorfree-phony--last-evaluation-result))
     ("itself" . ,(lambda () cursorfree-phony--last-evaluation-result))))
 
-(phony-defun cursorfree--resolved-procedural-primitive ((primitive cursorfree--procedural-primitive))
+(phony-defun cursorfree--resolved-procedural-primitive
+    ((primitive cursorfree--procedural-primitive))
+  "The result of invoking PRIMITIVE."
   :contributes-to cursorfree-primitive
   (funcall primitive))
 
 (phony-define-dictionary cursorfree--color
+  "Color used for `hatty'."
   '(("squash" . yellow)
     ("red" . red)
     ("blue" .  blue)
@@ -215,6 +247,7 @@ an alternative during this iteration."
     ("green" . green)))
 
 (phony-define-dictionary cursorfree--shape
+  "Shape used for `hatty'."
   '(("bolt" . bolt)
     ("curve" . curve)
     ("fox" . fox)
@@ -230,19 +263,25 @@ an alternative during this iteration."
     ((? (color cursorfree--color))
      (? (shape cursorfree--shape))
      (char any-alphanumeric-key))
+  "Hatty token indexed by COLOR, SHAPE and CHAR.
+
+See documentation for `hatty-locate-token' for more information."
   :contributes-to cursorfree-primitive
   (cursorfree--make-target-from-hat char color shape))
 
 (phony-defun cursorfree--row ("row" (index number))
+  "Line number INDEX modulo 100."
   :contributes-to cursorfree-primitive
   (cursorfree-row-modulo-100 index))
 
 (phony-defun cursorfree--long-row ("long row" (index number))
+  "Line number INDEX."
   :contributes-to cursorfree-primitive
   (cursorfree-row index))
 
 
 (phony-define-dictionary cursorfree--destination-modifiers
+  "Method for putting a target at a destination."
   `(("to" . cursorfree--put)
     ("after" . cursorfree--put-after)
     ("before" . cursorfree--put-before)))
@@ -252,12 +291,18 @@ an alternative during this iteration."
      (from cursorfree-target)
      (modifier cursorfree--destination-modifiers)
      (to cursorfree-target))
+  "Bring FROM to TO.
+
+Where to put it in relation to TO is given by MODIFIER."
   (cursorfree--target-bring from to :putter modifier))
 
 (phony-defun cursorfree--change
     ("change"
      (target cursorfree-target)
      (? "to" (source cursorfree-target)))
+  "Change TARGET to SOURCE.
+
+If SOURCE is not given, TARGET is removed and point is put in its place."
   (if source
       (cursorfree-bring source target)
     (cursorfree-change target)))
@@ -267,6 +312,9 @@ an alternative during this iteration."
      (from cursorfree-target)
      (modifier cursorfree--destination-modifiers)
      (to cursorfree-target))
+  "Move FROM to TO.
+
+Where to put it in relation to TO is given by MODIFIER."
   (cursorfree--target-move from to :putter modifier))
 
 (phony-defun cursorfree--swap
@@ -274,24 +322,34 @@ an alternative during this iteration."
      (from cursorfree-target)
      "with"
      (to cursorfree-target))
+  "Swap FROM with TO."
   (cursorfree-swap from to))
 
-(phony-define-open-rule cursorfree-wrapper)
+(phony-define-open-rule cursorfree-wrapper
+  "Function ofthe one argument used to wrap a target with something.")
 
 (phony-defun cursorfree--character-wrapper ((? "car") (character symbol-key))
+  "A wrapper that wraps with CHARACTER."
   :contributes-to cursorfree-wrapper
   (apply-partially #'cursorfree-wrap character))
 
 (phony-defun cursorfree--wrap ("wrap" (? (target cursorfree-target)) "with" (wrapper cursorfree-wrapper))
+  "Wrap TARGET with WRAPPER.
+
+If TARGET is not given, `cursorfree-this' is used."
   (setq target (or target (cursorfree-this)))
   (funcall wrapper target)
   (setq cursorfree--target-that target))
 
 (phony-defun cursorfree--unwrap ("unwrap" (target cursorfree-target))
+  "Remove parentheses or quotation around TARGET."
   (cursorfree-unwrap target)
   (setq cursorfree--target-that target))
 
 (phony-defun cursorfree--rewrap ("rewrap" (? (target cursorfree-target)) "with" (character symbol-key))
+  "Replace parentheses or quotation around TARGET with CHARACTER.
+
+If TARGET is not given, `cursorfree-this' is used."
   (setq target (or target (cursorfree-this)))
   (cursorfree-rewrap character target)
   (setq cursorfree--target-that target))
@@ -301,12 +359,17 @@ an alternative during this iteration."
      (target cursorfree-target)
      (? "in" (extent cursorfree-target))
      (? "context" (context-lines number)))
+  "List occurrences of TARGET.
+
+If EXTENT is given, restrict the search to EXTENT.  If
+CONTEXT-LINES is given, show that many lines of context."
   (cursorfree-occur target extent context-lines))
 
 ;; We prefer to factor out the verbs of the simple actions, as this
 ;; avoids unnecessary inlining of cursorfree-target by the speech
 ;; engine.
 (phony-define-dictionary cursorfree--simple-action-verb
+  "Verb for a simple single-target action."
   '(("take" . cursorfree-select)
     ("copy" . cursorfree-copy)
     ("chuck" . cursorfree-chuck)
@@ -342,19 +405,23 @@ an alternative during this iteration."
 (phony-defun cursorfree--simple-action
     ((verb cursorfree--simple-action-verb)
      (target cursorfree-target))
+  "Invoke VERB on TARGET."
   (funcall verb target))
 
 (phony-defun cursorfree--outside ("outside" (? (delimiter any-alphanumeric-key)))
+  "Modifier selecting outside of DELIMITER."
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-outside target delimiter)))
 
 (phony-defun cursorfree--inside ("inside" (? (delimiter any-alphanumeric-key)))
+  "Modifier selecting inside of DELIMITER."
   :contributes-to cursorfree-modifier
   (lambda (&optional target)
     (cursorfree-inside target delimiter)))
 
 (phony-define-dictionary cursorfree--simple-modifier
+  "Modifier taking a single optional target."
   :contributes-to cursorfree-modifier
   '(("paint" . cursorfree-paint)
     ("leftpaint" . cursorfree-paint-left)

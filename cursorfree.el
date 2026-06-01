@@ -368,7 +368,7 @@ If TARGET is nil or omitted, return the selected window."
 (cl-defgeneric cursorfree-on-content-region (target _f)
   "Apply F to the region associated with TARGET."
   (declare (indent defun))
-  (error (format "Type error: %s has no associated region" target)))
+  (error "Type error: %s has no associated region" target))
 
 (cl-defmethod cursorfree-on-content-region ((target cursorfree-region) f)
   "Apply F to the content region of TARGET.
@@ -405,7 +405,7 @@ target.
 For a similar function not creating new cursors, see
 `cursorfree-on-content-region'."
   (declare (indent defun))
-  (error (format "Type error: %s has no content region" target)))
+  (error "Type error: %s has no content region" target))
 
 (cl-defmethod cursorfree-on-content-region-cursor-effect ((target cursorfree-region) f)
   "Call `cursorfree-on-content-region' with F and TARGET."
@@ -436,7 +436,7 @@ by `hatty-locate-token'."
 
 (cl-defgeneric cursorfree-get (target)
   "Return the content referred to by TARGET."
-  (error (format "No method for getting content of target %s" target)))
+  (error "No method for getting content of target %s" target))
 
 (cl-defmethod cursorfree-get ((target string))
   "Return TARGET."
@@ -730,7 +730,7 @@ If the lengths mismatch, a user error is signaled."
 The meaning of \"jump\" is left ambiguous to allow targets of
 different types to be jumped to.  See the implemented methods for
 examples."
-  (error (format "No method for jumping to %s" target)))
+  (error "No method for jumping to %s" target))
 
 (cl-defmethod cursorfree--target-jump ((target cursorfree-region))
   "Move point to beginning of TARGET.
@@ -806,7 +806,7 @@ associated buffer."
 
 (cl-defgeneric cursorfree-delete (target)
   "Delete TARGET."
-  (error (format "No method for deleting target %s" target)))
+  (error "No method for deleting target %s" target))
 
 (cl-defmethod cursorfree-delete ((target cursorfree-region))
   "Delete the deletion region of TARGET.
@@ -890,6 +890,7 @@ If no targets are given, overwrite `cursorfree-this' instead."
 
 PUTTER is a function of two arguments, a target and a source.  It is
 invoked with SOURCE and TARGET."
+  ;; TODO: Make this the public API.
   (setq putter (or putter #'cursorfree--put))
   (funcall putter target source)
   (cursorfree-pulse target)
