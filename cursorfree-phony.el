@@ -37,53 +37,77 @@
 (phony-define-open-rule cursorfree-modifier
   "Rules that produce a modifier.
 
-Modifiers are functions that take a target as an argument, and return a
-target as output.  The target argument is allowed to be optional.")
+Modifiers are functions with one optional parameter.  When
+invoked, it should produce a target.")
 
 (phony-defun cursorfree-target
     ;; The element matching is unstructured to avoid grammar inflation
     ;; from inlined rules.  Otherwise, e.g. (<a> "past" <a>) as a
-    ;; separate alternative would inline <a> twice more.  This issue
+    ;; separate alternative would inline <a> twice.  This issue
     ;; occurred with talon in [2026-03-21 Sat].  Targets are used
     ;; everywhere, so we cannot afford the inlining of targets to be
     ;; expensive.
 
-    ;; The general problem that we still need to overcome is that a
-    ;; primitive, unless it is the first element, needs to be preceded
-    ;; by an infix operator.  That is why we still need to
-    ;; differentiate between initial elements and noninitial elements.
-    ;; They are equivalent, except that noninitial primitives always
-    ;; occur as <infix> <primitive>.  Otherwise, <char1> <char2> could
-    ;; be interpreted both as two elements, or as element <char1>
-    ;; followed by a separate keypress command <char2>.  The second
-    ;; form is what is generally intended.
+    ;; Our encoded syntax is:
 
-    ;; Current syntax:
+    ;; target -> initial (* noninitial)
+    ;; initial -> (| primitive modifier infix)
+    ;; noninitial -> (| (seq infix primitive) (seq (? infix) modifier))
 
-    ;; S -> initial noninitial*
-    ;; initial -> primitive | modifier | infix
-    ;; noninitial -> infix primitive | infix? modifier
-
-    ;; Note how inlining will still double the occurrence of each
-    ;; rule, or triple for infix.  This is still better than being a
-    ;; bit more precise precise in the syntax structure, which'd be
-    ;; something like:
-
-    ;; S -> infix? seq (infix seq)*
-    ;; seq -> primitive modifier* | modifier modifier*
-
-    ;; which has 2 infixes, 2 primitives, and 6 (!) modifiers.
-    ;; Modifiers can become very complex in syntax compared to
-    ;; primitives and infixes, so we want to minimize the amount of
-    ;; inlined modifiers.  If inlining was no problem, we would
-    ;; probably want an even more complex structure than this.
-
-    ;; TODO: Clarify the "real" syntax.  The current interpretation is
-    ;; a bit "ad-hoc".  It works for most cases though.  The real
-    ;; syntax could be used to re-parse the less precise one.
+    ;; Inlining will double the occurrence of primitives and
+    ;; modifiers, and triple for infix.  This is better than using the
+    ;; enforced syntax, which has 2 infixes, 2 primitives, and 6
+    ;; modifiers.  Modifiers can become very complex in syntax
+    ;; compared to primitives, and especially infixes, so we want to
+    ;; minimize the amount of inlined modifiers.
     ((initial cursorfree--initial-target-element)
      (* (rest cursorfree--noninitial-target-element)))
-  "Top level rule for matching an arbitrary target."
+  "Top level rule for matching an arbitrary target.
+
+A target can be any value we might want to operate on.
+
+The target is specified by a sequence SPEC of elements.  INITIAL
+contributes one list of elements, and REST multiple lists of elements.
+SPEC is computed as the concatenation of all these lists.
+
+SPEC must conform to the following syntax:
+
+  target -> (? infix) component (* infix component)
+  component -> (| primitive modifier) (* modifier)
+
+Each element is a list (TYPE VALUE), with TYPE one of `primitive',
+`modifier', or `infix'.  VALUE defines the operation of the element, and
+is an arbitrary value if TYPE is `primitive', a function taking one
+optional parameter if it is a `modifier', and a function accepting
+one or two parameters if it is an `infix'.
+
+In the following, VALUE returns the VALUE part of the element, and GET
+returns VALUE if the element is a primitive, or invokes VALUE with no
+parameters if it is a modifier.
+
+The final value is computed as a sequence of reductions, with a variable
+ACC collecting the target.  It initializes ACC depending on the first element:
+
+- `primitive' or `modifier':
+    ACC <- (GET (car SPEC))
+    SPEC <- (cdr SPEC)
+- `infix':
+    ACC <- (funcall (VALUE (car SPEC)) (GET (cadr SPEC)))
+    SPEC <- (cddr SPEC)
+
+It then looks at the type of the first element of SPEC and applies the
+corresponding rule until SPEC is empty:
+
+- `infix':
+    ACC <- (funcall (VALUE (car SPEC)) ACC (GET (cadr SPEC)))
+    SPEC <- (cddr SPEC)
+- `modifier'
+    ACC <- (funcall (VALUE (car SPEC)) ACC)
+    SPEC <- (cdr SPEC)
+
+The syntax of the target ensures that a `primitive' can never occur as
+an alternative during this iteration."
+  ;; TODO: Test these semantics.
   :interactive nil
   (let ((target (cursorfree-phony--evaluate-target-elements
                  (apply #'append initial rest))))
@@ -91,14 +115,17 @@ target as output.  The target argument is allowed to be optional.")
     target))
 
 (phony-define-open-rule cursorfree-primitive
-  "Simple rules that provide some value when evaluated.")
+  "Rules that produce a target.")
 
-(phony-define-open-rule cursorfree--target-element)
+(phony-define-open-rule cursorfree--target-element
+  "A component that may occur anywhere in a target specification.")
 
 (phony-define-open-rule cursorfree--initial-target-element
+  "A component that may occur at the start of a target specification."
   :alternatives (cursorfree--target-element))
 
 (phony-define-open-rule cursorfree--noninitial-target-element
+  "A component that may occur after the start of a target specification."
   :alternatives (cursorfree--target-element))
 
 (phony-defun cursorfree--primitive-element (cursorfree-primitive)
@@ -133,6 +160,7 @@ target as output.  The target argument is allowed to be optional.")
   (append infix modifier))
 
 (defun cursorfree-phony--evaluate-target-elements (elements)
+  ;; TODO: Make the implementation closer to the documented specification.
   (pcase elements
     (`((primitive ,c)) c)
     (`((modifier ,m) . ,xs)
