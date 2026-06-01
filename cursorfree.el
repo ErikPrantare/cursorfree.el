@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Homepage: https://github.com/ErikPrantare/cursorfree.el
 ;; Package-Requires: ((emacs "29.1"))
 ;; Created: 06 Sep 2024

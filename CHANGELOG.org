@@ -1,4 +1,4 @@
-* NEXT
+* 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say
   "phony enable cursorfree" to activate them.  Alternatively, do ~M-x
   phony-enable-module RET~.
@@ -41,7 +41,7 @@
   - "this" now returns a parallel target if multiple cursors are
     enabled.
   - "selection" has been deprecated in favour of "this".
-  - New modifiers "that" and "source": "that" refers to the target of
+  - New primitives "that" and "source": "that" refers to the target of
     the last action.  "source" refers to the source of the last
     action.  For example, if you said "bring clip to <x>", you can
     then remove target "<x>" with "chuck source", or insert from the
@@ -50,7 +50,7 @@
     an empty region at the beginning or end of the content region of a
     given target.  Without argument, the returned target is at the
     beginning or end of the current buffer instead.
-  - New modifier "primary": Return the primary selection as a target.
+  - New primitive "primary": Return the primary selection as a target.
   - "this" now takes an optional window or buffer as argument,
     denoting where it should be created relative to.
   - New modifiers "buffer" and "split": Returns the current buffer or

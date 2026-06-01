@@ -4,9 +4,9 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Homepage: https://github.com/ErikPrantare/cursorfree.el
-;; Package-Requires: ((emacs "29.1") (phony "0.5.0"))
+;; Package-Requires: ((emacs "29.1") (phony "1.1.0"))
 
 ;; cursorfree-phony.el is free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU Affero General Public
