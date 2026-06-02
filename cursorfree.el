@@ -1214,6 +1214,9 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
    ((and (button-at (point))
          (button-get (button-at (point)) 'action))
     (push-button))
+   ;; TODO: Report upstream that shr does not use button.el
+   ((get-text-property (point) 'shr-url)
+    (shr-browse-url))
    ((widget-at (point))
     (widget-apply-action (widget-at (point))))
    ((alist-get major-mode cursorfree-dwim-follow-alist)

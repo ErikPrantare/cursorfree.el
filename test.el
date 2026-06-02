@@ -27,6 +27,7 @@
 
 (require 'eieio)
 (require 'multiple-cursors)
+(require 'cursorfree)
 
 (cl-defstruct cursorfree--test-buffer-state
   string
