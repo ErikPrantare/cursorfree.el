@@ -146,7 +146,8 @@ A primitive is any arbitrary value.")
   (list (list 'modifier cursorfree-modifier)))
 
 (phony-define-open-rule cursorfree--infix-element
-  "A list of one infix element.")
+  "A list of one infix element."
+  :contributes-to cursorfree--initial-target-element)
 
 (phony-defun cursorfree--infix-element-past "past"
   "Infix element for `cursorfree-past'."
