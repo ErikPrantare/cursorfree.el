@@ -929,18 +929,14 @@ BUFFER is not deleted, so this is equivalent to
   ;; We do not want to kill the buffer if you move instead of bring.
   (cursorfree--target-bring buffer window :putter putter))
 
-(defun cursorfree-swap (target1 target2)
+(cl-defgeneric cursorfree-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."
-  (cursorfree--target-swap target1 target2))
-
-(cl-defgeneric cursorfree--target-swap (target1 target2)
-  "Swap contents of TARGET1 and TARGET2."
   (let ((content1 (cursorfree-get target1))
         (content2 (cursorfree-get target2)))
     (cursorfree-put target1 content2)
     (cursorfree-put target2 content1)))
 
-(cl-defmethod cursorfree--target-swap ((window1 window) (window2 window))
+(cl-defmethod cursorfree-swap ((window1 window) (window2 window))
   "Swap current buffers between WINDOW1 and WINDOW2."
   (let ((buffer1 (cursorfree--target-buffer window1))
         (buffer2 (cursorfree--target-buffer window2)))
