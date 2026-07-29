@@ -1,5 +1,7 @@
 * NEXT
-- ~cursorfree-pick~ can now follow shr.el links.
+- ~cursorfree-pick~ can now follow ~shr.el~ links.
+- ~cursorfree-chuck~, ~cursorfree-bring~, ~cursorfree-move~,
+  ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
 
 * 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say

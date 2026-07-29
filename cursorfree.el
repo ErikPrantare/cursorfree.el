@@ -871,19 +871,18 @@ highlight color can be customized with
       (seq-doseq (overlay overlays)
         (delete-overlay overlay)))))
 
-(defun cursorfree-chuck (&rest targets)
-  "Delete TARGETS and indent the resulting text."
-  (let ((target (cursorfree--normalize-target targets)))
-    (cursorfree--indicate-deletion target)
-    (cursorfree-delete target)
-    (setq cursorfree--target-that target)))
+(defun cursorfree-chuck (target)
+  "Delete TARGET and indent the resulting text."
+  (cursorfree--indicate-deletion target)
+  (cursorfree-delete target)
+  (setq cursorfree--target-that target))
 
-(defun cursorfree-bring (source &rest targets)
-  "Overwrite TARGETS with SOURCE.
+(defun cursorfree-bring (source &optional target)
+  "Overwrite TARGET with SOURCE.
 
-If no targets are given, overwrite `cursorfree-this' instead."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-bring source target)))
+If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--target-bring source target))
 
 (cl-defun cursorfree--target-bring (source target &key putter)
   "Put SOURCE into TARGET using PUTTER.
@@ -897,12 +896,12 @@ invoked with SOURCE and TARGET."
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
 
-(defun cursorfree-move (source &rest targets)
-  "Overwrite TARGETS with SOURCE, then delete SOURCE.
+(defun cursorfree-move (source &optional target)
+  "Overwrite TARGET with SOURCE, then delete SOURCE.
 
-If no targets are given, overwrite `cursorfree-this' instead."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-move source target)))
+If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--target-move source target))
 
 (cl-defgeneric cursorfree--target-move (source target &key putter)
   "Put SOURCE into TARGET using PUTTER, then delete SOURCE.
@@ -957,10 +956,9 @@ BUFFER is not deleted, so this is equivalent to
   "Remove contents of TARGET and put points there."
   (cursorfree--multiple-cursors-do #'cursorfree--target-change target))
 
-(defun cursorfree-change (&rest targets)
-  "Move point to TARGETS and delete its contents."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-change target)))
+(defun cursorfree-change (target)
+  "Move point to TARGET and delete TARGET."
+  (cursorfree--target-change target))
 
 ;; TODO: Don't move point
 (defun cursorfree-clone (target)
@@ -1153,28 +1151,27 @@ TARGET defaults to `cursorfree-this'."
   (cursorfree-float target)
   (cursorfree-drop target))
 
-(defun cursorfree-wrap (parenthesis &rest targets)
-  "Wrap TARGETS with characters specified by PARENTHESIS.
+(defun cursorfree-wrap (parenthesis target)
+  "Wrap TARGET with characters specified by PARENTHESIS.
 
-Insert PARENTHESIS before TARGETS.  If PARENTHESIS is some type of
+Insert PARENTHESIS before TARGET.  If PARENTHESIS is some type of
 parenthesis, insert the matching right version at the end of TARGETS.
 Otherwise, insert PARENTHESIS instead."
-  (dolist (target targets)
-    (cursorfree-on-content-region target
-      (lambda (region)
-        (save-excursion
-          (goto-char (car region))
-          (insert parenthesis)
-          (goto-char (cdr region))
-          (insert
-           (pcase parenthesis
-             (?\( ?\))
-             (?\[ ?\])
-             (?< ?>)
-             (?{ ?})
-             (_ parenthesis))))
-        (when (= (car region) (point))
-          (forward-char))))))
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (insert parenthesis)
+        (goto-char (cdr region))
+        (insert
+         (pcase parenthesis
+           (?\( ?\))
+           (?\[ ?\])
+           (?< ?>)
+           (?{ ?})
+           (_ parenthesis))))
+      (when (= (car region) (point))
+        (forward-char)))))
 
 (make-obsolete 'cursorfree-wrap-parentheses
                'cursorfree-wrap
@@ -1598,7 +1595,10 @@ delimiter is intended."
          (cursorfree-region-post-insertion-string rightmost))))))
 
 (defun cursorfree-past (target1 &optional target2)
-  "Return the smallest target that can fit TARGET1 and TARGET2."
+  "Return the smallest target that can fit TARGET1 and TARGET2.
+
+If TARGET2 is nil or omitted, it default to `cursorfree-this' in the
+buffer of TARGET1."
   (setq target2 (or target2
                     (with-current-buffer (cursorfree-buffer target1)
                       (cursorfree-this))))
