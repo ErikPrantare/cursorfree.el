@@ -372,7 +372,7 @@ CONTEXT-LINES is given, show that many lines of context."
 (phony-define-dictionary cursorfree--simple-action-verb
   "Verb for a simple single-target action."
   '(("take" . cursorfree-select)
-    ("copy" . cursorfree-copy)
+    ("copy" . cursorfree-do-copy)
     ("chuck" . cursorfree-chuck)
     ("bring" . cursorfree-do-bring)
     ("move" . cursorfree-do-move)

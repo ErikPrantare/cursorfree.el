@@ -779,10 +779,20 @@ associated buffer."
       (indent-region (car region) (cdr region)))))
 
 (defun cursorfree-copy (target)
-  "Copy TARGET to kill ring."
-  (cursorfree-bring target (cursorfree-kill-ring))
-  (setq cursorfree--target-that target)
-  (cursorfree-pulse target))
+  "Copy TARGET to kill ring.
+
+This is equivalent to:
+
+  (`cursorfree-bring' target (`cursorfree-kill-ring'))"
+  (cursorfree-bring target (cursorfree-kill-ring)))
+
+(defun cursorfree-do-copy (target)
+  "Copy TARGET to kill ring.
+
+This is equivalent to:
+
+  (`cursorfree-do-bring' target (`cursorfree-kill-ring'))"
+  (cursorfree-do-bring target (cursorfree-kill-ring)))
 
 (cl-defgeneric cursorfree-delete (target)
   "Delete TARGET."
@@ -853,8 +863,12 @@ highlight color can be customized with
 
 (defun cursorfree-chuck (target)
   "Delete TARGET and indent the resulting text."
+  (cursorfree-delete target))
+
+(defun cursorfree-do-chuck (target)
+  "Delete TARGET and indent the resulting text, indicating the deletion."
   (cursorfree--indicate-deletion target)
-  (cursorfree-delete target)
+  (cursorfree-chuck target)
   (setq cursorfree--target-that target))
 
 (defun cursorfree-bring (source &optional target)
