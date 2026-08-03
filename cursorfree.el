@@ -860,11 +860,18 @@ highlight color can be customized with
 (defun cursorfree-bring (source &optional target)
   "Overwrite TARGET with SOURCE.
 
-If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
+If TARGET is nil or omitted, overwrite `cursorfree-this' instead.
+
+To make this function compatible with a new target type, specialize
+`cursorfree-bring-dispatch'."
   (cursorfree-bring-dispatch source (or target (cursorfree-this))))
 
 (cl-defgeneric cursorfree-bring-dispatch (source target)
-  "Overwrite TARGET with SOURCE."
+  "Overwrite TARGET with SOURCE.
+
+By default, this evaluates the following form:
+
+  (`cursorfree-put' target (`cursorfree-get' source))."
   (cursorfree-put target (cursorfree-get source)))
 
 (cl-defmethod cursorfree-bring-dispatch ((source cursorfree--parallel)
@@ -880,22 +887,36 @@ If the lengths mismatch, a user error is signaled."
   "Put SOURCE before TARGET.
 
 If TARGET is nil or omitted, put SOURCE before `cursorfree-this'
-instead."
+instead.
+
+To make this function compatible with a new target type, specialize
+`cursorfree-bring-before-dispatch'."
   (cursorfree-bring-before-dispatch source (or target (cursorfree-this))))
 
 (cl-defgeneric cursorfree-bring-before-dispatch (source target)
-  "Put SOURCE before TARGET."
+  "Put SOURCE before TARGET.
+
+By default, this evaluates the following form:
+
+  (`cursorfree--target-put-before' target (`cursorfree-get' source))."
   (cursorfree--target-put-before target (cursorfree-get source)))
 
 (defun cursorfree-bring-after (source &optional target)
   "Put SOURCE after TARGET.
 
 If TARGET is nil or omitted, put SOURCE after `cursorfree-this'
-instead."
+instead.
+
+To make this function compatible with a new target type, specialize
+`cursorfree-bring-after-dispatch'."
   (cursorfree-bring-after-dispatch source (or target (cursorfree-this))))
 
 (cl-defgeneric cursorfree-bring-after-dispatch (source target)
-  "Put SOURCE after TARGET."
+  "Put SOURCE after TARGET.
+
+By default, this evaluates the following form:
+
+  (`cursorfree--target-put-after' target (`cursorfree-get' source))."
   (cursorfree--target-put-after target (cursorfree-get source)))
 
 (defun cursorfree-do-bring (source &optional target bringer)
@@ -915,7 +936,10 @@ defaults to `cursorfree-bring'."
 
 If TARGET is nil or omitted, bring SOURCE to `cursorfree-this' instead.
 BRINGER is a function of two arguments, a source and a target; it
-defaults to `cursorfree-bring'."
+defaults to `cursorfree-bring'.
+
+To make this function compatible with a new target type, specialize
+`cursorfree-move-dispatch'."
   (cursorfree-move-dispatch source
                             (or target (cursorfree-this))
                             (or bringer #'cursorfree-bring)))
@@ -923,8 +947,12 @@ defaults to `cursorfree-bring'."
 (cl-defgeneric cursorfree-move-dispatch (source target bringer)
   "Bring SOURCE to TARGET using BRINGER, then delete SOURCE.
 
-BRINGER is a function of two arguments, a source and a target.  It is
-invoked with SOURCE and TARGET."
+BRINGER is a function of two arguments, a source and a target.
+
+By default, this evaluates the following forms:
+
+  (funcall bringer source target)
+  (`cursorfree-delete' source)."
   (funcall bringer source target)
   (cursorfree-delete source))
 
