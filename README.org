@@ -200,18 +200,18 @@ and the corresponding library function.
 
 Some actions have more complex spoken forms:
 
-|------------------------------------------------+--------------------------------------+-------------------|
-| Spoken form                                    | Description                          | Function          |
-|------------------------------------------------+--------------------------------------+-------------------|
-| bring <target> to/after/before <target>        | Move copy to/after/before target     | cursorfree-bring  |
-| move <target> to/after/before <target>         | Move target to/after/before target   | cursorfree-move   |
-| change <target> [to <target>]                  | Change target [to target]            | cursorfree-change |
-| swap <target> with <target>                    | Swap target with target              | cursorfree-swap   |
-| wrap <target> with <character>                 | Wrap target with character           | cursorfree-wrap   |
-| unwrap <target>                                | Remove enclosing delimiter           | cursorfree-unwrap |
-| rewrap <target> with <character>               | Replace enclosing delimiter          | cursorfree-rewrap |
-| hunt <target> [in <target>] [context <number>] | Occur search [in target] [context N] | cursorfree-occur  |
-|------------------------------------------------+--------------------------------------+-------------------|
+|------------------------------------------------+--------------------------------------+---------------------|
+| Spoken form                                    | Description                          | Function            |
+|------------------------------------------------+--------------------------------------+---------------------|
+| bring <target> to/after/before <target>        | Move copy to/after/before target     | cursorfree-do-bring |
+| move <target> to/after/before <target>         | Move target to/after/before target   | cursorfree-move     |
+| change <target> [to <target>]                  | Change target [to target]            | cursorfree-change   |
+| swap <target> with <target>                    | Swap target with target              | cursorfree-swap     |
+| wrap <target> with <character>                 | Wrap target with character           | cursorfree-wrap     |
+| unwrap <target>                                | Remove enclosing delimiter           | cursorfree-unwrap   |
+| rewrap <target> with <character>               | Replace enclosing delimiter          | cursorfree-rewrap   |
+| hunt <target> [in <target>] [context <number>] | Occur search [in target] [context N] | cursorfree-occur    |
+|------------------------------------------------+--------------------------------------+---------------------|
 
 ** Modifiers
 :PROPERTIES:

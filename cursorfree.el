@@ -273,8 +273,8 @@ target inheriting from `cursorfree-region'.
 
 If specified, PRE-INSERTION-STRING and POST-INSERTION-STRING specify a
 string that should be inserted before or after the target if something
-is put before or after it through `cursorfree--put-before' or
-`cursorfree--put-after'.  The insertion string is put between the two
+is put before or after it through `cursorfree-bring-before' or
+`cursorfree-bring-after'.  The insertion string is put between the two
 targets.
 
 PROPERTIES is a plist of additional properties to associate to the
@@ -662,26 +662,6 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
   (cursorfree--sweep parallel
     (cursorfree--target-put-after parallel content)))
 
-(cl-defgeneric cursorfree--put (target source)
-  "Put the content of SOURCE in TARGET."
-  (cursorfree-put target (cursorfree-get source)))
-
-(cl-defgeneric cursorfree--put-before (target source)
-  "Put the content of SOURCE before TARGET."
-  (cursorfree--target-put-before target (cursorfree-get source)))
-
-(cl-defgeneric cursorfree--put-after (target source)
-  "Put the content of SOURCE after TARGET."
-  (cursorfree--target-put-after target (cursorfree-get source)))
-
-(cl-defmethod cursorfree--put ((target cursorfree--parallel) (source cursorfree--parallel))
-  "Put each element of SOURCE into the corresponding element of TARGET.
-
-If the lengths mismatch, a user error is signaled."
-  (unless (= (seq-length target) (seq-length source))
-    (user-error "Mismatching length of parallel targets"))
-  (seq-mapn #'cursorfree--put target source))
-
 ;;;; End of core functions
 
 (defvar cursorfree--target-that nil
@@ -800,7 +780,7 @@ associated buffer."
 
 (defun cursorfree-copy (target)
   "Copy TARGET to kill ring."
-  (cursorfree-bring target (cursorfree-kill-ring))
+  (cursorfree-do-bring target (cursorfree-kill-ring))
   (setq cursorfree--target-that target)
   (cursorfree-pulse target))
 
@@ -881,17 +861,51 @@ highlight color can be customized with
   "Overwrite TARGET with SOURCE.
 
 If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
+  (cursorfree-bring-dispatch source (or target (cursorfree-this))))
+
+(cl-defgeneric cursorfree-bring-dispatch (source target)
+  "Overwrite TARGET with SOURCE."
+  (cursorfree-put target (cursorfree-get source)))
+
+(cl-defmethod cursorfree-bring-dispatch ((source cursorfree--parallel)
+                                         (target cursorfree--parallel))
+  "Overwrite each element of TARGET with the corresponding element of SOURCE.
+
+If the lengths mismatch, a user error is signaled."
+  (unless (= (seq-length target) (seq-length source))
+    (user-error "Mismatching length of parallel targets"))
+  (seq-mapn #'cursorfree-bring source target))
+
+(defun cursorfree-bring-before (source &optional target)
+  "Put SOURCE before TARGET.
+
+If TARGET is nil or omitted, put SOURCE before `cursorfree-this'
+instead."
+  (cursorfree-bring-before-dispatch source (or target (cursorfree-this))))
+
+(cl-defgeneric cursorfree-bring-before-dispatch (source target)
+  "Put SOURCE before TARGET."
+  (cursorfree--target-put-before target (cursorfree-get source)))
+
+(defun cursorfree-bring-after (source &optional target)
+  "Put SOURCE after TARGET.
+
+If TARGET is nil or omitted, put SOURCE after `cursorfree-this'
+instead."
+  (cursorfree-bring-after-dispatch source (or target (cursorfree-this))))
+
+(cl-defgeneric cursorfree-bring-after-dispatch (source target)
+  "Put SOURCE after TARGET."
+  (cursorfree--target-put-after target (cursorfree-get source)))
+
+(defun cursorfree-do-bring (source &optional target bringer)
+  "Bring SOURCE to TARGET with BRINGER, indicating the result.
+
+If TARGET is nil or omitted, bring SOURCE to `cursorfree-this' instead.
+BRINGER is a function of two arguments, a source and a target; it
+defaults to `cursorfree-bring'."
   (setq target (or target (cursorfree-this)))
-  (cursorfree--target-bring source target))
-
-(cl-defun cursorfree--target-bring (source target &key putter)
-  "Put SOURCE into TARGET using PUTTER.
-
-PUTTER is a function of two arguments, a target and a source.  It is
-invoked with SOURCE and TARGET."
-  ;; TODO: Make this the public API.
-  (setq putter (or putter #'cursorfree--put))
-  (funcall putter target source)
+  (funcall (or bringer #'cursorfree-bring) source target)
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
@@ -903,30 +917,28 @@ If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
   (setq target (or target (cursorfree-this)))
   (cursorfree--target-move source target))
 
-(cl-defgeneric cursorfree--target-move (source target &key putter)
-  "Put SOURCE into TARGET using PUTTER, then delete SOURCE.
+(cl-defgeneric cursorfree--target-move (source target &key bringer)
+  "Bring SOURCE to TARGET using BRINGER, then delete SOURCE.
 
-PUTTER is a function of two arguments, a target and a source.  It is
+BRINGER is a function of two arguments, a source and a target.  It is
 invoked with SOURCE and TARGET."
-  (setq putter (or putter #'cursorfree--put))
   (cursorfree--indicate-deletion source)
-  (cursorfree--target-bring source target :putter putter)
+  (cursorfree-do-bring source target bringer)
   (cursorfree-delete source))
 
-(cl-defmethod cursorfree--target-move ((window window) target &key putter)
-  "Put WINDOW into TARGET with PUTTER.
+(cl-defmethod cursorfree--target-move ((window window) target &key bringer)
+  "Bring WINDOW to TARGET with BRINGER.
 Switch buffer of WINDOW to its previous buffer."
-  (cursorfree--target-bring window target :putter putter)
+  (cursorfree-do-bring window target bringer)
   (with-selected-window window
     (previous-buffer)))
 
-(cl-defmethod cursorfree--target-move ((buffer buffer) (window window) &key putter)
+(cl-defmethod cursorfree--target-move ((buffer buffer) (window window) &key bringer)
   "Set the current buffer of WINDOW to BUFFER.
 
-BUFFER is not deleted, so this is equivalent to
-`cursorfree--target-bring'."
+BUFFER is not deleted, so this is equivalent to `cursorfree-do-bring'."
   ;; We do not want to kill the buffer if you move instead of bring.
-  (cursorfree--target-bring buffer window :putter putter))
+  (cursorfree-do-bring buffer window bringer))
 
 (cl-defgeneric cursorfree-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."
@@ -1289,7 +1301,7 @@ If CONTEXT-LINES is given, that many lines will be used as context."
 
 (defun cursorfree-unwrap (target)
   "Remove parentheses or quotation around TARGET."
-  (cursorfree-bring
+  (cursorfree-do-bring
    (cursorfree-inside target)
    (cursorfree-outside target)))
 

@@ -283,9 +283,9 @@ See documentation for `hatty-locate-token' for more information."
 
 (phony-define-dictionary cursorfree--destination-modifiers
   "Method for putting a target at a destination."
-  `(("to" . cursorfree--put)
-    ("after" . cursorfree--put-after)
-    ("before" . cursorfree--put-before)))
+  `(("to" . cursorfree-bring)
+    ("after" . cursorfree-bring-after)
+    ("before" . cursorfree-bring-before)))
 
 (phony-defun cursorfree--bring
     ("bring"
@@ -295,7 +295,7 @@ See documentation for `hatty-locate-token' for more information."
   "Bring FROM to TO.
 
 Where to put it in relation to TO is given by MODIFIER."
-  (cursorfree--target-bring from to :putter modifier))
+  (cursorfree-do-bring from to modifier))
 
 (phony-defun cursorfree--change
     ("change"
@@ -305,7 +305,7 @@ Where to put it in relation to TO is given by MODIFIER."
 
 If SOURCE is not given, TARGET is removed and point is put in its place."
   (if source
-      (cursorfree-bring source target)
+      (cursorfree-do-bring source target)
     (cursorfree-change target)))
 
 (phony-defun cursorfree--move
@@ -316,7 +316,7 @@ If SOURCE is not given, TARGET is removed and point is put in its place."
   "Move FROM to TO.
 
 Where to put it in relation to TO is given by MODIFIER."
-  (cursorfree--target-move from to :putter modifier))
+  (cursorfree--target-move from to :bringer modifier))
 
 (phony-defun cursorfree--swap
     ("swap"
@@ -374,7 +374,7 @@ CONTEXT-LINES is given, show that many lines of context."
   '(("take" . cursorfree-select)
     ("copy" . cursorfree-copy)
     ("chuck" . cursorfree-chuck)
-    ("bring" . cursorfree-bring)
+    ("bring" . cursorfree-do-bring)
     ("move" . cursorfree-move)
     ("clone" . cursorfree-clone)
     ("jump" . cursorfree-jump)

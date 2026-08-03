@@ -232,6 +232,34 @@
                     "some-long-word"
                     (cursorfree-make-target (cons 14 16))))))
 
+(ert-deftest cursorfree--test-bring-before ()
+  "bring before."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This word gets a prefix"
+             :points '(24))
+    :after (make-cursorfree--test-buffer-state
+            :string "This prefix word gets a prefix"
+            :points '(31))
+    :command-form '(cursorfree-bring-before
+                    (cursorfree-make-target (cons 18 24))
+                    (cursorfree-make-target (cons 6 10))))))
+
+(ert-deftest cursorfree--test-bring-after ()
+  "bring after."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This word gets a suffix"
+             :points '(24))
+    :after (make-cursorfree--test-buffer-state
+            :string "This word suffix gets a suffix"
+            :points '(31))
+    :command-form '(cursorfree-bring-after
+                    (cursorfree-make-target (cons 18 24))
+                    (cursorfree-make-target (cons 6 10))))))
+
 (ert-deftest cursorfree--test-move ()
   "move."
   (cursorfree--run-test
@@ -913,7 +941,7 @@
     '(cursorfree--target-move
       (cursorfree-line (cursorfree-make-target (cons 1 1)))
       (cursorfree-line (cursorfree-make-target (cons 9 10)))
-      :putter #'cursorfree--put-after))))
+      :bringer #'cursorfree-bring-after))))
 
 (ert-deftest cursorfree--test-that ()
   "that."
@@ -926,7 +954,7 @@
             :string "Change brought that "
             :points '(21))
     :command-form '(progn
-                     (cursorfree-bring
+                     (cursorfree-do-bring
                       (cursorfree-make-target (cons 8 15)))
                      (cursorfree-change
                       (cursorfree-that)))
@@ -943,7 +971,7 @@
             :string "Change  thing source"
             :points '(8))
     :command-form '(progn
-                     (cursorfree-bring
+                     (cursorfree-do-bring
                       (cursorfree-make-target (cons 8 14)))
                      (cursorfree-change
                       (cursorfree-source)))
