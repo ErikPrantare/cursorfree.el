@@ -1030,7 +1030,7 @@ defaults to `cursorfree-bring'."
 
 (cl-defmethod cursorfree--target-clone ((target cursorfree-region))
   "Insert another copy of TARGET after itself."
-  (cursorfree-put-after target (cursorfree-get target)))
+  (cursorfree-bring-after target target))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
   "Define function with NAME applying FUNCTION on targets.
