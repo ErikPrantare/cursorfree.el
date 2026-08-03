@@ -622,11 +622,11 @@ means."
   "Set current buffer of window of TARGET to buffer of WINDOW."
   (cursorfree-put target (window-buffer window)))
 
-(cl-defgeneric cursorfree--target-put-before (target content)
+(cl-defgeneric cursorfree-put-before (target content)
   "Put CONTENT before TARGET."
   (error "No method for writing %S before target %S" content target))
 
-(cl-defmethod cursorfree--target-put-before ((target cursorfree-region) content)
+(cl-defmethod cursorfree-put-before ((target cursorfree-region) content)
   "Put CONTENT before TARGET.
 
 The pre-insertion string of target is inserted between CONTENT and TARGET."
@@ -637,16 +637,16 @@ The pre-insertion string of target is inserted between CONTENT and TARGET."
         (insert content)
         (insert (cursorfree-region-pre-insertion-string target))))))
 
-(cl-defmethod cursorfree--target-put-before ((parallel cursorfree--parallel) content)
+(cl-defmethod cursorfree-put-before ((parallel cursorfree--parallel) content)
   "Put CONTENT before each element of PARALLEL."
   (cursorfree--sweep parallel
-    (cursorfree--target-put-before parallel content)))
+    (cursorfree-put-before parallel content)))
 
-(cl-defgeneric cursorfree--target-put-after (target content)
-  "Put CONTENT after TARGET.."
+(cl-defgeneric cursorfree-put-after (target content)
+  "Put CONTENT after TARGET."
   (error "No method for writing %S after target %S" content target))
 
-(cl-defmethod cursorfree--target-put-after ((target cursorfree-region) content)
+(cl-defmethod cursorfree-put-after ((target cursorfree-region) content)
   "Put CONTENT after TARGET.
 
 The post-insertion string of target is inserted between CONTENT and TARGET."
@@ -657,10 +657,10 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
         (insert (cursorfree-region-post-insertion-string target))
         (insert content)))))
 
-(cl-defmethod cursorfree--target-put-after ((parallel cursorfree--parallel) content)
+(cl-defmethod cursorfree-put-after ((parallel cursorfree--parallel) content)
   "Put CONTENT after each element of PARALLEL."
   (cursorfree--sweep parallel
-    (cursorfree--target-put-after parallel content)))
+    (cursorfree-put-after parallel content)))
 
 ;;;; End of core functions
 
@@ -898,8 +898,8 @@ To make this function compatible with a new target type, specialize
 
 By default, this evaluates the following form:
 
-  (`cursorfree--target-put-before' target (`cursorfree-get' source))."
-  (cursorfree--target-put-before target (cursorfree-get source)))
+  (`cursorfree-put-before' target (`cursorfree-get' source))."
+  (cursorfree-put-before target (cursorfree-get source)))
 
 (defun cursorfree-bring-after (source &optional target)
   "Put SOURCE after TARGET.
@@ -916,8 +916,8 @@ To make this function compatible with a new target type, specialize
 
 By default, this evaluates the following form:
 
-  (`cursorfree--target-put-after' target (`cursorfree-get' source))."
-  (cursorfree--target-put-after target (cursorfree-get source)))
+  (`cursorfree-put-after' target (`cursorfree-get' source))."
+  (cursorfree-put-after target (cursorfree-get source)))
 
 (defun cursorfree-do-bring (source &optional target bringer)
   "Bring SOURCE to TARGET with BRINGER, indicating the result.
@@ -1030,7 +1030,7 @@ defaults to `cursorfree-bring'."
 
 (cl-defmethod cursorfree--target-clone ((target cursorfree-region))
   "Insert another copy of TARGET after itself."
-  (cursorfree--target-put-after target (cursorfree-get target)))
+  (cursorfree-put-after target (cursorfree-get target)))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
   "Define function with NAME applying FUNCTION on targets.
