@@ -938,10 +938,10 @@
             :string "another one\na line\n"
             :points '(1))
     :command-form
-    '(cursorfree--target-move
+    '(cursorfree-move
       (cursorfree-line (cursorfree-make-target (cons 1 1)))
       (cursorfree-line (cursorfree-make-target (cons 9 10)))
-      :bringer #'cursorfree-bring-after))))
+      #'cursorfree-bring-after))))
 
 (ert-deftest cursorfree--test-that ()
   "that."

@@ -910,35 +910,50 @@ defaults to `cursorfree-bring'."
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
 
-(defun cursorfree-move (source &optional target)
-  "Overwrite TARGET with SOURCE, then delete SOURCE.
+(defun cursorfree-move (source &optional target bringer)
+  "Bring SOURCE to TARGET with BRINGER, then delete SOURCE.
 
-If TARGET is nil or omitted, overwrite `cursorfree-this' instead."
-  (setq target (or target (cursorfree-this)))
-  (cursorfree--target-move source target))
+If TARGET is nil or omitted, bring SOURCE to `cursorfree-this' instead.
+BRINGER is a function of two arguments, a source and a target; it
+defaults to `cursorfree-bring'."
+  (cursorfree-move-dispatch source
+                            (or target (cursorfree-this))
+                            (or bringer #'cursorfree-bring)))
 
-(cl-defgeneric cursorfree--target-move (source target &key bringer)
+(cl-defgeneric cursorfree-move-dispatch (source target bringer)
   "Bring SOURCE to TARGET using BRINGER, then delete SOURCE.
 
 BRINGER is a function of two arguments, a source and a target.  It is
 invoked with SOURCE and TARGET."
-  (cursorfree--indicate-deletion source)
-  (cursorfree-do-bring source target bringer)
+  (funcall bringer source target)
   (cursorfree-delete source))
 
-(cl-defmethod cursorfree--target-move ((window window) target &key bringer)
+(cl-defmethod cursorfree-move-dispatch ((window window) target bringer)
   "Bring WINDOW to TARGET with BRINGER.
 Switch buffer of WINDOW to its previous buffer."
-  (cursorfree-do-bring window target bringer)
+  (funcall bringer window target)
   (with-selected-window window
     (previous-buffer)))
 
-(cl-defmethod cursorfree--target-move ((buffer buffer) (window window) &key bringer)
+(cl-defmethod cursorfree-move-dispatch ((buffer buffer) (window window) bringer)
   "Set the current buffer of WINDOW to BUFFER.
 
-BUFFER is not deleted, so this is equivalent to `cursorfree-do-bring'."
+BUFFER is not deleted, so this is equivalent to `cursorfree-bring'."
   ;; We do not want to kill the buffer if you move instead of bring.
-  (cursorfree-do-bring buffer window bringer))
+  (funcall bringer buffer window))
+
+(defun cursorfree-do-move (source &optional target bringer)
+  "Move SOURCE to TARGET with BRINGER, indicating the result.
+
+If TARGET is nil or omitted, move SOURCE to `cursorfree-this' instead.
+BRINGER is a function of two arguments, a source and a target; it
+defaults to `cursorfree-bring'."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--indicate-deletion source)
+  (cursorfree-move source target bringer)
+  (cursorfree-pulse target)
+  (setq cursorfree--target-that target)
+  (setq cursorfree--target-source source))
 
 (cl-defgeneric cursorfree-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."

@@ -316,7 +316,7 @@ If SOURCE is not given, TARGET is removed and point is put in its place."
   "Move FROM to TO.
 
 Where to put it in relation to TO is given by MODIFIER."
-  (cursorfree--target-move from to :bringer modifier))
+  (cursorfree-do-move from to modifier))
 
 (phony-defun cursorfree--swap
     ("swap"
@@ -375,7 +375,7 @@ CONTEXT-LINES is given, show that many lines of context."
     ("copy" . cursorfree-copy)
     ("chuck" . cursorfree-chuck)
     ("bring" . cursorfree-do-bring)
-    ("move" . cursorfree-move)
+    ("move" . cursorfree-do-move)
     ("clone" . cursorfree-clone)
     ("jump" . cursorfree-jump)
     ("pre" . cursorfree-jump-beginning)

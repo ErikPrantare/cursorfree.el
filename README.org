@@ -204,7 +204,7 @@ Some actions have more complex spoken forms:
 | Spoken form                                    | Description                          | Function            |
 |------------------------------------------------+--------------------------------------+---------------------|
 | bring <target> to/after/before <target>        | Move copy to/after/before target     | cursorfree-do-bring |
-| move <target> to/after/before <target>         | Move target to/after/before target   | cursorfree-move     |
+| move <target> to/after/before <target>         | Move target to/after/before target   | cursorfree-do-move  |
 | change <target> [to <target>]                  | Change target [to target]            | cursorfree-change   |
 | swap <target> with <target>                    | Swap target with target              | cursorfree-swap     |
 | wrap <target> with <character>                 | Wrap target with character           | cursorfree-wrap     |
