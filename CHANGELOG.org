@@ -2,6 +2,17 @@
 - ~cursorfree-pick~ can now follow ~shr.el~ links.
 - ~cursorfree-chuck~, ~cursorfree-bring~, ~cursorfree-move~,
   ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
+- New extension points and functions for bringing or moving targets
+  relative to others:
+  - ~cursorfree-bring~, ~cursorfree-bring-before~ and
+    ~cursorfree-bring-after~ invoke generic ~-dispatch~ functions that
+    can be specialized to new targets.  The default implementation
+    calls out to ~cursorfree-put~, ~cursorfree-put-before~ and
+    ~cursorfree-put-after~, respectively, which can also be
+    specialized for a more general extension that is more agnostic to
+    the type of the source target.
+  - Similarly, ~cursorfree-move-dispatch~ can be specialized to change
+    the behavior of ~cursorfree-move~.
 
 * 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say
