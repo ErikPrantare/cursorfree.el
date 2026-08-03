@@ -780,7 +780,7 @@ associated buffer."
 
 (defun cursorfree-copy (target)
   "Copy TARGET to kill ring."
-  (cursorfree-do-bring target (cursorfree-kill-ring))
+  (cursorfree-bring target (cursorfree-kill-ring))
   (setq cursorfree--target-that target)
   (cursorfree-pulse target))
 
@@ -1301,7 +1301,7 @@ If CONTEXT-LINES is given, that many lines will be used as context."
 
 (defun cursorfree-unwrap (target)
   "Remove parentheses or quotation around TARGET."
-  (cursorfree-do-bring
+  (cursorfree-bring
    (cursorfree-inside target)
    (cursorfree-outside target)))
 
