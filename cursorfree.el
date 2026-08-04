@@ -1011,23 +1011,23 @@ defaults to `cursorfree-bring'."
     (cursorfree-put window1 buffer2)
     (cursorfree-put window2 buffer1)))
 
-(cl-defgeneric cursorfree--target-change (target)
-  "Change TARGET interactively.")
+(cl-defgeneric cursorfree-change (target)
+  "Jump to TARGET and delete its contents.")
 
-(cl-defmethod cursorfree--target-change ((target cursorfree-region))
+(cl-defmethod cursorfree-change ((target cursorfree-region))
   "Remove contents of TARGET and put point there."
   (cursorfree-jump target)
   (when (region-active-p) (deactivate-mark))
-  (cursorfree--indicate-deletion target)
   (cursorfree--region-delete (cursorfree-content-region target)))
 
-(cl-defmethod cursorfree--target-change ((target cursorfree--parallel))
+(cl-defmethod cursorfree-change ((target cursorfree--parallel))
   "Remove contents of TARGET and put points there."
-  (cursorfree--multiple-cursors-do #'cursorfree--target-change target))
+  (cursorfree--multiple-cursors-do #'cursorfree-change target))
 
-(defun cursorfree-change (target)
-  "Move point to TARGET and delete TARGET."
-  (cursorfree--target-change target))
+(defun cursorfree-do-change (target)
+  "Invoke `cursorfree-change' with TARGET, providing interactive feedback."
+  (cursorfree--indicate-deletion target)
+  (cursorfree-change target))
 
 ;; TODO: Don't move point
 (defun cursorfree-clone (target)

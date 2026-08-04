@@ -306,7 +306,7 @@ Where to put it in relation to TO is given by MODIFIER."
 If SOURCE is not given, TARGET is removed and point is put in its place."
   (if source
       (cursorfree-do-bring source target)
-    (cursorfree-change target)))
+    (cursorfree-do-change target)))
 
 (phony-defun cursorfree--move
     ("move"

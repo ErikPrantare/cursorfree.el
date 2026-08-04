@@ -2,6 +2,10 @@
 - ~cursorfree-pick~ can now follow ~shr.el~ links.
 - ~cursorfree-chuck~, ~cursorfree-bring~, ~cursorfree-move~,
   ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
+- A handful of functions now have ~do~ variants,
+  e.g. ~cursorfree-do-bring~.  These functions are meant for more
+  interactive usage, and do things like target highlighting and
+  populating ~cursorfree-that~.
 - New extension points and functions for bringing or moving targets
   relative to others:
   - ~cursorfree-bring~, ~cursorfree-bring-before~ and
