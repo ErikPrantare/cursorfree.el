@@ -6,17 +6,9 @@
   e.g. ~cursorfree-do-bring~.  These functions are meant for more
   interactive usage, and do things like target highlighting and
   populating ~cursorfree-that~.
-- New extension points and functions for bringing or moving targets
-  relative to others:
-  - ~cursorfree-bring~, ~cursorfree-bring-before~ and
-    ~cursorfree-bring-after~ invoke generic ~-dispatch~ functions that
-    can be specialized to new targets.  The default implementation
-    calls out to ~cursorfree-put~, ~cursorfree-put-before~ and
-    ~cursorfree-put-after~, respectively, which can also be
-    specialized for a more general extension that is more agnostic to
-    the type of the source target.
-  - Similarly, ~cursorfree-move-dispatch~ can be specialized to change
-    the behavior of ~cursorfree-move~.
+- Both arguments to ~cursorfree-bring~ are now mandatory.  For the old
+  behaviour with an omitted second argument, use
+  ~cursorfree-bring-here~.
 
 * 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say

@@ -871,25 +871,20 @@ highlight color can be customized with
   (cursorfree-chuck target)
   (setq cursorfree--target-that target))
 
-(defun cursorfree-bring (source &optional target)
-  "Overwrite TARGET with SOURCE.
-
-If TARGET is nil or omitted, overwrite `cursorfree-this' instead.
-
-To make this function compatible with a new target type, specialize
-`cursorfree-bring-dispatch'."
-  (cursorfree-bring-dispatch source (or target (cursorfree-this))))
-
-(cl-defgeneric cursorfree-bring-dispatch (source target)
+(cl-defgeneric cursorfree-bring (source target)
   "Overwrite TARGET with SOURCE.
 
 By default, this evaluates the following form:
 
-  (`cursorfree-put' target (`cursorfree-get' source))."
+  (`cursorfree-put' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
   (cursorfree-put target (cursorfree-get source)))
 
-(cl-defmethod cursorfree-bring-dispatch ((source cursorfree--parallel)
-                                         (target cursorfree--parallel))
+(cl-defmethod cursorfree-bring ((source cursorfree--parallel)
+                                (target cursorfree--parallel))
   "Overwrite each element of TARGET with the corresponding element of SOURCE.
 
 If the lengths mismatch, a user error is signaled."
@@ -897,40 +892,28 @@ If the lengths mismatch, a user error is signaled."
     (user-error "Mismatching length of parallel targets"))
   (seq-mapn #'cursorfree-bring source target))
 
-(defun cursorfree-bring-before (source &optional target)
-  "Put SOURCE before TARGET.
-
-If TARGET is nil or omitted, put SOURCE before `cursorfree-this'
-instead.
-
-To make this function compatible with a new target type, specialize
-`cursorfree-bring-before-dispatch'."
-  (cursorfree-bring-before-dispatch source (or target (cursorfree-this))))
-
-(cl-defgeneric cursorfree-bring-before-dispatch (source target)
+(cl-defgeneric cursorfree-bring-before (source target)
   "Put SOURCE before TARGET.
 
 By default, this evaluates the following form:
 
-  (`cursorfree-put-before' target (`cursorfree-get' source))."
+  (`cursorfree-put-before' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
   (cursorfree-put-before target (cursorfree-get source)))
 
-(defun cursorfree-bring-after (source &optional target)
-  "Put SOURCE after TARGET.
-
-If TARGET is nil or omitted, put SOURCE after `cursorfree-this'
-instead.
-
-To make this function compatible with a new target type, specialize
-`cursorfree-bring-after-dispatch'."
-  (cursorfree-bring-after-dispatch source (or target (cursorfree-this))))
-
-(cl-defgeneric cursorfree-bring-after-dispatch (source target)
+(cl-defgeneric cursorfree-bring-after (source target)
   "Put SOURCE after TARGET.
 
 By default, this evaluates the following form:
 
-  (`cursorfree-put-after' target (`cursorfree-get' source))."
+  (`cursorfree-put-after' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
   (cursorfree-put-after target (cursorfree-get source)))
 
 (defun cursorfree-do-bring (source &optional target bringer)
@@ -944,6 +927,14 @@ defaults to `cursorfree-bring'."
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
+
+(defun cursorfree-bring-here (source)
+  "Bring SOURCE here.
+
+This is equivalent to:
+
+  (`cursorfree-bring' SOURCE (`cursorfree-this'))."
+  (cursorfree-bring source (cursorfree-this)))
 
 (defun cursorfree-move (source &optional target bringer)
   "Bring SOURCE to TARGET with BRINGER, then delete SOURCE.

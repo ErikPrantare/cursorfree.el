@@ -200,7 +200,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Bringing a point word to point"
             :points '(17))
-    :command-form '(cursorfree-bring
+    :command-form '(cursorfree-bring-here
                     (cursorfree-make-target (cons 21 26)))
     :from-same-buffer t)))
 
