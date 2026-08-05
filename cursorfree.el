@@ -924,6 +924,7 @@ BRINGER is a function of two arguments, a source and a target; it
 defaults to `cursorfree-bring'."
   (setq target (or target (cursorfree-this)))
   (funcall (or bringer #'cursorfree-bring) source target)
+  (cursorfree-pulse source)
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
