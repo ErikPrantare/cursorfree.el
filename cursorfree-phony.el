@@ -258,7 +258,7 @@ See the rule `cursorfree-target' for the semantics of ELEMENTS."
     ("hole" . hole)
     ("ex" . ex)
     ("cross" . cross)
-    ("I" . eye)))
+    ("glim" . eye)))
 
 (phony-defun cursorfree--hat
     ((? (color cursorfree--color))
