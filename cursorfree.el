@@ -1024,7 +1024,7 @@ This function provides visual feedback for SOURCE and TARGET, and sets
   (cursorfree-bring-after target target))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
-  "Define functions applying FUNCTION on a targets content region.
+  "Define functions applying FUNCTION on the content region of a target.
 
 NAME and FUNCTION are unquoted.
 
