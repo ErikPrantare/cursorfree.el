@@ -2,9 +2,9 @@
 
 ;; Copyright (C) 2024, 2025, 2026  Erik Präntare
 
-;; Author: Erik Präntare
+;; Author: Erik Präntare <erik@prantare.xyz>
 ;; Keywords: convenience
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Homepage: https://github.com/ErikPrantare/cursorfree.el
 ;; Package-Requires: ((emacs "29.1"))
 ;; Created: 06 Sep 2024
@@ -273,8 +273,8 @@ target inheriting from `cursorfree-region'.
 
 If specified, PRE-INSERTION-STRING and POST-INSERTION-STRING specify a
 string that should be inserted before or after the target if something
-is put before or after it through `cursorfree--put-before' or
-`cursorfree--put-after'.  The insertion string is put between the two
+is put before or after it through `cursorfree-bring-before' or
+`cursorfree-bring-after'.  The insertion string is put between the two
 targets.
 
 PROPERTIES is a plist of additional properties to associate to the
@@ -301,45 +301,31 @@ target."
   "Return region of the content referred to by TARGET."
   (cursorfree-region-content-region target))
 
-(defun cursorfree-buffer (&optional target)
+(cl-defgeneric cursorfree-buffer (_target)
   "Get the buffer associated with TARGET.
-If no buffer is associated with TARGET, return nil.
 
-If TARGET is nil or omitted, the current buffer is returned instead.
-
-To override this function for new target types, implement a method for
-`cursorfree--target-buffer'."
-  (if target
-      (cursorfree--target-buffer target)
-    (current-buffer)))
-
-(cl-defgeneric cursorfree--target-buffer (_)
-  "Get the buffer associated with TARGET."
+If target has no associated buffer, this function returns nil."
   nil)
 
-(cl-defmethod cursorfree--target-buffer ((target cursorfree-region))
+(cl-defmethod cursorfree-buffer ((target cursorfree-region))
   "Get the buffer TARGET is located in."
   (cursorfree-region-buffer target))
 
-(cl-defmethod cursorfree--target-buffer ((window window))
+(cl-defmethod cursorfree-buffer ((window window))
   "Get the buffer of WINDOW."
   (window-buffer window))
 
-(cl-defmethod cursorfree--target-buffer ((buffer buffer))
+(cl-defmethod cursorfree-buffer ((buffer buffer))
   "Return BUFFER."
   buffer)
 
-(defun cursorfree-window (target)
-  "Get the window associated with TARGET.
-If TARGET is nil or omitted, return nil.  Otherwise, if TARGET has no
-associated window, return a window displaying the buffer associated with
-TARGET, or nil if no window is showing that buffer.
+(defun cursorfree-buffer-or-current (&optional target)
+  "Get the `cursorfree-buffer' of TARGET, or `current-buffer' if omitted."
+  (if target
+      (cursorfree-buffer target)
+    (current-buffer)))
 
-To override this function for new target types, implement a method for
-`cursorfree--target-window'."
-  (cursorfree--target-window target))
-
-(cl-defgeneric cursorfree--target-window (target)
+(cl-defgeneric cursorfree-window (target)
   "Get the window associated with TARGET.
 
 By default, returns a window showing the `cursorfree-buffer' of TARGET,
@@ -347,14 +333,14 @@ or nil if no window is showing that buffer."
   (and-let* ((buffer (cursorfree-buffer target)))
     (get-buffer-window buffer)))
 
-(cl-defmethod cursorfree--target-window ((target cursorfree-region))
+(cl-defmethod cursorfree-window ((target cursorfree-region))
   "Get the window TARGET was created in.
 If the window is unknown, return a window displaying its buffer instead.
 If no window is showing its buffer, return nil."
   (or (cursorfree-region-window target)
       (cl-call-next-method)))
 
-(cl-defmethod cursorfree--target-window ((window window))
+(cl-defmethod cursorfree-window ((window window))
   "Return WINDOW."
   window)
 
@@ -362,7 +348,7 @@ If no window is showing its buffer, return nil."
   "Get the window associated with TARGET.
 If TARGET is nil or omitted, return the selected window."
   (if target
-      (cursorfree--target-window target)
+      (cursorfree-window target)
     (selected-window)))
 
 (cl-defgeneric cursorfree-on-content-region (target _f)
@@ -622,11 +608,11 @@ means."
   "Set current buffer of window of TARGET to buffer of WINDOW."
   (cursorfree-put target (window-buffer window)))
 
-(cl-defgeneric cursorfree--target-put-before (target content)
+(cl-defgeneric cursorfree-put-before (target content)
   "Put CONTENT before TARGET."
   (error "No method for writing %S before target %S" content target))
 
-(cl-defmethod cursorfree--target-put-before ((target cursorfree-region) content)
+(cl-defmethod cursorfree-put-before ((target cursorfree-region) content)
   "Put CONTENT before TARGET.
 
 The pre-insertion string of target is inserted between CONTENT and TARGET."
@@ -637,16 +623,16 @@ The pre-insertion string of target is inserted between CONTENT and TARGET."
         (insert content)
         (insert (cursorfree-region-pre-insertion-string target))))))
 
-(cl-defmethod cursorfree--target-put-before ((parallel cursorfree--parallel) content)
+(cl-defmethod cursorfree-put-before ((parallel cursorfree--parallel) content)
   "Put CONTENT before each element of PARALLEL."
   (cursorfree--sweep parallel
-    (cursorfree--target-put-before parallel content)))
+    (cursorfree-put-before parallel content)))
 
-(cl-defgeneric cursorfree--target-put-after (target content)
-  "Put CONTENT after TARGET.."
+(cl-defgeneric cursorfree-put-after (target content)
+  "Put CONTENT after TARGET."
   (error "No method for writing %S after target %S" content target))
 
-(cl-defmethod cursorfree--target-put-after ((target cursorfree-region) content)
+(cl-defmethod cursorfree-put-after ((target cursorfree-region) content)
   "Put CONTENT after TARGET.
 
 The post-insertion string of target is inserted between CONTENT and TARGET."
@@ -657,30 +643,10 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
         (insert (cursorfree-region-post-insertion-string target))
         (insert content)))))
 
-(cl-defmethod cursorfree--target-put-after ((parallel cursorfree--parallel) content)
+(cl-defmethod cursorfree-put-after ((parallel cursorfree--parallel) content)
   "Put CONTENT after each element of PARALLEL."
   (cursorfree--sweep parallel
-    (cursorfree--target-put-after parallel content)))
-
-(cl-defgeneric cursorfree--put (target source)
-  "Put the content of SOURCE in TARGET."
-  (cursorfree-put target (cursorfree-get source)))
-
-(cl-defgeneric cursorfree--put-before (target source)
-  "Put the content of SOURCE before TARGET."
-  (cursorfree--target-put-before target (cursorfree-get source)))
-
-(cl-defgeneric cursorfree--put-after (target source)
-  "Put the content of SOURCE after TARGET."
-  (cursorfree--target-put-after target (cursorfree-get source)))
-
-(cl-defmethod cursorfree--put ((target cursorfree--parallel) (source cursorfree--parallel))
-  "Put each element of SOURCE into the corresponding element of TARGET.
-
-If the lengths mismatch, a user error is signaled."
-  (unless (= (seq-length target) (seq-length source))
-    (user-error "Mismatching length of parallel targets"))
-  (seq-mapn #'cursorfree--put target source))
+    (cursorfree-put-after parallel content)))
 
 ;;;; End of core functions
 
@@ -710,8 +676,7 @@ If the lengths mismatch, a user error is signaled."
   (with-current-buffer (marker-buffer marker)
     (save-excursion
       (goto-char marker)
-      (insert string)
-      (cursorfree-pulse (cons marker (+ marker (length string)))))))
+      (insert string))))
 
 (defun cursorfree-select (target)
   "Set active region to TARGET."
@@ -720,11 +685,7 @@ If the lengths mismatch, a user error is signaled."
       (set-mark (car region))
       (goto-char (cdr region)))))
 
-(defun cursorfree-jump (target)
-  "Go to TARGET."
-  (cursorfree--target-jump target))
-
-(cl-defgeneric cursorfree--target-jump (target)
+(cl-defgeneric cursorfree-jump (target)
   "Jump to TARGET.
 
 The meaning of \"jump\" is left ambiguous to allow targets of
@@ -732,77 +693,73 @@ different types to be jumped to.  See the implemented methods for
 examples."
   (error "No method for jumping to %s" target))
 
-(cl-defmethod cursorfree--target-jump ((target cursorfree-region))
+(cl-defmethod cursorfree-jump ((target cursorfree-region))
   "Move point to beginning of TARGET.
 If TARGET has an associated window, select it.  Otherwise, display the
-associated buffer."
+associated buffer of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))))
-  (cursorfree--target-jump (or (cursorfree-window target)
-                               (cursorfree-buffer target))))
+  (cursorfree-jump (or (cursorfree-window target)
+                       (cursorfree-buffer target))))
 
-(cl-defmethod cursorfree--target-jump ((target cursorfree--parallel))
+(cl-defmethod cursorfree-jump ((target cursorfree--parallel))
   "Insert a cursor before each element of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region)))))
 
-(cl-defmethod cursorfree--target-jump ((window window))
+(cl-defmethod cursorfree-jump ((window window))
   "Select WINDOW."
   (select-window window))
 
-(cl-defmethod cursorfree--target-jump ((buffer buffer))
+(cl-defmethod cursorfree-jump ((buffer buffer))
   "Set BUFFER as the current buffer."
   (switch-to-buffer buffer))
 
-(cl-defgeneric cursorfree--target-jump-beginning (target)
+(cl-defgeneric cursorfree-jump-beginning (target)
   "Jump to the beginning of TARGET.
 
-By default, this is equivalent to `cursorfree--target-jump'."
-  (cursorfree--target-jump target))
+By default, this is equivalent to `cursorfree-jump'."
+  (cursorfree-jump target))
 
-(defun cursorfree-jump-beginning (target)
-  "Jump to the beginning of TARGET."
-  (cursorfree--target-jump-beginning target))
-
-(cl-defgeneric cursorfree--target-jump-end (target)
+(cl-defgeneric cursorfree-jump-end (target)
   "Jump to the end of TARGET.
 
-By default, this is equivalent to `cursorfree--target-jump'."
-  (cursorfree--target-jump target))
+By default, this is equivalent to `cursorfree-jump'."
+  (cursorfree-jump target))
 
-(cl-defmethod cursorfree--target-jump-end ((target cursorfree-region))
+(cl-defmethod cursorfree-jump-end ((target cursorfree-region))
   "Move point to end of TARGET.
 If TARGET has an associated window, select it.  Otherwise, display the
-associated buffer."
+associated buffer of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))))
-  (cursorfree--target-jump (or (cursorfree-window target)
-                               (cursorfree-buffer target))))
+  (cursorfree-jump (or (cursorfree-window target)
+                       (cursorfree-buffer target))))
 
-(cl-defmethod cursorfree--target-jump-end ((target cursorfree--parallel))
+(cl-defmethod cursorfree-jump-end ((target cursorfree--parallel))
   "Put a cursor at the end of every element of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region)))))
 
-(defun cursorfree-jump-end (target)
-  "Jump to the end of TARGET."
-  (cursorfree--target-jump-end target))
-
-(defun cursorfree-indent (target)
-  "Indent TARGET."
-  (cursorfree-on-content-region target
-    (lambda (region)
-      (indent-region (car region) (cdr region)))))
-
 (defun cursorfree-copy (target)
-  "Copy TARGET to kill ring."
-  (cursorfree-bring target (cursorfree-kill-ring))
-  (setq cursorfree--target-that target)
-  (cursorfree-pulse target))
+  "Copy TARGET to kill ring.
+
+This is equivalent to:
+
+  (`cursorfree-bring' target (`cursorfree-kill-ring'))"
+  (cursorfree-bring target (cursorfree-kill-ring)))
+
+(defun cursorfree-do-copy (target)
+  "Copy TARGET to kill ring.
+
+This is equivalent to:
+
+  (`cursorfree-do-bring' target (`cursorfree-kill-ring'))"
+  (cursorfree-do-bring target (cursorfree-kill-ring)))
 
 (cl-defgeneric cursorfree-delete (target)
   "Delete TARGET."
@@ -846,7 +803,7 @@ highlight color can be customized with
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region))
   "Highlight deletion region of TARGET momentarily."
   (when cursorfree-highlight-deletions
-    (with-current-buffer (cursorfree--target-buffer target)
+    (with-current-buffer (cursorfree-buffer target)
       (let* ((region (cursorfree-content-region target))
              (overlay (make-overlay (car region) (cdr region))))
         (overlay-put overlay 'face 'cursorfree-deletion-highlight-face)
@@ -871,107 +828,190 @@ highlight color can be customized with
       (seq-doseq (overlay overlays)
         (delete-overlay overlay)))))
 
-(defun cursorfree-chuck (&rest targets)
-  "Delete TARGETS and indent the resulting text."
-  (let ((target (cursorfree--normalize-target targets)))
-    (cursorfree--indicate-deletion target)
-    (cursorfree-delete target)
-    (setq cursorfree--target-that target)))
+(defun cursorfree-do-delete (target)
+  "Delete TARGET.
 
-(defun cursorfree-bring (source &rest targets)
-  "Overwrite TARGETS with SOURCE.
+This function provides visual feedback for TARGET, and sets
+`cursorfree-that' to TARGET."
+  (cursorfree--indicate-deletion target)
+  (cursorfree-delete target)
+  (setq cursorfree--target-that target))
 
-If no targets are given, overwrite `cursorfree-this' instead."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-bring source target)))
+(define-obsolete-function-alias 'cursorfree-chuck #'cursorfree-delete "2026-08-15")
 
-(cl-defun cursorfree--target-bring (source target &key putter)
-  "Put SOURCE into TARGET using PUTTER.
+(cl-defgeneric cursorfree-bring (source target)
+  "Overwrite TARGET with SOURCE.
 
-PUTTER is a function of two arguments, a target and a source.  It is
-invoked with SOURCE and TARGET."
-  ;; TODO: Make this the public API.
-  (setq putter (or putter #'cursorfree--put))
-  (funcall putter target source)
+By default, this evaluates the following form:
+
+  (`cursorfree-put' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
+  (cursorfree-put target (cursorfree-get source)))
+
+(cl-defmethod cursorfree-bring ((source cursorfree--parallel)
+                                (target cursorfree--parallel))
+  "Overwrite each element of TARGET with the corresponding element of SOURCE.
+
+If the lengths mismatch, a user error is signaled."
+  (unless (= (seq-length target) (seq-length source))
+    (user-error "Mismatching length of parallel targets"))
+  (seq-mapn #'cursorfree-bring source target))
+
+(cl-defgeneric cursorfree-bring-before (source target)
+  "Put SOURCE before TARGET.
+
+By default, this evaluates the following form:
+
+  (`cursorfree-put-before' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
+  (cursorfree-put-before target (cursorfree-get source)))
+
+(cl-defgeneric cursorfree-bring-after (source target)
+  "Put SOURCE after TARGET.
+
+By default, this evaluates the following form:
+
+  (`cursorfree-put-after' target (`cursorfree-get' source)).
+
+Before specializing this generic function, consider if you can achieve
+your goal by specializing one of the functions in the form above, as
+they are more general."
+  (cursorfree-put-after target (cursorfree-get source)))
+
+(defun cursorfree-do-bring (source &optional target where)
+  "Bring SOURCE to TARGET.
+
+WHERE is a symbol.  If nil, `cursorfree-bring' is invoked.  If
+\\='before, `cursorfree-bring-before' is invoked.  If \\='after,
+`cursorfree-bring-after' is invoked.
+
+If TARGET is nil or omitted, it defaults to `cursorfree-this' instead.
+
+This function also provides visual feedback for SOURCE and TARGET, and
+sets `cursorfree-that' to TARGET and `cursorfree-source' to SOURCE."
+  (setq target (or target (cursorfree-this)))
+  (pcase where
+    ('nil (cursorfree-bring source target))
+    ('before (cursorfree-bring-before source target))
+    ('after (cursorfree-bring-after source target))
+    (_ (error "Invalid WHERE argument: %S" where)))
+  (cursorfree-pulse source)
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
   (setq cursorfree--target-source source))
 
-(defun cursorfree-move (source &rest targets)
-  "Overwrite TARGETS with SOURCE, then delete SOURCE.
+(defun cursorfree-bring-here (source)
+  "Bring SOURCE here.
 
-If no targets are given, overwrite `cursorfree-this' instead."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-move source target)))
+This is equivalent to:
 
-(cl-defgeneric cursorfree--target-move (source target &key putter)
-  "Put SOURCE into TARGET using PUTTER, then delete SOURCE.
+  (`cursorfree-bring' SOURCE (`cursorfree-this'))."
+  (cursorfree-bring source (cursorfree-this)))
 
-PUTTER is a function of two arguments, a target and a source.  It is
-invoked with SOURCE and TARGET."
-  (setq putter (or putter #'cursorfree--put))
-  (cursorfree--indicate-deletion source)
-  (cursorfree--target-bring source target :putter putter)
+(cl-defgeneric cursorfree-move (source target)
+  "Bring SOURCE to TARGET, deleting SOURCE."
+  (cursorfree-bring source target)
   (cursorfree-delete source))
 
-(cl-defmethod cursorfree--target-move ((window window) target &key putter)
-  "Put WINDOW into TARGET with PUTTER.
+(cl-defmethod cursorfree-move ((window window) target)
+  "Bring WINDOW to TARGET.
 Switch buffer of WINDOW to its previous buffer."
-  (cursorfree--target-bring window target :putter putter)
+  (cursorfree-bring window target)
   (with-selected-window window
     (previous-buffer)))
 
-(cl-defmethod cursorfree--target-move ((buffer buffer) (window window) &key putter)
-  "Set the current buffer of WINDOW to BUFFER.
+(cl-defmethod cursorfree-move ((buffer buffer) target)
+  "Bring BUFFER to TARGET.
 
-BUFFER is not deleted, so this is equivalent to
-`cursorfree--target-bring'."
-  ;; We do not want to kill the buffer if you move instead of bring.
-  (cursorfree--target-bring buffer window :putter putter))
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring'."
+  (cursorfree-bring buffer target))
 
-(defun cursorfree-swap (target1 target2)
+(cl-defgeneric cursorfree-move-before (source target)
+  "Bring SOURCE before TARGET, deleting SOURCE."
+  (cursorfree-bring-before source target)
+  (cursorfree-delete source))
+
+(cl-defmethod cursorfree-move-before ((buffer buffer) target)
+  "Bring BUFFER before TARGET.
+
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring-before'."
+  (cursorfree-bring-before buffer target))
+
+(cl-defgeneric cursorfree-move-after (source target)
+  "Bring SOURCE after TARGET, deleting SOURCE."
+  (cursorfree-bring-after source target)
+  (cursorfree-delete source))
+
+(cl-defmethod cursorfree-move-after ((buffer buffer) target)
+  "Bring BUFFER after TARGET.
+
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring-after'."
+  (cursorfree-bring-after buffer target))
+
+(defun cursorfree-do-move (source &optional target where)
+  "Bring SOURCE to TARGET, deleting SOURCE.
+
+WHERE is a symbol.  If nil, `cursorfree-move' is invoked.  If
+\\='before, `cursorfree-move-before' is invoked.  If \\='after,
+`cursorfree-move-after' is invoked.
+
+If TARGET is nil or omitted, it defaults to the result of
+`cursorfree-this'.
+
+This function provides visual feedback for SOURCE and TARGET, and sets
+`cursorfree-that' to TARGET."
+  (setq target (or target (cursorfree-this)))
+  (cursorfree--indicate-deletion source)
+  (pcase where
+    ('nil (cursorfree-move source target))
+    ('before (cursorfree-move-before source target))
+    ('after (cursorfree-move-after source target))
+    (_ (error "Invalid WHERE argument: %S" where)))
+  (cursorfree-pulse target)
+  (setq cursorfree--target-that target))
+
+(cl-defgeneric cursorfree-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."
-  (cursorfree--target-swap target1 target2))
-
-(cl-defgeneric cursorfree--target-swap (target1 target2)
-  "Swap contents of TARGET1 and TARGET2."
   (let ((content1 (cursorfree-get target1))
         (content2 (cursorfree-get target2)))
     (cursorfree-put target1 content2)
     (cursorfree-put target2 content1)))
 
-(cl-defmethod cursorfree--target-swap ((window1 window) (window2 window))
+(cl-defmethod cursorfree-swap ((window1 window) (window2 window))
   "Swap current buffers between WINDOW1 and WINDOW2."
-  (let ((buffer1 (cursorfree--target-buffer window1))
-        (buffer2 (cursorfree--target-buffer window2)))
+  (let ((buffer1 (cursorfree-buffer window1))
+        (buffer2 (cursorfree-buffer window2)))
     (cursorfree-put window1 buffer2)
     (cursorfree-put window2 buffer1)))
 
-(cl-defgeneric cursorfree--target-change (target)
-  "Change TARGET interactively.")
+(cl-defgeneric cursorfree-change (target)
+  "Jump to TARGET and delete its contents.")
 
-(cl-defmethod cursorfree--target-change ((target cursorfree-region))
+(cl-defmethod cursorfree-change ((target cursorfree-region))
   "Remove contents of TARGET and put point there."
   (cursorfree-jump target)
   (when (region-active-p) (deactivate-mark))
-  (cursorfree--indicate-deletion target)
   (cursorfree--region-delete (cursorfree-content-region target)))
 
-(cl-defmethod cursorfree--target-change ((target cursorfree--parallel))
+(cl-defmethod cursorfree-change ((target cursorfree--parallel))
   "Remove contents of TARGET and put points there."
-  (cursorfree--multiple-cursors-do #'cursorfree--target-change target))
+  (cursorfree--multiple-cursors-do #'cursorfree-change target))
 
-(defun cursorfree-change (&rest targets)
-  "Move point to TARGETS and delete its contents."
-  (let ((target (cursorfree--normalize-target (or targets (cursorfree-this)))))
-    (cursorfree--target-change target)))
+(defun cursorfree-do-change (target)
+  "Invoke `cursorfree-change' with TARGET, providing interactive feedback."
+  (cursorfree--indicate-deletion target)
+  (cursorfree-change target))
 
-;; TODO: Don't move point
-(defun cursorfree-clone (target)
-  "Insert another copy of TARGET after itself."
-  (cursorfree--target-clone target))
-
-(cl-defgeneric cursorfree--target-clone (target)
+(cl-defgeneric cursorfree-clone (target)
   "Insert another copy of TARGET after itself."
   (cursorfree-put
    target
@@ -979,48 +1019,65 @@ BUFFER is not deleted, so this is equivalent to
     (cursorfree-get target)
     (cursorfree-get target))))
 
-(cl-defmethod cursorfree--target-clone ((target cursorfree-region))
+(cl-defmethod cursorfree-clone ((target cursorfree-region))
   "Insert another copy of TARGET after itself."
-  (cursorfree--target-put-after target (cursorfree-get target)))
+  (cursorfree-bring-after target target))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
-  "Define function with NAME applying FUNCTION on targets.
-Use DOCSTRING for the new function.
+  "Define functions applying FUNCTION on the content region of a target.
 
-For each argument, the defined function NAME invokes FUNCTION on the
-content region.  Afterwards, the region will be pulsed."
-  (declare (indent defun))
-  `(defun ,name (&rest targets)
-     ,docstring
-     (dolist (target targets)
-       (cursorfree-on-content-region target
-         (lambda (region)
-           (,function (car region) (cdr region))))
-       (cursorfree-pulse target))))
+NAME and FUNCTION are unquoted.
 
-(cursorfree--simple-content-function cursorfree-make-comment
-  "Comment out TARGETS."
+Two functions are defined, cursorfree-NAME and cursorfree-do-NAME, both
+taking one parameter named TARGET.
+
+cursorfree-NAME applies FUNCTION to the content region of its parameter.
+This function will have DOCSTRING as its docstring.
+
+cursorfree-do-NAME invokes cursorfree-NAME but also provides visual
+feedback for what target was operated on."
+  (declare (indent defun)
+           (doc-string 2))
+  (let ((function-name (intern (format "cursorfree-%s" name)))
+        (function-do-name (intern (format "cursorfree-do-%s" name))))
+    `(progn
+       (defun ,function-name (target)
+         ,docstring
+         (cursorfree-on-content-region target
+           (lambda (region)
+             (,function (car region) (cdr region)))))
+       (defun ,function-do-name (target)
+         ,(format "Invoke `%s' with visual feedback." function-name)
+         (,function-name target)
+         (cursorfree-pulse target)))))
+
+(cursorfree--simple-content-function make-comment
+  "Comment out TARGET."
   comment-region)
 
-(cursorfree--simple-content-function cursorfree-uncomment
-  "Uncomment TARGETS."
+(cursorfree--simple-content-function uncomment
+  "Uncomment TARGET."
   uncomment-region)
 
-(cursorfree--simple-content-function cursorfree-narrow
-  "Narrow region to the last element of TARGETS."
+(cursorfree--simple-content-function narrow
+  "Narrow to TARGET."
   narrow-to-region)
 
-(cursorfree--simple-content-function cursorfree-capitalize
-  "Capitalize the first character of each word in TARGETS."
+(cursorfree--simple-content-function capitalize
+  "Capitalize the first character of each word in TARGET."
   capitalize-region)
 
-(cursorfree--simple-content-function cursorfree-upcase
-  "Convert TARGETS to upper case."
+(cursorfree--simple-content-function upcase
+  "Convert TARGET to upper case."
   upcase-region)
 
-(cursorfree--simple-content-function cursorfree-downcase
+(cursorfree--simple-content-function downcase
   "Convert TARGET to lower case."
   downcase-region)
+
+(cursorfree--simple-content-function indent
+  "Indent TARGET."
+  indent-region)
 
 (cl-defgeneric cursorfree--tidy-region (region)
   "Tidy up REGION."
@@ -1157,28 +1214,27 @@ TARGET defaults to `cursorfree-this'."
   (cursorfree-float target)
   (cursorfree-drop target))
 
-(defun cursorfree-wrap (parenthesis &rest targets)
-  "Wrap TARGETS with characters specified by PARENTHESIS.
+(defun cursorfree-wrap (parenthesis target)
+  "Wrap TARGET with characters specified by PARENTHESIS.
 
-Insert PARENTHESIS before TARGETS.  If PARENTHESIS is some type of
+Insert PARENTHESIS before TARGET.  If PARENTHESIS is some type of
 parenthesis, insert the matching right version at the end of TARGETS.
 Otherwise, insert PARENTHESIS instead."
-  (dolist (target targets)
-    (cursorfree-on-content-region target
-      (lambda (region)
-        (save-excursion
-          (goto-char (car region))
-          (insert parenthesis)
-          (goto-char (cdr region))
-          (insert
-           (pcase parenthesis
-             (?\( ?\))
-             (?\[ ?\])
-             (?< ?>)
-             (?{ ?})
-             (_ parenthesis))))
-        (when (= (car region) (point))
-          (forward-char))))))
+  (cursorfree-on-content-region target
+    (lambda (region)
+      (save-excursion
+        (goto-char (car region))
+        (insert parenthesis)
+        (goto-char (cdr region))
+        (insert
+         (pcase parenthesis
+           (?\( ?\))
+           (?\[ ?\])
+           (?< ?>)
+           (?{ ?})
+           (_ parenthesis))))
+      (when (= (car region) (point))
+        (forward-char)))))
 
 (make-obsolete 'cursorfree-wrap-parentheses
                'cursorfree-wrap
@@ -1214,6 +1270,9 @@ mode to look up the function in `cursorfree-dwim-follow-alist'."
    ((and (button-at (point))
          (button-get (button-at (point)) 'action))
     (push-button))
+   ;; TODO: Report upstream that shr does not use button.el
+   ((get-text-property (point) 'shr-url)
+    (shr-browse-url))
    ((widget-at (point))
     (widget-apply-action (widget-at (point))))
    ((alist-get major-mode cursorfree-dwim-follow-alist)
@@ -1599,7 +1658,10 @@ delimiter is intended."
          (cursorfree-region-post-insertion-string rightmost))))))
 
 (defun cursorfree-past (target1 &optional target2)
-  "Return the smallest target that can fit TARGET1 and TARGET2."
+  "Return the smallest target that can fit TARGET1 and TARGET2.
+
+If TARGET2 is nil or omitted, it default to `cursorfree-this' in the
+buffer of TARGET1."
   (setq target2 (or target2
                     (with-current-buffer (cursorfree-buffer target1)
                       (cursorfree-this))))

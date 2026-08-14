@@ -27,6 +27,7 @@
 
 (require 'eieio)
 (require 'multiple-cursors)
+(require 'cursorfree)
 
 (cl-defstruct cursorfree--test-buffer-state
   string
@@ -46,7 +47,8 @@
   (from-same-buffer nil
                     :documentation "Whether evaluating the command must be done from
     the same buffer as the targets.")
-  (setup #'ignore))
+  (setup #'ignore)
+  (should-error nil))
 
 (defun cursorfree--multiple-cursor-points ()
   (let ((points (list (point))))
@@ -115,7 +117,10 @@
               (cursorfree--setup-test parameters)
               (condition-case error
                   (progn
-                    (eval (cursorfree--test-parameters-command-form parameters))
+                    (if (cursorfree--test-parameters-should-error parameters)
+                        (should-error
+                         (eval (cursorfree--test-parameters-command-form parameters)))
+                      (eval (cursorfree--test-parameters-command-form parameters)))
                     (cursorfree--test-check-state parameters t))
                 (ert-test-failed (signal (car error) (cdr error)))
                 (error (error "(same buffer) %s" (error-message-string error))))
@@ -126,9 +131,14 @@
                 (switch-to-buffer alternative-buffer)
                 (condition-case error
                     (progn
-                      (eval (cursorfree--test-inject-buffer
-                             (cursorfree--test-parameters-command-form parameters)
-                             test-buffer))
+                      (if (cursorfree--test-parameters-should-error parameters)
+                          (should-error
+                           (eval (cursorfree--test-inject-buffer
+                                  (cursorfree--test-parameters-command-form parameters)
+                                  test-buffer)))
+                        (eval (cursorfree--test-inject-buffer
+                               (cursorfree--test-parameters-command-form parameters)
+                               test-buffer)))
                       (select-window (get-buffer-window test-buffer))
                       (cursorfree--test-check-state parameters nil))
                   (ert-test-failed (signal (car error) (cdr error)))
@@ -199,7 +209,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Bringing a point word to point"
             :points '(17))
-    :command-form '(cursorfree-bring
+    :command-form '(cursorfree-bring-here
                     (cursorfree-make-target (cons 21 26)))
     :from-same-buffer t)))
 
@@ -231,6 +241,34 @@
                     "some-long-word"
                     (cursorfree-make-target (cons 14 16))))))
 
+(ert-deftest cursorfree--test-bring-before ()
+  "bring before."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This word gets a prefix"
+             :points '(24))
+    :after (make-cursorfree--test-buffer-state
+            :string "This prefix word gets a prefix"
+            :points '(31))
+    :command-form '(cursorfree-bring-before
+                    (cursorfree-make-target (cons 18 24))
+                    (cursorfree-make-target (cons 6 10))))))
+
+(ert-deftest cursorfree--test-bring-after ()
+  "bring after."
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "This word gets a suffix"
+             :points '(24))
+    :after (make-cursorfree--test-buffer-state
+            :string "This word suffix gets a suffix"
+            :points '(31))
+    :command-form '(cursorfree-bring-after
+                    (cursorfree-make-target (cons 18 24))
+                    (cursorfree-make-target (cons 6 10))))))
+
 (ert-deftest cursorfree--test-move ()
   "move."
   (cursorfree--run-test
@@ -245,7 +283,7 @@
                     (cursorfree-make-target (cons 1 7))
                     (cursorfree-make-target (cons 14 16))))))
 
-(ert-deftest cursorfree--test-move-to-point ()
+(ert-deftest cursorfree--test-move-to-this ()
   "move to point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -256,8 +294,39 @@
             :string "Moving a word to point"
             :points '(14))
     :command-form '(cursorfree-move
-                    (cursorfree-make-target (cons 20 24)))
+                    (cursorfree-make-target (cons 20 24))
+                    (cursorfree-this))
     :from-same-buffer t)))
+
+(ert-deftest cursorfree--do-bring-invalid-destination ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Arbitrary text"
+             :points '(5))
+    :after (make-cursorfree--test-buffer-state
+            :string "Arbitrary text"
+            :points '(5))
+    :command-form '(cursorfree-do-bring
+                    (cursorfree-everything)
+                    (cursorfree-this)
+                    'invalid-destination)
+    :should-error t)))
+
+(ert-deftest cursorfree--do-move-invalid-destination ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Arbitrary text"
+             :points '(5))
+    :after (make-cursorfree--test-buffer-state
+            :string "Arbitrary text"
+            :points '(5))
+    :command-form '(cursorfree-do-move
+                    (cursorfree-everything)
+                    (cursorfree-this)
+                    'invalid-destination)
+    :should-error t)))
 
 (ert-deftest cursorfree--test-chuck ()
   "chuck."
@@ -269,7 +338,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "I must remove an extraneous word"
             :points '(33))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 18 28))))))
 
 (ert-deftest cursorfree--test-chuck-multiple ()
@@ -282,7 +351,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "This will decimated sure"
             :points '(25))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree--make-parallel
                      (cursorfree-make-target (cons 6 14))
                      (cursorfree-make-target (cons 20 22))
@@ -298,7 +367,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Removing\nin text with newline"
             :points '(10))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 10 14))))))
 
 (ert-deftest cursorfree--test-chuck-leading-whitespace-after-newline ()
@@ -311,7 +380,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Removing word\ntext with newline"
             :points '(15))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 15 17))))))
 
 (ert-deftest cursorfree--test-chuck-line-before-empty-line ()
@@ -324,7 +393,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "a\n\nc\nd"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 3 4))))))
 
 (ert-deftest cursorfree--test-chuck-line-after-empty-line ()
@@ -337,7 +406,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "a\nb\n\nd"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 6 7))))))
 
 (ert-deftest cursorfree--test-inside-parenthesis ()
@@ -351,7 +420,7 @@
             :string "()"
             :points '(3))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
        ?\()))))
@@ -367,7 +436,7 @@
             :string "([] bbb ccc)"
             :points '(13))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6))
        ?\[)))))
@@ -383,7 +452,7 @@
             :string "([] bbb ccc)"
             :points '(13))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6)))))))
 
@@ -398,7 +467,7 @@
             :string "(\"\" bbb ccc)"
             :points '(1))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-inside
        (cursorfree-make-target (cons 3 6)))))))
 
@@ -413,7 +482,7 @@
             :string "Expanding () point"
             :points '(12))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-inside))
     :from-same-buffer t)))
 
@@ -428,7 +497,7 @@
             :string ""
             :points '(1))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
        ?\()))))
@@ -444,7 +513,7 @@
             :string "(bbb ccc)"
             :points '(10))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6))
        ?\[)))))
@@ -460,7 +529,7 @@
             :string "(bbb ccc)"
             :points '(10))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6)))))))
 
@@ -475,7 +544,7 @@
             :string "(bbb ccc)"
             :points '(10))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside
        (cursorfree-make-target (cons 3 6)))))))
 
@@ -490,7 +559,7 @@
             :string "Expanding point"
             :points '(11))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside))
     :from-same-buffer t)))
 
@@ -504,7 +573,7 @@
             :string ""
             :points '(1))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-outside
        (cursorfree-make-target (cons 11 11)))))))
 
@@ -577,7 +646,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "A be removed"
             :points '(13))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-past
                      (cursorfree-make-target (cons 3 10))
                      (cursorfree-make-target (cons 11 15)))))))
@@ -592,7 +661,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "A section will be removed"
             :points '(11))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-past
                      (cursorfree-make-target (cons 23 28)))))))
 
@@ -634,7 +703,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "b b b"
             :points '(4))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-every-instance
                      (cursorfree-make-target (cons 11 12)))))))
 
@@ -648,7 +717,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "a a a b b b a"
             :points '(11))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-every-instance
                      (cursorfree-make-target (cons 13 14))
                      (cursorfree-past
@@ -694,7 +763,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Word and test word"
             :points '(9))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-next "word"))
     :from-same-buffer t)))
 
@@ -708,7 +777,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Next test next test next"
             :points '(25))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-next
                      (cursorfree-make-target (cons 11 15)))))))
 
@@ -722,7 +791,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "A test here here test test"
             :points '(13))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-previous "test"))
     :from-same-buffer t)))
 
@@ -736,7 +805,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "A test o and c test d test"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-previous
                      (cursorfree-make-target (cons 21 25)))))))
 
@@ -790,7 +859,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "a target"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree--make-parallel
                      (cursorfree-make-target (cons 1 9))
                      (cursorfree-make-target (cons 12 20)))))))
@@ -804,7 +873,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Getting outside of parallel target"
             :points '(35))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree--make-parallel
                       (cursorfree-make-target (cons 10 13))
@@ -819,7 +888,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "Getting () outside of () parallel target"
             :points '(41))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-inside
                      (cursorfree--make-parallel
                       (cursorfree-make-target (cons 10 13))
@@ -867,7 +936,7 @@
             :string "Simple\ntext"
             :points '(12))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-line (cursorfree-make-target (cons 17 22)))))))
 
 (ert-deftest cursorfree--test-line-change ()
@@ -895,10 +964,10 @@
             :string "   b"
             :points '(5))
     :command-form
-    '(cursorfree-chuck
+    '(cursorfree-delete
       (cursorfree-line (cursorfree-make-target (cons 1 2)))))))
 
-(ert-deftest cursorfree--test-line-move ()
+(ert-deftest cursorfree--test-line-move-after ()
   "line move."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -909,10 +978,9 @@
             :string "another one\na line\n"
             :points '(1))
     :command-form
-    '(cursorfree--target-move
+    '(cursorfree-move-after
       (cursorfree-line (cursorfree-make-target (cons 1 1)))
-      (cursorfree-line (cursorfree-make-target (cons 9 10)))
-      :putter #'cursorfree--put-after))))
+      (cursorfree-line (cursorfree-make-target (cons 9 10)))))))
 
 (ert-deftest cursorfree--test-that ()
   "that."
@@ -925,7 +993,7 @@
             :string "Change brought that "
             :points '(21))
     :command-form '(progn
-                     (cursorfree-bring
+                     (cursorfree-do-bring
                       (cursorfree-make-target (cons 8 15)))
                      (cursorfree-change
                       (cursorfree-that)))
@@ -942,7 +1010,7 @@
             :string "Change  thing source"
             :points '(8))
     :command-form '(progn
-                     (cursorfree-bring
+                     (cursorfree-do-bring
                       (cursorfree-make-target (cons 8 14)))
                      (cursorfree-change
                       (cursorfree-source)))
@@ -973,7 +1041,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "b"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-block
                      (cursorfree-make-target (cons 1 2)))))))
 
@@ -986,7 +1054,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "b"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-block
                      (cursorfree-make-target (cons 1 2)))))))
 
@@ -999,7 +1067,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(f)"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-make-target (cons 5 6))))))
 
 (ert-deftest cursorfree--test-beginning ()
@@ -1040,7 +1108,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "ab"
             :points '(2))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 4 8))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1055,7 +1123,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "ab"
             :points '(2))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 4 8))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1070,7 +1138,7 @@
     :after (make-cursorfree--test-buffer-state
             :string ""
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 5 5)) ?\())
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1085,7 +1153,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "'def\"'"
             :points '(1))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 4 4)) ?'))
     :setup (lambda () (python-mode)))))
@@ -1099,7 +1167,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "ab"
             :points '(2))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 4 4))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1114,7 +1182,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello \"\")"
             :points '(9))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1129,7 +1197,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello)"
             :points '(7))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1144,7 +1212,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello \"\")"
             :points '(9))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (python-mode)))))
@@ -1159,7 +1227,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello \"\")"
             :points '(9))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1174,7 +1242,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello)"
             :points '(7))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 12 12))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1189,7 +1257,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello \n ;;\n)"
             :points '(12))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 15 15))))
     :setup (lambda () (emacs-lisp-mode)))))
@@ -1204,7 +1272,7 @@
     :after (make-cursorfree--test-buffer-state
             :string "(hello \n ;;\n)"
             :points '(12))
-    :command-form '(cursorfree-chuck
+    :command-form '(cursorfree-delete
                     (cursorfree-outside
                      (cursorfree-make-target (cons 17 17))))
     :setup (lambda () (emacs-lisp-mode)))))

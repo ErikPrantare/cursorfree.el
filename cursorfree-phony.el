@@ -146,7 +146,8 @@ A primitive is any arbitrary value.")
   (list (list 'modifier cursorfree-modifier)))
 
 (phony-define-open-rule cursorfree--infix-element
-  "A list of one infix element.")
+  "A list of one infix element."
+  :contributes-to cursorfree--initial-target-element)
 
 (phony-defun cursorfree--infix-element-past "past"
   "Infix element for `cursorfree-past'."
@@ -257,7 +258,7 @@ See the rule `cursorfree-target' for the semantics of ELEMENTS."
     ("hole" . hole)
     ("ex" . ex)
     ("cross" . cross)
-    ("I" . eye)))
+    ("glim" . eye)))
 
 (phony-defun cursorfree--hat
     ((? (color cursorfree--color))
@@ -282,9 +283,9 @@ See documentation for `hatty-locate-token' for more information."
 
 (phony-define-dictionary cursorfree--destination-modifiers
   "Method for putting a target at a destination."
-  `(("to" . cursorfree--put)
-    ("after" . cursorfree--put-after)
-    ("before" . cursorfree--put-before)))
+  `(("to" . nil)
+    ("after" . after)
+    ("before" . before)))
 
 (phony-defun cursorfree--bring
     ("bring"
@@ -294,7 +295,7 @@ See documentation for `hatty-locate-token' for more information."
   "Bring FROM to TO.
 
 Where to put it in relation to TO is given by MODIFIER."
-  (cursorfree--target-bring from to :putter modifier))
+  (cursorfree-do-bring from to modifier))
 
 (phony-defun cursorfree--change
     ("change"
@@ -304,8 +305,8 @@ Where to put it in relation to TO is given by MODIFIER."
 
 If SOURCE is not given, TARGET is removed and point is put in its place."
   (if source
-      (cursorfree-bring source target)
-    (cursorfree-change target)))
+      (cursorfree-do-bring source target)
+    (cursorfree-do-change target)))
 
 (phony-defun cursorfree--move
     ("move"
@@ -315,7 +316,7 @@ If SOURCE is not given, TARGET is removed and point is put in its place."
   "Move FROM to TO.
 
 Where to put it in relation to TO is given by MODIFIER."
-  (cursorfree--target-move from to :putter modifier))
+  (cursorfree-do-move from to modifier))
 
 (phony-defun cursorfree--swap
     ("swap"
@@ -371,21 +372,21 @@ CONTEXT-LINES is given, show that many lines of context."
 (phony-define-dictionary cursorfree--simple-action-verb
   "Verb for a simple single-target action."
   '(("take" . cursorfree-select)
-    ("copy" . cursorfree-copy)
-    ("chuck" . cursorfree-chuck)
-    ("bring" . cursorfree-bring)
-    ("move" . cursorfree-move)
+    ("copy" . cursorfree-do-copy)
+    ("chuck" . cursorfree-do-delete)
+    ("bring" . cursorfree-do-bring)
+    ("move" . cursorfree-do-move)
     ("clone" . cursorfree-clone)
     ("jump" . cursorfree-jump)
     ("pre" . cursorfree-jump-beginning)
     ("post" . cursorfree-jump-end)
-    ("comment" . cursorfree-make-comment)
-    ("uncomment" . cursorfree-uncomment)
-    ("indent" . cursorfree-indent)
-    ("narrow" . cursorfree-narrow)
-    ("title" . cursorfree-capitalize)
-    ("upcase" . cursorfree-upcase)
-    ("downcase" . cursorfree-downcase)
+    ("comment" . cursorfree-do-make-comment)
+    ("uncomment" . cursorfree-do-uncomment)
+    ("indent" . cursorfree-do-indent)
+    ("narrow" . cursorfree-do-narrow)
+    ("title" . cursorfree-do-capitalize)
+    ("upcase" . cursorfree-do-upcase)
+    ("downcase" . cursorfree-do-downcase)
     ("crown" . cursorfree-crown)
     ("center" . cursorfree-center)
     ("bottom" . cursorfree-bottom)
