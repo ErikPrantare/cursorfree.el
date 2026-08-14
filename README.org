@@ -169,7 +169,7 @@ and the corresponding library function.
 |-------------+--------------------------------------+---------------------------|
 | take        | Select target                        | cursorfree-select         |
 | copy        | Copy to kill ring                    | cursorfree-copy           |
-| chuck       | Delete and tidy whitespace           | cursorfree-chuck          |
+| chuck       | Delete target                        | cursorfree-delete         |
 | clone       | Insert a copy after itself           | cursorfree-clone          |
 | jump        | Move point to target                 | cursorfree-jump           |
 | pre         | Move point to beginning              | cursorfree-jump-beginning |

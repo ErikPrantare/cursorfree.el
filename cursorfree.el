@@ -861,15 +861,16 @@ highlight color can be customized with
       (seq-doseq (overlay overlays)
         (delete-overlay overlay)))))
 
-(defun cursorfree-chuck (target)
-  "Delete TARGET and indent the resulting text."
-  (cursorfree-delete target))
+(defun cursorfree-do-delete (target)
+  "Delete TARGET.
 
-(defun cursorfree-do-chuck (target)
-  "Delete TARGET and indent the resulting text, indicating the deletion."
+This function provides visual feedback for TARGET, and sets
+`cursorfree-that' to TARGET."
   (cursorfree--indicate-deletion target)
-  (cursorfree-chuck target)
+  (cursorfree-delete target)
   (setq cursorfree--target-that target))
+
+(define-obsolete-function-alias 'cursorfree-chuck #'cursorfree-delete "0.4.0")
 
 (cl-defgeneric cursorfree-bring (source target)
   "Overwrite TARGET with SOURCE.

@@ -1,6 +1,6 @@
 * NEXT
 - ~cursorfree-pick~ can now follow ~shr.el~ links.
-- ~cursorfree-chuck~, ~cursorfree-bring~, ~cursorfree-move~,
+- ~cursorfree-delete~, ~cursorfree-bring~, ~cursorfree-move~,
   ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
 - A handful of functions now have ~do~ variants,
   e.g. ~cursorfree-do-bring~.  These functions are meant for
@@ -17,6 +17,8 @@
   target ~<s>~ before target ~<t>~.  The corresponding Elisp functions
   are ~cursorfree-bring-before~, ~cursorfree-bring-after~,
   ~cursorfree-move-before~, and ~cursorfree-move-after~.
+- ~cursorfree-chuck~ is now called ~cursorfree-delete~.  The old
+  function will be removed in a future version.
 
 * 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say

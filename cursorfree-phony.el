@@ -373,7 +373,7 @@ CONTEXT-LINES is given, show that many lines of context."
   "Verb for a simple single-target action."
   '(("take" . cursorfree-select)
     ("copy" . cursorfree-do-copy)
-    ("chuck" . cursorfree-chuck)
+    ("chuck" . cursorfree-do-delete)
     ("bring" . cursorfree-do-bring)
     ("move" . cursorfree-do-move)
     ("clone" . cursorfree-clone)
