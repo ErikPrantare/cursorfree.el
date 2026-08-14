@@ -301,45 +301,31 @@ target."
   "Return region of the content referred to by TARGET."
   (cursorfree-region-content-region target))
 
-(defun cursorfree-buffer (&optional target)
+(cl-defgeneric cursorfree-buffer (_target)
   "Get the buffer associated with TARGET.
-If no buffer is associated with TARGET, return nil.
 
-If TARGET is nil or omitted, the current buffer is returned instead.
-
-To override this function for new target types, implement a method for
-`cursorfree--target-buffer'."
-  (if target
-      (cursorfree--target-buffer target)
-    (current-buffer)))
-
-(cl-defgeneric cursorfree--target-buffer (_)
-  "Get the buffer associated with TARGET."
+If target has no associated buffer, this function returns nil."
   nil)
 
-(cl-defmethod cursorfree--target-buffer ((target cursorfree-region))
+(cl-defmethod cursorfree-buffer ((target cursorfree-region))
   "Get the buffer TARGET is located in."
   (cursorfree-region-buffer target))
 
-(cl-defmethod cursorfree--target-buffer ((window window))
+(cl-defmethod cursorfree-buffer ((window window))
   "Get the buffer of WINDOW."
   (window-buffer window))
 
-(cl-defmethod cursorfree--target-buffer ((buffer buffer))
+(cl-defmethod cursorfree-buffer ((buffer buffer))
   "Return BUFFER."
   buffer)
 
-(defun cursorfree-window (target)
-  "Get the window associated with TARGET.
-If TARGET is nil or omitted, return nil.  Otherwise, if TARGET has no
-associated window, return a window displaying the buffer associated with
-TARGET, or nil if no window is showing that buffer.
+(defun cursorfree-buffer-or-current (&optional target)
+  "Get the `cursorfree-buffer' of TARGET, or `current-buffer' if omitted."
+  (if target
+      (cursorfree-buffer target)
+    (current-buffer)))
 
-To override this function for new target types, implement a method for
-`cursorfree--target-window'."
-  (cursorfree--target-window target))
-
-(cl-defgeneric cursorfree--target-window (target)
+(cl-defgeneric cursorfree-window (target)
   "Get the window associated with TARGET.
 
 By default, returns a window showing the `cursorfree-buffer' of TARGET,
@@ -347,14 +333,14 @@ or nil if no window is showing that buffer."
   (and-let* ((buffer (cursorfree-buffer target)))
     (get-buffer-window buffer)))
 
-(cl-defmethod cursorfree--target-window ((target cursorfree-region))
+(cl-defmethod cursorfree-window ((target cursorfree-region))
   "Get the window TARGET was created in.
 If the window is unknown, return a window displaying its buffer instead.
 If no window is showing its buffer, return nil."
   (or (cursorfree-region-window target)
       (cl-call-next-method)))
 
-(cl-defmethod cursorfree--target-window ((window window))
+(cl-defmethod cursorfree-window ((window window))
   "Return WINDOW."
   window)
 
@@ -362,7 +348,7 @@ If no window is showing its buffer, return nil."
   "Get the window associated with TARGET.
 If TARGET is nil or omitted, return the selected window."
   (if target
-      (cursorfree--target-window target)
+      (cursorfree-window target)
     (selected-window)))
 
 (cl-defgeneric cursorfree-on-content-region (target _f)
@@ -824,7 +810,7 @@ highlight color can be customized with
 (cl-defmethod cursorfree--indicate-deletion ((target cursorfree-region))
   "Highlight deletion region of TARGET momentarily."
   (when cursorfree-highlight-deletions
-    (with-current-buffer (cursorfree--target-buffer target)
+    (with-current-buffer (cursorfree-buffer target)
       (let* ((region (cursorfree-content-region target))
              (overlay (make-overlay (car region) (cdr region))))
         (overlay-put overlay 'face 'cursorfree-deletion-highlight-face)
@@ -1009,8 +995,8 @@ This function provides visual feedback for SOURCE and TARGET, and sets
 
 (cl-defmethod cursorfree-swap ((window1 window) (window2 window))
   "Swap current buffers between WINDOW1 and WINDOW2."
-  (let ((buffer1 (cursorfree--target-buffer window1))
-        (buffer2 (cursorfree--target-buffer window2)))
+  (let ((buffer1 (cursorfree-buffer window1))
+        (buffer2 (cursorfree-buffer window2)))
     (cursorfree-put window1 buffer2)
     (cursorfree-put window2 buffer1)))
 

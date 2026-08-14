@@ -243,7 +243,7 @@ A modifier transforms a target into a new target.
 | preve                 | Previous occurrence                      | cursorfree-previous           |
 | beginning             | Empty region at start of target          | cursorfree-beginning          |
 | end                   | Empty region at end of target            | cursorfree-end                |
-| buffer                | Buffer containing target                 | cursorfree-buffer             |
+| buffer                | Buffer containing target                 | cursorfree-buffer-or-current  |
 | split                 | Window containing target                 | cursorfree-window-or-selected |
 | inside [<character>]  | Expand to inside enclosing delimiter     | cursorfree-inside             |
 | outside [<character>] | Expand to include enclosing delimiter    | cursorfree-outside            |
