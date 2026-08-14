@@ -700,11 +700,7 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
       (set-mark (car region))
       (goto-char (cdr region)))))
 
-(defun cursorfree-jump (target)
-  "Go to TARGET."
-  (cursorfree--target-jump target))
-
-(cl-defgeneric cursorfree--target-jump (target)
+(cl-defgeneric cursorfree-jump (target)
   "Jump to TARGET.
 
 The meaning of \"jump\" is left ambiguous to allow targets of
@@ -712,65 +708,57 @@ different types to be jumped to.  See the implemented methods for
 examples."
   (error "No method for jumping to %s" target))
 
-(cl-defmethod cursorfree--target-jump ((target cursorfree-region))
+(cl-defmethod cursorfree-jump ((target cursorfree-region))
   "Move point to beginning of TARGET.
 If TARGET has an associated window, select it.  Otherwise, display the
-associated buffer."
+associated buffer of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region))))
-  (cursorfree--target-jump (or (cursorfree-window target)
-                               (cursorfree-buffer target))))
+  (cursorfree-jump (or (cursorfree-window target)
+                       (cursorfree-buffer target))))
 
-(cl-defmethod cursorfree--target-jump ((target cursorfree--parallel))
+(cl-defmethod cursorfree-jump ((target cursorfree--parallel))
   "Insert a cursor before each element of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (car region)))))
 
-(cl-defmethod cursorfree--target-jump ((window window))
+(cl-defmethod cursorfree-jump ((window window))
   "Select WINDOW."
   (select-window window))
 
-(cl-defmethod cursorfree--target-jump ((buffer buffer))
+(cl-defmethod cursorfree-jump ((buffer buffer))
   "Set BUFFER as the current buffer."
   (switch-to-buffer buffer))
 
-(cl-defgeneric cursorfree--target-jump-beginning (target)
+(cl-defgeneric cursorfree-jump-beginning (target)
   "Jump to the beginning of TARGET.
 
-By default, this is equivalent to `cursorfree--target-jump'."
-  (cursorfree--target-jump target))
+By default, this is equivalent to `cursorfree-jump'."
+  (cursorfree-jump target))
 
-(defun cursorfree-jump-beginning (target)
-  "Jump to the beginning of TARGET."
-  (cursorfree--target-jump-beginning target))
-
-(cl-defgeneric cursorfree--target-jump-end (target)
+(cl-defgeneric cursorfree-jump-end (target)
   "Jump to the end of TARGET.
 
-By default, this is equivalent to `cursorfree--target-jump'."
-  (cursorfree--target-jump target))
+By default, this is equivalent to `cursorfree-jump'."
+  (cursorfree-jump target))
 
-(cl-defmethod cursorfree--target-jump-end ((target cursorfree-region))
+(cl-defmethod cursorfree-jump-end ((target cursorfree-region))
   "Move point to end of TARGET.
 If TARGET has an associated window, select it.  Otherwise, display the
-associated buffer."
+associated buffer of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region))))
-  (cursorfree--target-jump (or (cursorfree-window target)
-                               (cursorfree-buffer target))))
+  (cursorfree-jump (or (cursorfree-window target)
+                       (cursorfree-buffer target))))
 
-(cl-defmethod cursorfree--target-jump-end ((target cursorfree--parallel))
+(cl-defmethod cursorfree-jump-end ((target cursorfree--parallel))
   "Put a cursor at the end of every element of TARGET."
   (cursorfree-on-content-region-cursor-effect target
     (lambda (region)
       (goto-char (cdr region)))))
-
-(defun cursorfree-jump-end (target)
-  "Jump to the end of TARGET."
-  (cursorfree--target-jump-end target))
 
 (defun cursorfree-indent (target)
   "Indent TARGET."
