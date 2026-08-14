@@ -1018,12 +1018,7 @@ This function provides visual feedback for SOURCE and TARGET, and sets
   (cursorfree--indicate-deletion target)
   (cursorfree-change target))
 
-;; TODO: Don't move point
-(defun cursorfree-clone (target)
-  "Insert another copy of TARGET after itself."
-  (cursorfree--target-clone target))
-
-(cl-defgeneric cursorfree--target-clone (target)
+(cl-defgeneric cursorfree-clone (target)
   "Insert another copy of TARGET after itself."
   (cursorfree-put
    target
@@ -1031,7 +1026,7 @@ This function provides visual feedback for SOURCE and TARGET, and sets
     (cursorfree-get target)
     (cursorfree-get target))))
 
-(cl-defmethod cursorfree--target-clone ((target cursorfree-region))
+(cl-defmethod cursorfree-clone ((target cursorfree-region))
   "Insert another copy of TARGET after itself."
   (cursorfree-bring-after target target))
 
