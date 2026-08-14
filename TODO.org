@@ -1,6 +1,0 @@
-* TODO Commands:
-- tidy: Implicitly act upon "block".
-
-* TODO Test grammar using phony-provided parser
-
-* TODO Shortdoc
