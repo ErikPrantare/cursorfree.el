@@ -676,8 +676,7 @@ The post-insertion string of target is inserted between CONTENT and TARGET."
   (with-current-buffer (marker-buffer marker)
     (save-excursion
       (goto-char marker)
-      (insert string)
-      (cursorfree-pulse (cons marker (+ marker (length string)))))))
+      (insert string))))
 
 (defun cursorfree-select (target)
   "Set active region to TARGET."
