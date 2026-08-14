@@ -931,7 +931,8 @@ sets `cursorfree-that' to TARGET and `cursorfree-source' to SOURCE."
   (pcase where
     ('nil (cursorfree-bring source target))
     ('before (cursorfree-bring-before source target))
-    ('after (cursorfree-bring-after source target)))
+    ('after (cursorfree-bring-after source target))
+    (_ (error "Invalid WHERE argument: %S" where)))
   (cursorfree-pulse source)
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
@@ -988,7 +989,7 @@ This does not delete BUFFER for safety reasons.  This method is
 equivalent to `cursorfree-bring-after'."
   (cursorfree-bring-after buffer target))
 
-(cl-defgeneric cursorfree-do-move (source &optional target where)
+(defun cursorfree-do-move (source &optional target where)
   "Bring SOURCE to TARGET, deleting SOURCE.
 
 WHERE is a symbol.  If nil, `cursorfree-move' is invoked.  If
@@ -1005,7 +1006,8 @@ This function provides visual feedback for SOURCE and TARGET, and sets
   (pcase where
     ('nil (cursorfree-move source target))
     ('before (cursorfree-move-before source target))
-    ('after (cursorfree-move-after source target)))
+    ('after (cursorfree-move-after source target))
+    (_ (error "Invalid WHERE argument: %S" where)))
   (cursorfree-pulse target)
   (setq cursorfree--target-that target))
 

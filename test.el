@@ -47,7 +47,8 @@
   (from-same-buffer nil
                     :documentation "Whether evaluating the command must be done from
     the same buffer as the targets.")
-  (setup #'ignore))
+  (setup #'ignore)
+  (should-error nil))
 
 (defun cursorfree--multiple-cursor-points ()
   (let ((points (list (point))))
@@ -116,7 +117,10 @@
               (cursorfree--setup-test parameters)
               (condition-case error
                   (progn
-                    (eval (cursorfree--test-parameters-command-form parameters))
+                    (if (cursorfree--test-parameters-should-error parameters)
+                        (should-error
+                         (eval (cursorfree--test-parameters-command-form parameters)))
+                      (eval (cursorfree--test-parameters-command-form parameters)))
                     (cursorfree--test-check-state parameters t))
                 (ert-test-failed (signal (car error) (cdr error)))
                 (error (error "(same buffer) %s" (error-message-string error))))
@@ -127,9 +131,14 @@
                 (switch-to-buffer alternative-buffer)
                 (condition-case error
                     (progn
-                      (eval (cursorfree--test-inject-buffer
-                             (cursorfree--test-parameters-command-form parameters)
-                             test-buffer))
+                      (if (cursorfree--test-parameters-should-error parameters)
+                          (should-error
+                           (eval (cursorfree--test-inject-buffer
+                                  (cursorfree--test-parameters-command-form parameters)
+                                  test-buffer)))
+                        (eval (cursorfree--test-inject-buffer
+                               (cursorfree--test-parameters-command-form parameters)
+                               test-buffer)))
                       (select-window (get-buffer-window test-buffer))
                       (cursorfree--test-check-state parameters nil))
                   (ert-test-failed (signal (car error) (cdr error)))
@@ -288,6 +297,36 @@
                     (cursorfree-make-target (cons 20 24))
                     (cursorfree-this))
     :from-same-buffer t)))
+
+(ert-deftest cursorfree--do-bring-invalid-destination ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Arbitrary text"
+             :points '(5))
+    :after (make-cursorfree--test-buffer-state
+            :string "Arbitrary text"
+            :points '(5))
+    :command-form '(cursorfree-do-bring
+                    (cursorfree-everything)
+                    (cursorfree-this)
+                    'invalid-destination)
+    :should-error t)))
+
+(ert-deftest cursorfree--do-move-invalid-destination ()
+  (cursorfree--run-test
+   (make-cursorfree--test-parameters
+    :before (make-cursorfree--test-buffer-state
+             :string "Arbitrary text"
+             :points '(5))
+    :after (make-cursorfree--test-buffer-state
+            :string "Arbitrary text"
+            :points '(5))
+    :command-form '(cursorfree-do-move
+                    (cursorfree-everything)
+                    (cursorfree-this)
+                    'invalid-destination)
+    :should-error t)))
 
 (ert-deftest cursorfree--test-chuck ()
   "chuck."
