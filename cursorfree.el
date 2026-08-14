@@ -837,7 +837,7 @@ This function provides visual feedback for TARGET, and sets
   (cursorfree-delete target)
   (setq cursorfree--target-that target))
 
-(define-obsolete-function-alias 'cursorfree-chuck #'cursorfree-delete "0.4.0")
+(define-obsolete-function-alias 'cursorfree-chuck #'cursorfree-delete "2026-08-15")
 
 (cl-defgeneric cursorfree-bring (source target)
   "Overwrite TARGET with SOURCE.
