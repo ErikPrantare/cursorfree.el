@@ -745,12 +745,6 @@ associated buffer of TARGET."
     (lambda (region)
       (goto-char (cdr region)))))
 
-(defun cursorfree-indent (target)
-  "Indent TARGET."
-  (cursorfree-on-content-region target
-    (lambda (region)
-      (indent-region (car region) (cdr region)))))
-
 (defun cursorfree-copy (target)
   "Copy TARGET to kill ring.
 
@@ -1030,43 +1024,60 @@ This function provides visual feedback for SOURCE and TARGET, and sets
   (cursorfree-bring-after target target))
 
 (defmacro cursorfree--simple-content-function (name docstring function)
-  "Define function with NAME applying FUNCTION on targets.
-Use DOCSTRING for the new function.
+  "Define functions applying FUNCTION on a targets content region.
 
-For each argument, the defined function NAME invokes FUNCTION on the
-content region.  Afterwards, the region will be pulsed."
-  (declare (indent defun))
-  `(defun ,name (&rest targets)
-     ,docstring
-     (dolist (target targets)
-       (cursorfree-on-content-region target
-         (lambda (region)
-           (,function (car region) (cdr region))))
-       (cursorfree-pulse target))))
+NAME and FUNCTION are unquoted.
 
-(cursorfree--simple-content-function cursorfree-make-comment
-  "Comment out TARGETS."
+Two functions are defined, cursorfree-NAME and cursorfree-do-NAME, both
+taking one parameter named TARGET.
+
+cursorfree-NAME applies FUNCTION to the content region of its parameter.
+This function will have DOCSTRING as its docstring.
+
+cursorfree-do-NAME invokes cursorfree-NAME but also provides visual
+feedback for what target was operated on."
+  (declare (indent defun)
+           (doc-string 2))
+  (let ((function-name (intern (format "cursorfree-%s" name)))
+        (function-do-name (intern (format "cursorfree-do-%s" name))))
+    `(progn
+       (defun ,function-name (target)
+         ,docstring
+         (cursorfree-on-content-region target
+           (lambda (region)
+             (,function (car region) (cdr region)))))
+       (defun ,function-do-name (target)
+         ,(format "Invoke `%s' with visual feedback." function-name)
+         (,function-name target)
+         (cursorfree-pulse target)))))
+
+(cursorfree--simple-content-function make-comment
+  "Comment out TARGET."
   comment-region)
 
-(cursorfree--simple-content-function cursorfree-uncomment
-  "Uncomment TARGETS."
+(cursorfree--simple-content-function uncomment
+  "Uncomment TARGET."
   uncomment-region)
 
-(cursorfree--simple-content-function cursorfree-narrow
-  "Narrow region to the last element of TARGETS."
+(cursorfree--simple-content-function narrow
+  "Narrow to TARGET."
   narrow-to-region)
 
-(cursorfree--simple-content-function cursorfree-capitalize
-  "Capitalize the first character of each word in TARGETS."
+(cursorfree--simple-content-function capitalize
+  "Capitalize the first character of each word in TARGET."
   capitalize-region)
 
-(cursorfree--simple-content-function cursorfree-upcase
-  "Convert TARGETS to upper case."
+(cursorfree--simple-content-function upcase
+  "Convert TARGET to upper case."
   upcase-region)
 
-(cursorfree--simple-content-function cursorfree-downcase
+(cursorfree--simple-content-function downcase
   "Convert TARGET to lower case."
   downcase-region)
+
+(cursorfree--simple-content-function indent
+  "Indent TARGET."
+  indent-region)
 
 (cl-defgeneric cursorfree--tidy-region (region)
   "Tidy up REGION."

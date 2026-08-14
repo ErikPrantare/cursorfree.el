@@ -1,11 +1,19 @@
 * NEXT
 - ~cursorfree-pick~ can now follow ~shr.el~ links.
 - ~cursorfree-delete~, ~cursorfree-bring~, ~cursorfree-move~,
-  ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
-- A handful of functions now have ~do~ variants,
-  e.g. ~cursorfree-do-bring~.  These functions are meant for
-  interactive usage, and do things like target highlighting and
-  populating ~cursorfree-that~.
+  ~cursorfree-change~, ~cursorfree-wrap~, ~cursorfree-make-comment~,
+  ~cursorfree-uncomment~, ~cursorfree-narrow~,
+  ~cursorfree-capitalize~, ~cursorfree-upcase~, and
+  ~cursorfree-downcase~ are no longer variadic.
+- A handful of functions now have ~do~ variants:
+  ~cursorfree-do-bring~, ~cursorfree-do-capitalize~,
+  ~cursorfree-do-change~, ~cursorfree-do-copy~,
+  ~cursorfree-do-delete~, ~cursorfree-do-downcase~,
+  ~cursorfree-do-indent~, ~cursorfree-do-make-comment~,
+  ~cursorfree-do-move~, ~cursorfree-do-narrow~,
+  ~cursorfree-do-uncomment~, and ~cursorfree-do-upcase~.  These
+  functions are meant for interactive usage, and do things like target
+  highlighting and populating ~cursorfree-that~.
 - Both arguments to ~cursorfree-bring~ are now mandatory.  For the old
   behaviour with an omitted second argument, use
   ~cursorfree-bring-here~.

@@ -164,39 +164,39 @@ important actions are ~pre~, ~take~, ~change~, ~bring~ and ~move~.
 The following table lists the different actions, both the spoken form
 and the corresponding library function.
 
-|-------------+--------------------------------------+---------------------------|
-| Spoken form | Description                          | Function                  |
-|-------------+--------------------------------------+---------------------------|
-| take        | Select target                        | cursorfree-select         |
-| copy        | Copy to kill ring                    | cursorfree-copy           |
-| chuck       | Delete target                        | cursorfree-delete         |
-| clone       | Insert a copy after itself           | cursorfree-clone          |
-| jump        | Move point to target                 | cursorfree-jump           |
-| pre         | Move point to beginning              | cursorfree-jump-beginning |
-| post        | Move point to end                    | cursorfree-jump-end       |
-| comment     | Comment out                          | cursorfree-make-comment   |
-| uncomment   | Uncomment                            | cursorfree-uncomment      |
-| indent      | Indent                               | cursorfree-indent         |
-| narrow      | Narrow buffer to target              | cursorfree-narrow         |
-| title       | Capitalize each word                 | cursorfree-capitalize     |
-| upcase      | Convert to upper case                | cursorfree-upcase         |
-| downcase    | Convert to lower case                | cursorfree-downcase       |
-| crown       | Scroll target to top of window       | cursorfree-crown          |
-| center      | Scroll target to center of window    | cursorfree-center         |
-| bottom      | Scroll target to bottom of window    | cursorfree-bottom         |
-| pick        | Follow or activate thing at target   | cursorfree-pick           |
-| fuse        | Remove all whitespace within target  | cursorfree-fuse           |
-| tidy        | Tidy up whitespace and formatting    | cursorfree-tidy           |
-| join        | Join into one line                   | cursorfree-join           |
-| break       | Insert newline before target         | cursorfree-break          |
-| flash       | Temporarily highlight                | cursorfree-pulse          |
-| help        | Show help at target                  | cursorfree-help           |
-| drink       | Insert empty line before, jump there | cursorfree-drink          |
-| pour        | Insert empty line after, jump there  | cursorfree-pour           |
-| drop        | Insert empty line before             | cursorfree-drop           |
-| float       | Insert empty line after              | cursorfree-float          |
-| puff        | Insert empty lines around            | cursorfree-puff           |
-|-------------+--------------------------------------+---------------------------|
+|-------------+--------------------------------------+----------------------------|
+| Spoken form | Description                          | Function                   |
+|-------------+--------------------------------------+----------------------------|
+| take        | Select target                        | cursorfree-select          |
+| copy        | Copy to kill ring                    | cursorfree-copy            |
+| chuck       | Delete target                        | cursorfree-delete          |
+| clone       | Insert a copy after itself           | cursorfree-clone           |
+| jump        | Move point to target                 | cursorfree-jump            |
+| pre         | Move point to beginning              | cursorfree-jump-beginning  |
+| post        | Move point to end                    | cursorfree-jump-end        |
+| comment     | Comment out                          | cursorfree-do-make-comment |
+| uncomment   | Uncomment                            | cursorfree-do-uncomment    |
+| indent      | Indent                               | cursorfree-do-indent       |
+| narrow      | Narrow buffer to target              | cursorfree-do-narrow       |
+| title       | Capitalize each word                 | cursorfree-do-capitalize   |
+| upcase      | Convert to upper case                | cursorfree-do-upcase       |
+| downcase    | Convert to lower case                | cursorfree-do-downcase     |
+| crown       | Scroll target to top of window       | cursorfree-crown           |
+| center      | Scroll target to center of window    | cursorfree-center          |
+| bottom      | Scroll target to bottom of window    | cursorfree-bottom          |
+| pick        | Follow or activate thing at target   | cursorfree-pick            |
+| fuse        | Remove all whitespace within target  | cursorfree-fuse            |
+| tidy        | Tidy up whitespace and formatting    | cursorfree-tidy            |
+| join        | Join into one line                   | cursorfree-join            |
+| break       | Insert newline before target         | cursorfree-break           |
+| flash       | Temporarily highlight                | cursorfree-pulse           |
+| help        | Show help at target                  | cursorfree-help            |
+| drink       | Insert empty line before, jump there | cursorfree-drink           |
+| pour        | Insert empty line after, jump there  | cursorfree-pour            |
+| drop        | Insert empty line before             | cursorfree-drop            |
+| float       | Insert empty line after              | cursorfree-float           |
+| puff        | Insert empty lines around            | cursorfree-puff            |
+|-------------+--------------------------------------+----------------------------|
 
 Some actions have more complex spoken forms:
 
