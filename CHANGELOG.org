@@ -3,12 +3,20 @@
 - ~cursorfree-chuck~, ~cursorfree-bring~, ~cursorfree-move~,
   ~cursorfree-change~, and ~cursorfree-wrap~ are no longer variadic.
 - A handful of functions now have ~do~ variants,
-  e.g. ~cursorfree-do-bring~.  These functions are meant for more
+  e.g. ~cursorfree-do-bring~.  These functions are meant for
   interactive usage, and do things like target highlighting and
   populating ~cursorfree-that~.
 - Both arguments to ~cursorfree-bring~ are now mandatory.  For the old
   behaviour with an omitted second argument, use
   ~cursorfree-bring-here~.
+- Both arguments to ~cursorfree-move~ are now mandatory.  For the old
+  behaviour with an omitted second argument, use
+  ~(cursorfree-move x (cursorfree-this))~.
+- ~bring~ and ~move~ can now bring to before or after via an
+  additional parameter.  E.g., ~"bring <s> before <t>"~ will put
+  target ~<s>~ before target ~<t>~.  The corresponding Elisp functions
+  are ~cursorfree-bring-before~, ~cursorfree-bring-after~,
+  ~cursorfree-move-before~, and ~cursorfree-move-after~.
 
 * 0.3.0 [2026-06-02 Tue]
 - Added [[https://github.com/ErikPrantare/phony.el][phony.el]] speech bindings.  Load ~cursorfree-phony~ and say

@@ -283,9 +283,9 @@ See documentation for `hatty-locate-token' for more information."
 
 (phony-define-dictionary cursorfree--destination-modifiers
   "Method for putting a target at a destination."
-  `(("to" . cursorfree-bring)
-    ("after" . cursorfree-bring-after)
-    ("before" . cursorfree-bring-before)))
+  `(("to" . nil)
+    ("after" . after)
+    ("before" . before)))
 
 (phony-defun cursorfree--bring
     ("bring"

@@ -916,14 +916,22 @@ your goal by specializing one of the functions in the form above, as
 they are more general."
   (cursorfree-put-after target (cursorfree-get source)))
 
-(defun cursorfree-do-bring (source &optional target bringer)
-  "Bring SOURCE to TARGET with BRINGER, indicating the result.
+(defun cursorfree-do-bring (source &optional target where)
+  "Bring SOURCE to TARGET.
 
-If TARGET is nil or omitted, bring SOURCE to `cursorfree-this' instead.
-BRINGER is a function of two arguments, a source and a target; it
-defaults to `cursorfree-bring'."
+WHERE is a symbol.  If nil, `cursorfree-bring' is invoked.  If
+\\='before, `cursorfree-bring-before' is invoked.  If \\='after,
+`cursorfree-bring-after' is invoked.
+
+If TARGET is nil or omitted, it defaults to `cursorfree-this' instead.
+
+This function also provides visual feedback for SOURCE and TARGET, and
+sets `cursorfree-that' to TARGET and `cursorfree-source' to SOURCE."
   (setq target (or target (cursorfree-this)))
-  (funcall (or bringer #'cursorfree-bring) source target)
+  (pcase where
+    ('nil (cursorfree-bring source target))
+    ('before (cursorfree-bring-before source target))
+    ('after (cursorfree-bring-after source target)))
   (cursorfree-pulse source)
   (cursorfree-pulse target)
   (setq cursorfree--target-that target)
@@ -937,57 +945,69 @@ This is equivalent to:
   (`cursorfree-bring' SOURCE (`cursorfree-this'))."
   (cursorfree-bring source (cursorfree-this)))
 
-(defun cursorfree-move (source &optional target bringer)
-  "Bring SOURCE to TARGET with BRINGER, then delete SOURCE.
-
-If TARGET is nil or omitted, bring SOURCE to `cursorfree-this' instead.
-BRINGER is a function of two arguments, a source and a target; it
-defaults to `cursorfree-bring'.
-
-To make this function compatible with a new target type, specialize
-`cursorfree-move-dispatch'."
-  (cursorfree-move-dispatch source
-                            (or target (cursorfree-this))
-                            (or bringer #'cursorfree-bring)))
-
-(cl-defgeneric cursorfree-move-dispatch (source target bringer)
-  "Bring SOURCE to TARGET using BRINGER, then delete SOURCE.
-
-BRINGER is a function of two arguments, a source and a target.
-
-By default, this evaluates the following forms:
-
-  (funcall bringer source target)
-  (`cursorfree-delete' source)."
-  (funcall bringer source target)
+(cl-defgeneric cursorfree-move (source target)
+  "Bring SOURCE to TARGET, deleting SOURCE."
+  (cursorfree-bring source target)
   (cursorfree-delete source))
 
-(cl-defmethod cursorfree-move-dispatch ((window window) target bringer)
-  "Bring WINDOW to TARGET with BRINGER.
-Switch buffer of WINDOW to its previous buffer."
-  (funcall bringer window target)
+(cl-defmethod cursorfree-move ((window window) target)
+  "Bring WINDOW to TARGET.
+Switching buffer of WINDOW to its previous buffer."
+  (cursorfree-bring window target)
   (with-selected-window window
     (previous-buffer)))
 
-(cl-defmethod cursorfree-move-dispatch ((buffer buffer) (window window) bringer)
-  "Set the current buffer of WINDOW to BUFFER.
+(cl-defmethod cursorfree-move ((buffer buffer) target)
+  "Bring BUFFER to TARGET.
 
-BUFFER is not deleted, so this is equivalent to `cursorfree-bring'."
-  ;; We do not want to kill the buffer if you move instead of bring.
-  (funcall bringer buffer window))
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring'."
+  (cursorfree-bring buffer target))
 
-(defun cursorfree-do-move (source &optional target bringer)
-  "Move SOURCE to TARGET with BRINGER, indicating the result.
+(cl-defgeneric cursorfree-move-before (source target)
+  "Bring SOURCE before TARGET, deleting SOURCE."
+  (cursorfree-bring-before source target)
+  (cursorfree-delete source))
 
-If TARGET is nil or omitted, move SOURCE to `cursorfree-this' instead.
-BRINGER is a function of two arguments, a source and a target; it
-defaults to `cursorfree-bring'."
+(cl-defmethod cursorfree-move-before ((buffer buffer) target)
+  "Bring BUFFER before TARGET.
+
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring-before'."
+  (cursorfree-bring-before buffer target))
+
+(cl-defgeneric cursorfree-move-after (source target)
+  "Bring SOURCE after TARGET, deleting SOURCE."
+  (cursorfree-bring-after source target)
+  (cursorfree-delete source))
+
+(cl-defmethod cursorfree-move-after ((buffer buffer) target)
+  "Bring BUFFER after TARGET.
+
+This does not delete BUFFER for safety reasons.  This method is
+equivalent to `cursorfree-bring-after'."
+  (cursorfree-bring-after buffer target))
+
+(cl-defgeneric cursorfree-do-move (source &optional target where)
+  "Bring SOURCE to TARGET, deleting SOURCE.
+
+WHERE is a symbol.  If nil, `cursorfree-move' is invoked.  If
+\\='before, `cursorfree-move-before' is invoked.  If \\='after,
+`cursorfree-move-after' is invoked.
+
+If TARGET is nil or omitted, it defaults to the result of
+`cursorfree-this'.
+
+This function provides visual feedback for SOURCE and TARGET, and sets
+`cursorfree-that' to TARGET."
   (setq target (or target (cursorfree-this)))
   (cursorfree--indicate-deletion source)
-  (cursorfree-move source target bringer)
+  (pcase where
+    ('nil (cursorfree-move source target))
+    ('before (cursorfree-move-before source target))
+    ('after (cursorfree-move-after source target)))
   (cursorfree-pulse target)
-  (setq cursorfree--target-that target)
-  (setq cursorfree--target-source source))
+  (setq cursorfree--target-that target))
 
 (cl-defgeneric cursorfree-swap (target1 target2)
   "Swap the contents of TARGET1 and TARGET2."

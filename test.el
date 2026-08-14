@@ -274,7 +274,7 @@
                     (cursorfree-make-target (cons 1 7))
                     (cursorfree-make-target (cons 14 16))))))
 
-(ert-deftest cursorfree--test-move-to-point ()
+(ert-deftest cursorfree--test-move-to-this ()
   "move to point."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -285,7 +285,8 @@
             :string "Moving a word to point"
             :points '(14))
     :command-form '(cursorfree-move
-                    (cursorfree-make-target (cons 20 24)))
+                    (cursorfree-make-target (cons 20 24))
+                    (cursorfree-this))
     :from-same-buffer t)))
 
 (ert-deftest cursorfree--test-chuck ()
@@ -927,7 +928,7 @@
     '(cursorfree-chuck
       (cursorfree-line (cursorfree-make-target (cons 1 2)))))))
 
-(ert-deftest cursorfree--test-line-move ()
+(ert-deftest cursorfree--test-line-move-after ()
   "line move."
   (cursorfree--run-test
    (make-cursorfree--test-parameters
@@ -938,10 +939,9 @@
             :string "another one\na line\n"
             :points '(1))
     :command-form
-    '(cursorfree-move
+    '(cursorfree-move-after
       (cursorfree-line (cursorfree-make-target (cons 1 1)))
-      (cursorfree-line (cursorfree-make-target (cons 9 10)))
-      #'cursorfree-bring-after))))
+      (cursorfree-line (cursorfree-make-target (cons 9 10)))))))
 
 (ert-deftest cursorfree--test-that ()
   "that."
