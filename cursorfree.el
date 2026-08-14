@@ -953,7 +953,7 @@ This is equivalent to:
 
 (cl-defmethod cursorfree-move ((window window) target)
   "Bring WINDOW to TARGET.
-Switching buffer of WINDOW to its previous buffer."
+Switch buffer of WINDOW to its previous buffer."
   (cursorfree-bring window target)
   (with-selected-window window
     (previous-buffer)))
@@ -970,6 +970,13 @@ equivalent to `cursorfree-bring'."
   (cursorfree-bring-before source target)
   (cursorfree-delete source))
 
+(cl-defmethod cursorfree-move-before ((window window) target)
+  "Bring WINDOW before TARGET.
+Switch buffer of WINDOW to its previous buffer."
+  (cursorfree-bring-before window target)
+  (with-selected-window window
+    (previous-buffer)))
+
 (cl-defmethod cursorfree-move-before ((buffer buffer) target)
   "Bring BUFFER before TARGET.
 
@@ -981,6 +988,13 @@ equivalent to `cursorfree-bring-before'."
   "Bring SOURCE after TARGET, deleting SOURCE."
   (cursorfree-bring-after source target)
   (cursorfree-delete source))
+
+(cl-defmethod cursorfree-move-after ((window window) target)
+  "Bring WINDOW after TARGET.
+Switch buffer of WINDOW to its previous buffer."
+  (cursorfree-bring-after window target)
+  (with-selected-window window
+    (previous-buffer)))
 
 (cl-defmethod cursorfree-move-after ((buffer buffer) target)
   "Bring BUFFER after TARGET.
