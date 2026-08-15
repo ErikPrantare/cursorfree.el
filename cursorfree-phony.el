@@ -228,8 +228,8 @@ See the rule `cursorfree-target' for the semantics of ELEMENTS."
   "Primitive computed through a function call."
   `(("clip" . cursorfree-kill-ring)
     ("primary" . cursorfree-primary-selection)
-    ("that" . ,(lambda () cursorfree--target-that))
-    ("source" . ,(lambda () cursorfree--target-source))
+    ("that" . cursorfree-that)
+    ("source" . cursorfree-source)
     ("its" . ,(lambda () cursorfree-phony--last-evaluation-result))
     ("itself" . ,(lambda () cursorfree-phony--last-evaluation-result))))
 
