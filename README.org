@@ -1,21 +1,17 @@
 #+title: cursorfree.el
-A GNU Emacs package for specifying complex and extensible editor
-operations.
+An extensible spoken language for controlling Emacs.
 
 * Description
 :PROPERTIES:
 :CUSTOM_ID: description
 :END:
-cursorfree.el provides a library for composing complex high-level
-editor operations.  Examples include yanking to multiple parts of the
-buffer simultaneously, following links displayed in non-selected
-windows, and deleting a region while keeping whitespace tidy and
-without moving point.
+cursorfree.el provides an extensible spoken language for controlling
+Emacs by voice, leveraging the richness of spoken language to provide
+commands more complex than would be normally comfortable with a
+keyboard.
 
-This package also provides a spoken command language using [[https://github.com/ErikPrantare/phony.el][phony.el]] to
-allow controlling Emacs using your voice.  Being able to do this was
-the motivating goal of this package, leveraging the natural richness
-possible with spoken language.
+The underlying model for controlling Emacs is also exposed as an Elisp
+library, and can be used outside the area of voice control.
 
 This package was inspired by [[https://github.com/cursorless-dev/cursorless/][cursorless]], a package providing similar
 faculties for VSCode.
@@ -56,7 +52,7 @@ faculties for VSCode.
 - [[https://github.com/ErikPrantare/hatty.el][hatty.el]] for a way to query arbitrary positions in the visible
   buffer text.
 - [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]] for integration with multiple-cursors.  Useful
-  when working with multiple targets at once.
+  when operating on multiple targets at once.
 
 ** Installation
 :PROPERTIES:
@@ -128,7 +124,8 @@ paragraph at line 42 with the text spanning line 13 to 15.
 
 There are a heap of different actions, primitives, modifiers and
 infixes, not all of them related to the regions of the buffer.
-Following is a list of all available elements for forming a command.
+Following is a list of all available elements for forming a command,
+along with the underlying function whenever it is available.
 
 ** Primitives
 :PROPERTIES:
@@ -136,23 +133,23 @@ Following is a list of all available elements for forming a command.
 :END:
 A primitive is a target that can be referred to directly.
 
-|-----------------------------+----------------------------------------------|
-| Spoken form                 | Description                                  |
-|-----------------------------+----------------------------------------------|
-| [color] [shape] <character> | Token under a hatty hat (see hatty package). |
-| car <character>             | The character itself as a string.            |
-| word <word>                 | The word itself as a string.                 |
-| numb <number>               | The number itself.                           |
-| row <number>                | Line with the given number (modulo 100).     |
-| long row <number>           | Line with the given number (exact).          |
-| split <number>              | Window with the given [[https://melpa.org/#/winum][winum.el]] index.        |
-| this                        | Point, or region if active.                  |
-| that                        | The target of the last action.               |
-| source                      | The source of the last action.               |
-| clip                        | The kill ring.                               |
-| primary                     | The primary selection.                       |
-| its, itself                 | The result of the last evaluation.           |
-|-----------------------------+----------------------------------------------|
+|-----------------------------+----------------------------------------------+------------------------------|
+| Spoken form                 | Description                                  | Function                     |
+|-----------------------------+----------------------------------------------+------------------------------|
+| [color] [shape] <character> | Token under a hatty hat (see hatty package). |                              |
+| car <character>             | The character itself as a string.            |                              |
+| word <word>                 | The word itself as a string.                 |                              |
+| numb <number>               | The number itself.                           |                              |
+| row <number>                | Line with the given number (modulo 100).     | cursorfree-row-modulo-100    |
+| long row <number>           | Line with the given number (exact).          | cursorfree-row               |
+| split <number>              | Window with the given [[https://melpa.org/#/winum][winum.el]] index.        |                              |
+| this                        | Point, or region if active.                  | cursorfree-this              |
+| that                        | The target of the last action.               | cursorfree-that              |
+| source                      | The source of the last action.               | cursorfree-source            |
+| clip                        | The kill ring.                               | cursorfree-kill-ring         |
+| primary                     | The primary selection.                       | cursorfree-primary-selection |
+| its, itself                 | The result of the last evaluation.           |                              |
+|-----------------------------+----------------------------------------------+------------------------------|
 
 ** Actions
 :PROPERTIES:
