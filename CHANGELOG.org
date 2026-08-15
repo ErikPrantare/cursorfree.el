@@ -1,3 +1,6 @@
+* 0.4.1 [2026-08-15 Sat]
+- Fix "buffer" in spoken grammar not invoking the correct function.
+
 * 0.4.0 [2026-08-15 Sat]
 - ~cursorfree-pick~ can now follow ~shr.el~ links.
 - ~cursorfree-delete~, ~cursorfree-bring~, ~cursorfree-move~,

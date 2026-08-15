@@ -443,7 +443,7 @@ CONTEXT-LINES is given, show that many lines of context."
     ("preve" . cursorfree-previous)
     ("beginning" . cursorfree-beginning)
     ("end" . cursorfree-end)
-    ("buffer" . cursorfree-buffer)
+    ("buffer" . cursorfree-buffer-or-current)
     ("split" . cursorfree-window-or-selected)
     ("word" . cursorfree-word)
     ("symbol" . cursorfree-symbol)
