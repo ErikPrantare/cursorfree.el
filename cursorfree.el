@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare <erik@prantare.xyz>
 ;; Keywords: convenience
-;; Version: 0.4.2
+;; Version: 0.4.3
 ;; Homepage: https://github.com/ErikPrantare/cursorfree.el
 ;; Package-Requires: ((emacs "29.1"))
 ;; Created: 06 Sep 2024
@@ -408,17 +408,18 @@ For a similar function not creating new cursors, see
          (funcall f region))))
    target))
 
-(declare-function hatty-locate-token "hatty")
-
 (defun cursorfree--make-target-from-hat (character &optional color shape)
   "Return target spanning a hatty token.
 
 The token is indexed by CHARACTER, COLOR and SHAPE, as specified
-by `hatty-locate-token'."
-  (require 'hatty)
-  (if-let* ((region (hatty-locate-token character color shape)))
-      (cursorfree-make-target region)
-    (user-error "No such hat: color %s, shape %s, character %c" color shape character)))
+by `hatty-locate-token'.
+
+This function depends on the `hatty' package."
+  (if (fboundp 'hatty-locate-token)
+      (if-let* ((region (hatty-locate-token character color shape)))
+          (cursorfree-make-target region)
+        (user-error "No such hat: color %s, shape %s, character %c" color shape character))
+    (error "Hatty is not installed")))
 
 (cl-defgeneric cursorfree-get (target)
   "Return the content referred to by TARGET."
