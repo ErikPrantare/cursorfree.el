@@ -1,4 +1,4 @@
-* NEXT
+* 0.4.3 [2026-08-16 Sun]
 Fixes some issues before MELPA release.
 
 * 0.4.2 [2026-08-15 Sat]
