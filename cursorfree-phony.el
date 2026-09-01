@@ -2,12 +2,6 @@
 
 ;; Copyright (C) 2025, 2026  Erik Präntare
 
-;; Author: Erik Präntare <erik@prantare.xyz>
-;; Keywords: convenience
-;; Version: 0.3.0
-;; Homepage: https://github.com/ErikPrantare/cursorfree.el
-;; Package-Requires: ((emacs "29.1") (phony "1.1.0"))
-
 ;; cursorfree-phony.el is free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU Affero General Public
 ;; License as published by the Free Software Foundation, either
@@ -24,11 +18,11 @@
 
 ;;; Commentary:
 
-;; This package provides phony voice control rules for cursorfree.
+;; This package provides phony.el voice control rules for cursorfree.
 
 ;;; Code:
 
-(require 'cursorfree)
+(require 'cursorfree-core)
 (require 'phony)
 
 (phony-module cursorfree "cursorfree")

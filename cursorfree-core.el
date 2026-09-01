@@ -3,21 +3,16 @@
 ;; Copyright (C) 2024, 2025, 2026  Erik Präntare
 
 ;; Author: Erik Präntare <erik@prantare.xyz>
-;; Keywords: convenience
-;; Version: 0.4.3
-;; Homepage: https://github.com/ErikPrantare/cursorfree.el
-;; Package-Requires: ((emacs "29.1"))
-;; Created: 06 Sep 2024
 
-;; cursorfree.el is free software; you can redistribute it and/or
+;; cursorfree-core.el is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Affero General Public License
 ;; as published by the Free Software Foundation, either version 3 of
 ;; the License, or (at your option) any later version.
 
-;; cursorfree.el is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;; General Public License for more details.
+;; cursorfree-core.el is distributed in the hope that it will be
+;; useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+;; of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU Affero General Public
 ;; License along with this program.  If not, see
@@ -25,11 +20,8 @@
 
 ;;; Commentary:
 
-;; This package provides functionality for making complex editing
-;; commands possible.  The functionality was made to leverage the
-;; expressive power of voice control.  This package also comes with a
-;; grammar, defined using the package "phony", that can be hooked up
-;; to a voice control engine to control Emacs.
+;; This file defines the model and programmatic interface for
+;; cursorfree.
 
 ;;; Code:
 
@@ -2049,6 +2041,6 @@ For example, if `cursorfree-bring' was the previous operation, this
 returns the source of that."
   cursorfree--target-source)
 
-;;; cursorfree.el ends soon
-(provide 'cursorfree)
-;;; cursorfree.el ends here
+;;; cursorfree-core.el ends soon
+(provide 'cursorfree-core)
+;;; cursorfree-core.el ends here
