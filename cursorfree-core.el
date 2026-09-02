@@ -1666,7 +1666,7 @@ buffer of TARGET1."
   (cursorfree-make-target
    (car (region-bounds))))
 
-(make-obsolete #'cursorfree-current-selection #'cursorfree-this
+(make-obsolete 'cursorfree-current-selection #'cursorfree-this
                "0.3.0")
 
 (defun cursorfree--expand-bounds (target bounds-function)
