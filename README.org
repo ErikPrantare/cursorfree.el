@@ -47,8 +47,6 @@ faculties for VSCode.
 :PROPERTIES:
 :CUSTOM_ID: recommended-dependencies
 :END:
-- [[https://github.com/ErikPrantare/phony.el][phony.el]] if this package is to be used for controlling Emacs by
-  voice.
 - [[https://github.com/ErikPrantare/hatty.el][hatty.el]] for a way to query arbitrary positions in the visible
   buffer text.
 - [[https://github.com/magnars/multiple-cursors.el][multiple-cursors.el]] for integration with multiple-cursors.  Useful
@@ -71,20 +69,16 @@ To install this package, add the following to your configuration:
 :PROPERTIES:
 :CUSTOM_ID: talon-integration
 :END:
-To use the spoken command language, install [[https://github.com/ErikPrantare/phony.el][phony.el]].  The command
-language defined here assumes that the rules ~digit~, ~word~,
-~number~, ~any-alphanumeric-key~, and ~symbol-key~ are defined.  This
-may be provided by the user or by loading
+To use the spoken command language, first set up [[https://github.com/ErikPrantare/phony.el][phony.el]].
+
+The command language defined by cursorfree assumes that the rules
+~digit~, ~word~, ~number~, ~any-alphanumeric-key~, and ~symbol-key~
+are defined.  This may be provided by the user or by loading
 ~phony-talon-community-bindings~ from phony.el.
 
-After that, add the following to your configuration:
-
-#+begin_src elisp
-  (use-package cursorfree-phony)
-#+end_src
-
-To enable the command language, either utter ~"phony enable cursorfree"~
-or add ~(phony-enable-module 'cursorfree)~ to your configuration.
+To enable the command language, either utter ~"phony enable
+cursorfree"~ or add ~(phony-enable-module 'cursorfree)~ to your
+configuration.
 
 * Usage
 :PROPERTIES:
