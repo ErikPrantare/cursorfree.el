@@ -56,14 +56,7 @@ faculties for VSCode.
 :PROPERTIES:
 :CUSTOM_ID: installation
 :END:
-To install this package, add the following to your configuration:
-
-#+begin_src elisp
-  (use-package cursorfree
-    :vc (:url "https://github.com/ErikPrantare/cursorfree.el"
-              :branch "master"
-              :rev :newest))
-#+end_src
+This package is available on [[https://melpa.org/#/getting-started][MELPA]] as ~cursorfree~.
 
 ** Talon integration
 :PROPERTIES:

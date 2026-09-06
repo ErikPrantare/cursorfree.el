@@ -1,3 +1,6 @@
+* NEXT
+Cursorfree is now on MELPA.
+
 * 0.5.0 [2026-09-05 Sat]
 Cursorfree now has phony as one of its hard dependencies.  In the
 future, the core model may be factored out into a separate
