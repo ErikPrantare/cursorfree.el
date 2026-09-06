@@ -1,4 +1,4 @@
-* NEXT
+* 1.0.0 [2026-09-06 Sun]
 Cursorfree is now on MELPA.
 
 * 0.5.0 [2026-09-05 Sat]
